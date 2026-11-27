@@ -147,7 +147,7 @@ async function setPin(pin,noSync){SALT=crypto.getRandomValues(new Uint8Array(16)
 async function unlock(pin){
   const o=stored();const salt=ub64(o.salt);const k=await deriveKey(pin,salt);
   const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},k,ub64(o.ct));
-  DB=Object.assign(blank(),JSON.parse(dec.decode(pt)));KEYOBJ=k;SALT=salt;PINMEM=pin;locked=false;setTimeout(syncNow,300);
+  DB=Object.assign(blank(),JSON.parse(dec.decode(pt)));KEYOBJ=k;SALT=salt;PINMEM=pin;locked=false;setTimeout(syncNow,300);setTimeout(()=>runBackup(),9000);
 }
 function lockNow(){if(!KEYOBJ)return;KEYOBJ=null;PINMEM=null;DB=blank();lastSheets=[];locked=true;render()}
 function eraseAll(){PINMEM=null;try{localStorage.removeItem(KEY);localStorage.removeItem(OLD)}catch(e){}KEYOBJ=null;SALT=null;DB=blank();lastSheets=[];locked=false;noSave=false;$('#status').innerHTML='';render()}
@@ -205,6 +205,8 @@ function mergeDB(L,R){
   if((R.impT||0)>(L.impT||0))for(const k of['months','mf','mfF','biz','funds','report','map','impT'])o[k]=R[k];
   [o.manual,o.del]=pickNewest(L.manual,R.manual,L.del,R.del);
   [o.manualM,o.delM]=pickNewest(L.manualM,R.manualM,L.delM,R.delM);
+  {const c=[[L.backup,L.backup?L.backup.setAt||0:-1],[R.backup,R.backup?R.backup.setAt||0:-1],[null,L.backupOff||0],[null,R.backupOff||0]];let best=null;for(const x of c)if(x[1]>=0&&(!best||x[1]>best[1]||(x[1]===best[1]&&x[0]&&(!best[0]||(x[0].lastAt||0)>(best[0].lastAt||0)))))best=x;
+   o.backupOff=Math.max(L.backupOff||0,R.backupOff||0);if(best&&best[0])o.backup=best[0];else delete o.backup}
   return o;
 }
 const sig=db=>JSON.stringify([db.impT||0,db.manual,db.manualM,db.del,db.delM]);
@@ -257,7 +259,7 @@ function syncStatusHTML(){
   return syncSt.state==='ok'?`<span class="upc">✓ Synced ${ago(syncSt.at)}</span>`:syncSt.state==='busy'?'Syncing…':`<span class="dnc">${esc(syncSt.msg||'Not synced yet')}</span>`;
 }
 setInterval(()=>{if(!document.hidden)syncNow()},5*60e3);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncNow()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncNow();setTimeout(()=>runBackup(),9000)}});
 addEventListener('online',()=>syncNow());
 const st={year:null,q:'',group:'month',month:'all'};
 let defYear=new Date().getFullYear();
@@ -437,7 +439,7 @@ function ingest(sheets){
     const ov=DB.map[s.name]||{};const ctx=sheetMonth(s.name);
     const isOv=/^\s*(20\d\d)\s*$/.test(s.name)||/overview|summary|mother/i.test(s.name);
     let type=ov.type==='mf'?'overview':ov.type||(ctx?'month':isOv?'overview':'skip');
-    if(!ov.type&&type==='skip'){const t=parseMonthSheet(s.rows,null,null);if(t&&t.h.amt!=null&&t.h.date!=null&&t.exp.length)type='month'}
+    if(!ov.type&&type==='skip'&&!/all expenses|graph/i.test(s.name)){const t=parseMonthSheet(s.rows,null,null);if(t&&t.h.amt!=null&&t.h.date!=null&&t.exp.length)type='month'}
     const R={name:s.name,type,ctx,hdr:null,headers:[]};
     if(type==='month'){const ms=parseMonthSheet(s.rows,ctx,ov);
       if(ms&&ms.n){const yms=new Set(),fresh={};
@@ -848,6 +850,224 @@ const needPin=()=>canCrypt&&!KEYOBJ&&!DB.demo&&!noSave&&hasData();
 function pinCard(){return`<section class="card" id="pinCard" style="border:2px solid var(--band)"><h2>Protect your data with a PIN</h2><p style="margin:0">Right now nothing is saved: your data disappears when you close this page. Set a PIN to keep it on this device, encrypted.</p>${pinForm('pf','Save with PIN')}<button class="btn" type="button" id="nosave" style="margin-top:8px">Don’t save, I’ll upload each time</button></section>`}
 function bindPinCard(){bindPinForm('pf',()=>{flash('Saved and encrypted with your PIN.');render()});const n=$('#nosave');if(n)n.onclick=()=>{noSave=true;render()}}
 function reingest(){if(lastSheets.length){ingest(lastSheets);render()}}
+/* ---------- Excel backup: writes a formatted .xlsx in your own sheet layout ---------- */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=u=>{let c=~0;for(let i=0;i<u.length;i++)c=CRCT[(c^u[i])&255]^(c>>>8);return(~c)>>>0};
+function zipBlob(files){
+  const parts=[],central=[];let off=0;
+  for(const f of files){const nm=enc.encode(f.name),d=typeof f.data==='string'?enc.encode(f.data):f.data,c=crc32(d);
+    const lh=new DataView(new ArrayBuffer(30));lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(12,0x21,true);lh.setUint32(14,c,true);lh.setUint32(18,d.length,true);lh.setUint32(22,d.length,true);lh.setUint16(26,nm.length,true);
+    parts.push(new Uint8Array(lh.buffer),nm,d);
+    const ch=new DataView(new ArrayBuffer(46));ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(14,0x21,true);ch.setUint32(16,c,true);ch.setUint32(20,d.length,true);ch.setUint32(24,d.length,true);ch.setUint16(28,nm.length,true);ch.setUint32(42,off,true);
+    central.push(new Uint8Array(ch.buffer),nm);off+=30+nm.length+d.length}
+  const cs=central.reduce((a,b)=>a+b.length,0);const e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...central,new Uint8Array(e.buffer)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+const xesc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
+const xserial=iso=>(Date.UTC(+iso.slice(0,4),+iso.slice(5,7)-1,+iso.slice(8,10))-Date.UTC(1899,11,30))/864e5;
+/* style ids, see STYLES below */
+const S={txt:1,hdr:2,date:3,money:4,off:5,exp:6,totL:7,totM:8,title:9,pct:10,totX:11,note:12,offDate:13,int:14,totI:15};
+const STYLES=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="3"><numFmt numFmtId="164" formatCode="&quot;₹&quot;#,##0"/><numFmt numFmtId="165" formatCode="dd-mm-yyyy"/><numFmt numFmtId="166" formatCode="0.00%"/></numFmts>
+<fonts count="7"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><sz val="11"/><color rgb="FFC81E1E"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFC81E1E"/><name val="Calibri"/></font><font><b/><sz val="15"/><color rgb="FF5B2BB8"/><name val="Calibri"/></font><font><i/><sz val="10"/><color rgb="FF6B7280"/><name val="Calibri"/></font></fonts>
+<fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF6D35D8"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFDE4E4"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEAFAF2"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF4F1FD"/></patternFill></fill></fills>
+<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFD9DCE3"/></left><right style="thin"><color rgb="FFD9DCE3"/></right><top style="thin"><color rgb="FFD9DCE3"/></top><bottom style="thin"><color rgb="FFD9DCE3"/></bottom><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="16">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" applyBorder="1"/>
+<xf numFmtId="0" fontId="1" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+<xf numFmtId="165" fontId="0" fillId="0" borderId="1" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left"/></xf>
+<xf numFmtId="164" fontId="0" fillId="0" borderId="1" applyNumberFormat="1" applyBorder="1"/>
+<xf numFmtId="0" fontId="4" fillId="3" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>
+<xf numFmtId="164" fontId="3" fillId="0" borderId="1" applyNumberFormat="1" applyFont="1" applyBorder="1"/>
+<xf numFmtId="0" fontId="2" fillId="4" borderId="1" applyFont="1" applyFill="1" applyBorder="1"/>
+<xf numFmtId="164" fontId="2" fillId="4" borderId="1" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>
+<xf numFmtId="0" fontId="5" fillId="0" borderId="0" applyFont="1"/>
+<xf numFmtId="166" fontId="0" fillId="0" borderId="1" applyNumberFormat="1" applyBorder="1"/>
+<xf numFmtId="164" fontId="4" fillId="4" borderId="1" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>
+<xf numFmtId="0" fontId="6" fillId="0" borderId="0" applyFont="1"/>
+<xf numFmtId="165" fontId="3" fillId="3" borderId="1" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left"/></xf>
+<xf numFmtId="1" fontId="0" fillId="0" borderId="1" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>
+<xf numFmtId="1" fontId="2" fillId="4" borderId="1" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>
+</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+/* a cell: {v, s, f} — v number or string; f a formula (its value v is stored too, so totals show at once) */
+function sheetXml(rows,widths,freeze,filter){
+  let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>';
+  x+=freeze?`<sheetViews><sheetView workbookViewId="0"><pane ySplit="${freeze}" topLeftCell="A${freeze+1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`:'<sheetViews><sheetView workbookViewId="0"/></sheetViews>';
+  x+='<sheetFormatPr defaultRowHeight="16"/><cols>'+widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')+'</cols><sheetData>';
+  rows.forEach((r,ri)=>{if(!r)return;let rx='';r.forEach((c,ci)=>{if(!c)return;const ref=colName(ci)+(ri+1);const st=c.s?` s="${c.s}"`:'';
+    if(c.f!=null)rx+=`<c r="${ref}"${st}><f>${xesc(c.f)}</f>${c.v!=null&&c.v!==''?`<v>${c.v}</v>`:''}</c>`;
+    else if(typeof c.v==='number')rx+=`<c r="${ref}"${st}><v>${c.v}</v></c>`;
+    else if(c.v!=null&&c.v!=='')rx+=`<c r="${ref}"${st} t="inlineStr"><is><t xml:space="preserve">${xesc(c.v)}</t></is></c>`;
+    else rx+=`<c r="${ref}"${st}/>`});
+    x+=`<row r="${ri+1}"${r.h?` ht="${r.h}" customHeight="1"`:''}>${rx}</row>`});
+  x+='</sheetData>'+(filter?`<autoFilter ref="${filter}"/>`:'')+'<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>';
+  return x;
+}
+const C=(v,s,f)=>({v,s,f});
+function monthSheet(ym,D){
+  const rows=[],t=todayISO(),last=ym===t.slice(0,7)?t:monthEnd(ym);
+  rows[0]=[C(ymLabel(ym).toUpperCase()+' — Money Diary',S.title)];rows[0].h=24;
+  rows[1]=[C('Backup made '+dl(t)+'. Off days are shaded red.',S.note)];
+  rows[2]=['DATE','DAY','MORNING','NIGHT','CREDIT AMOUNT','SL NO','PRODUCT SUMMARY','EXP AMOUNT','PAYMENT MODE'].map(h=>C(h,S.hdr));rows[2].h=30;
+  rows[2][10]=C('MONTH SUMMARY',S.hdr);rows[2][11]=C('',S.hdr);
+  let r=3,sl=0,cr=0,xs=0,wd=0,od=0;const first=4;
+  for(let d=ym+'-01';d<=last;d=addDays(d,1)){
+    const o=D[d]||{m:0,e:0,off:false,exp:[]},day=FULLDAY[new Date(d+'T00:00').getDay()].toUpperCase();
+    const off=o.off&&!(o.m+o.e),work=!off&&(o.m||o.e);
+    const ex=o.exp.length?o.exp:[null];
+    ex.forEach((z,i)=>{const row=[];const rn=r+1;
+      if(i===0){row[0]=C(xserial(d),off?S.offDate:S.date);row[1]=C(day,off?S.off:S.txt);
+        if(off){row[2]=C('',S.off);row[3]=C('',S.off);row[4]=C('OFFDAY',S.off);od++}
+        else{row[2]=C(o.m||'',S.money);row[3]=C(o.e||'',S.money);row[4]=work?C(o.m+o.e,S.money,`C${rn}+D${rn}`):C('',S.money);if(work){wd++;cr+=o.m+o.e}}}
+      else{row[0]=C('',S.txt);row[1]=C('',S.txt);row[2]=C('',S.money);row[3]=C('',S.money);row[4]=C('',S.money)}
+      if(z){sl++;row[5]=C(sl,S.int);row[6]=C(z.item,S.txt);row[7]=C(z.amt,S.exp);row[8]=C(String(z.mode||'').toUpperCase(),S.txt);xs+=z.amt}
+      else{row[5]=C('',S.int);row[6]=C('',S.txt);row[7]=C('',S.exp);row[8]=C('',S.txt)}
+      rows[r++]=row});
+  }
+  const lr=r;rows[r]=[C('TOTAL',S.totL),C('',S.totL),C(0,S.totM,`SUM(C${first}:C${lr})`),C(0,S.totM,`SUM(D${first}:D${lr})`),C(cr,S.totM,`SUM(E${first}:E${lr})`),C(sl,S.totI),C('',S.totL),C(xs,S.totX,`SUM(H${first}:H${lr})`),C('',S.totL)];
+  let mm=0,ee=0;for(let d=ym+'-01';d<=last;d=addDays(d,1)){const o=D[d];if(o&&!(o.off&&!(o.m+o.e))){mm+=o.m||0;ee+=o.e||0}}rows[r][2].v=mm;rows[r][3].v=ee;
+  const side=[['TOTAL CREDIT',cr,`SUM(E${first}:E${lr})`,S.money],['TOTAL EXPENCE',xs,`SUM(H${first}:H${lr})`,S.exp],['SAVING',cr-xs,'L4-L5',S.money],['WORKING DAY',wd,`COUNT(E${first}:E${lr})`,S.int],['OFFDAY',od,`COUNTIF(E${first}:E${lr},"OFFDAY")`,S.int],['AVERAGE CREDIT',wd?Math.round(cr/wd):0,'IFERROR(ROUND(L4/L7,0),0)',S.money]];
+  side.forEach(([l,v,f,st],i)=>{const row=rows[3+i]||(rows[3+i]=[]);row[10]=C(l,S.totL);row[11]=C(v,st,f)});
+  return sheetXml(rows,[12.5,12,11,11,14,7,30,12,14,2,17,13],3,null);
+}
+function yearSheet(y,D){
+  const yms=[...Array(12)].map((_,i)=>y+'-'+pad(i+1));
+  const funds=[...new Set(yms.flatMap(k=>Object.keys(mfFOf(k))))];
+  const rows=[];rows[0]=[C(y+' overview — Money Diary',S.title)];rows[0].h=24;
+  rows[1]=[C('Credit comes from the month sheets; business and MF from your entries.',S.note)];
+  const H=['MONTH','CREDIT AMOUNT','BUSINESS AMOUNT','NETT INCOME','EXPENSES','SAVED',...funds.map(f=>/mf\b/i.test(f)?f:f+' MF'),'TOTAL INVESTED','NETT SAVING'];
+  rows[2]=H.map(h=>C(h,S.hdr));rows[2].h=32;
+  const nF=funds.length,cS=colName(6+nF),cN=colName(7+nF);const tot=Array(H.length).fill(0);
+  yms.forEach((ym,i)=>{const rn=i+4;let c=0,x=0;for(const d in D)if(d.startsWith(ym)){const o=D[d];if(!(o.off&&!(o.m+o.e)))c+=o.m+o.e;x+=o.exp.reduce((s2,z)=>s2+z.amt,0)}
+    const b=bizOf(ym),F=mfFOf(ym),mfT=funds.reduce((s2,f)=>s2+(F[f]||0),0);
+    const row=[C(MON[i].toUpperCase()+' '+String(y).slice(2),S.txt),C(c,S.money),C(b,S.money),C(c+b,S.money,`B${rn}+C${rn}`),C(x,S.exp),C(c+b-x,S.money,`D${rn}-E${rn}`)];
+    funds.forEach((f,j)=>row.push(C(F[f]||0,S.money)));row.push(C(mfT,S.money,nF?`SUM(G${rn}:${colName(5+nF)}${rn})`:'0'));row.push(C(c+b-x-mfT,S.money,`F${rn}-${cS}${rn}`));
+    row.forEach((cc,j)=>{if(j&&typeof cc.v==='number')tot[j]+=cc.v});rows[rn-1]=row});
+  rows[15]=H.map((h,j)=>j===0?C('TOTAL',S.totL):C(tot[j],j===4?S.totX:S.totM,`SUM(${colName(j)}4:${colName(j)}15)`));
+  if(DB.funds&&DB.funds.length){let r=18;rows[r]=[C('',S.hdr),C('INVEST',S.hdr),C('ROI',S.hdr),C('VALUE',S.hdr),C('GAIN',S.hdr)];
+    DB.funds.forEach(f=>{r++;rows[r]=[C(f.name,S.txt),C(f.inv,S.money),C(f.roi||0,S.pct),C(f.val||0,S.money),C((f.val||0)-f.inv,S.money,`D${r+1}-B${r+1}`)]});
+    r++;rows[r]=[C('TOTAL INVEST',S.totL),C(DB.funds.reduce((a,f)=>a+f.inv,0),S.totM,`SUM(B20:B${r})`),C('',S.totL),C(DB.funds.reduce((a,f)=>a+(f.val||0),0),S.totM,`SUM(D20:D${r})`),C(DB.funds.reduce((a,f)=>a+(f.val||0)-f.inv,0),S.totM,`SUM(E20:E${r})`)]}
+  return sheetXml(rows,[12,15,17,15,13,13,...funds.map(()=>15),16,15],3,null);
+}
+function listSheet(D){
+  const rows=[];rows[0]=[C('All expenses — Money Diary',S.title)];rows[0].h=24;rows[1]=[C('Use the filter buttons in the header row to sort or pick an item, month or payment mode.',S.note)];
+  rows[2]=['DATE','DAY','MONTH','PRODUCT SUMMARY','EXP AMOUNT','PAYMENT MODE'].map(h=>C(h,S.hdr));
+  let r=3;for(const d of Object.keys(D).sort())for(const z of D[d].exp){rows[r++]=[C(xserial(d),S.date),C(WD[new Date(d+'T00:00').getDay()],S.txt),C(ymLabel(d.slice(0,7)).toUpperCase(),S.txt),C(z.item,S.txt),C(z.amt,S.exp),C(String(z.mode||'').toUpperCase(),S.txt)]}
+  rows[r]=[C('TOTAL',S.totL),C('',S.totL),C('',S.totL),C('',S.totL),C(0,S.totX,`SUBTOTAL(9,E4:E${r})`),C('',S.totL)];
+  rows[r][4].v=Object.values(D).reduce((s2,o)=>s2+o.exp.reduce((a,z)=>a+z.amt,0),0);
+  return sheetXml(rows,[12.5,7,10,32,13,15],3,`A3:F${r}`);
+}
+function buildWorkbook(){
+  const D=allDays();
+  const yms=[...new Set(Object.keys(D).map(d=>d.slice(0,7)))].sort();
+  const years=[...new Set([...yms.map(k=>k.slice(0,4)),...Object.keys(DB.mf).map(k=>k.slice(0,4)),...Object.keys(DB.biz).map(k=>k.slice(0,4)),...Object.keys(DB.manualM).map(k=>k.slice(0,4))])].sort();
+  const sheets=[];
+  for(const y of years)sheets.push({name:y,xml:yearSheet(y,D)});
+  for(const ym of yms)sheets.push({name:ymLabel(ym).toUpperCase(),xml:monthSheet(ym,D)});
+  sheets.push({name:'ALL EXPENSES',xml:listSheet(D)});
+  const files=[
+    {name:'[Content_Types].xml',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((s2,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`},
+    {name:'_rels/.rels',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`},
+    {name:'docProps/core.xml',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Money Diary backup</dc:title><dc:creator>Money Diary</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString().slice(0,19)}Z</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${new Date().toISOString().slice(0,19)}Z</dcterms:modified></cp:coreProperties>`},
+    {name:'xl/workbook.xml',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="0"/></bookViews><sheets>${sheets.map((s2,i)=>`<sheet name="${xesc(s2.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>`},
+    {name:'xl/_rels/workbook.xml.rels',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s2,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:'xl/styles.xml',data:STYLES},
+    ...sheets.map((s2,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,data:s2.xml}))];
+  return zipBlob(files);
+}
+const backupName=d=>'Money-Diary-'+(d||todayISO())+'.xlsx';
+function downloadBackup(){
+  const blob=buildWorkbook();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=backupName();
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
+  return blob;
+}
+async function shareBackup(){
+  const f=new File([buildWorkbook()],backupName(),{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'Money Diary backup'});return true}catch(e){if(e.name==='AbortError')return true}}
+  return false;
+}
+
+/* ---------- daily cloud backup into a PRIVATE GitHub repository ---------- */
+const bk=()=>DB.backup&&DB.backup.token?DB.backup:null;
+async function ghB(path,opt={},tok){
+  let r;try{r=await fetch(GH+path,{...opt,cache:'no-store',headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+(tok||bk().token),'X-GitHub-Api-Version':'2022-11-28',...(opt.body?{'Content-Type':'application/json'}:{})}})}
+  catch(e){throw new Error('No internet connection. The backup will be tried again later.')}
+  if(r.status===404)return null;
+  if(r.status===401)throw new Error('The backup token was not accepted. Make a new one and connect again.');
+  if(r.status===403)throw new Error('The token can’t write to that repository. Give it “Contents: Read and write” for money-diary-backup.');
+  if(!r.ok)throw new Error('GitHub answered with error '+r.status+'.');
+  return r.status===204?{}:r.json();
+}
+async function putFile(path,b64data,msg){
+  const cur=await ghB(`/repos/${bk().owner}/${bk().repo}/contents/${path}`);
+  return ghB(`/repos/${bk().owner}/${bk().repo}/contents/${path}`,{method:'PUT',body:JSON.stringify({message:msg,content:b64data,...(cur&&cur.sha?{sha:cur.sha}:{})})});
+}
+let backingUp=false;
+async function runBackup(manual){
+  if(!bk()||!KEYOBJ||DB.demo||!hasData()||backingUp)return;
+  if(!manual&&bk().last===todayISO())return;
+  backingUp=true;const box=$('#bkStatus');if(box)box.innerHTML='Backing up…';
+  try{
+    const data=b64(new Uint8Array(await buildWorkbook().arrayBuffer()));const t=todayISO();
+    await putFile(`backups/${t.slice(0,4)}/${backupName(t)}`,data,'Daily backup '+t);
+    await putFile('Money-Diary-latest.xlsx',data,'Latest backup '+t);
+    DB.backup.last=t;DB.backup.lastAt=Date.now();DB.backup.err='';await persist(true);
+  }catch(e){DB.backup.err=e.message}
+  finally{backingUp=false;const b=$('#bkStatus');if(b)b.innerHTML=bkStatusHTML()}
+}
+function bkStatusHTML(){const b=bk();if(!b)return'';
+  return b.err?`<span class="dnc">⚠ ${esc(b.err)}</span>`:b.last?`<span class="upc">✓ Last backup ${b.last===todayISO()?'today':esc(dl(b.last))}${b.lastAt?' at '+new Date(b.lastAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):''}</span>`:'Waiting for the first backup…'}
+async function connectBackup(tok){
+  tok=tok.trim();if(!tok)throw new Error('Paste the backup token first.');
+  const me=await ghB('/user',{},tok);if(!me||!me.login)throw new Error('The token was not accepted.');
+  const repo=await ghB(`/repos/${me.login}/money-diary-backup`,{},tok);
+  if(!repo)throw new Error('Couldn’t find a repository named money-diary-backup that this token can use. Create it (step 1) and give the token access to it.');
+  if(!repo.private)throw new Error('money-diary-backup is public, so anyone could see your money data. Make it private first (Settings › Danger zone › Change visibility).');
+  DB.backup={token:tok,owner:me.login,repo:'money-diary-backup',last:'',err:'',setAt:Date.now()};
+  await persist(true);await runBackup(true);
+}
+async function restoreLatest(){
+  const f=await ghB(`/repos/${bk().owner}/${bk().repo}/contents/Money-Diary-latest.xlsx`);if(!f)throw new Error('No backup found yet.');
+  let bytes;
+  if(f.content){bytes=ub64(f.content.replace(/\s/g,''))}
+  else{const blob=await ghB(`/repos/${bk().owner}/${bk().repo}/git/blobs/${f.sha}`);bytes=ub64(blob.content.replace(/\s/g,''))}
+  const r=ingest(await readXlsx(bytes.buffer));return r;
+}
+function backupSection(){
+  let h=`<section class="card" id="bkCard"><h2>Excel backup</h2>
+  <p style="margin:0 0 10px">A proper Excel file in your own layout: a sheet for each month (DATE, DAY, MORNING, NIGHT, CREDIT AMOUNT, PRODUCT SUMMARY, EXP AMOUNT, PAYMENT MODE), your yearly overview with business and MF, and a list of every expense. You can upload it back into the app to restore everything.</p>
+  <div class="acts"><button class="btn pri" type="button" id="dlx" ${hasData()?'':'disabled'}>Download Excel now</button>${navigator.canShare?`<button class="btn" type="button" id="shx" ${hasData()?'':'disabled'}>Save to Google Drive…</button>`:''}</div>
+  <h3 style="margin:18px 0 6px;font-size:17px">Daily backup to the cloud</h3>`;
+  if(!canCrypt||!KEYOBJ)return h+`<p style="margin:0">First set a PIN in <b>Security</b> below.</p></section>`;
+  if(bk()){
+    h+=`<p style="margin:0 0 8px" id="bkStatus">${bkStatusHTML()}</p>
+    <p class="note" style="margin:0 0 10px">Every day, the first time you open the app, a fresh Excel file is saved to your private repository <b>${esc(bk().owner)}/money-diary-backup</b>: one file per day in the <b>backups</b> folder, and <b>Money-Diary-latest.xlsx</b> always holds the newest one.</p>
+    <div class="acts"><a class="btn" href="https://github.com/${esc(bk().owner)}/money-diary-backup" target="_blank" rel="noopener">Open my backups on GitHub</a><button class="btn" type="button" id="bkNow">Back up now</button><button class="btn" type="button" id="bkRestore">Restore from latest backup</button><button class="btn" type="button" id="bkOff">Turn off daily backup</button></div><p class="note" id="bkMsg" style="margin:8px 0 0"></p>`;
+  }else{
+    h+=`<p style="margin:0 0 10px">Saves a new Excel file every day into a <b>private</b> GitHub repository that only you can open. Set it up once; your other device picks it up through sync.</p>
+    <ol style="margin:0 0 12px;padding-left:20px">
+    <li>Create the private repository: <a href="https://github.com/new?name=money-diary-backup&amp;visibility=private&amp;description=Money+Diary+daily+Excel+backups" target="_blank" rel="noopener">GitHub › new repository</a>. Check the name is <b>money-diary-backup</b> and <b>Private</b> is selected, then tap <b>Create repository</b>.</li>
+    <li>Make a backup token: <a href="https://github.com/settings/personal-access-tokens/new?name=Money+Diary+backup&amp;description=Daily+Excel+backup&amp;contents=write" target="_blank" rel="noopener">GitHub › new fine-grained token</a>. Set <b>Expiration</b> to the longest choice, under <b>Repository access</b> choose <b>Only select repositories</b> and pick <b>money-diary-backup</b>. <b>Contents: Read and write</b> is already chosen. Tap <b>Generate token</b> and copy it.</li>
+    <li>Paste it here and tap <b>Turn on</b>.</li></ol>
+    <form id="bkf" style="display:flex;flex-wrap:wrap;gap:8px"><input type="password" name="t" class="in" autocomplete="off" placeholder="Paste backup token (starts with github_pat_)" aria-label="Backup token" style="flex:1 1 240px;width:auto"><button class="btn pri">Turn on</button></form><p id="bkM" class="note" style="margin:6px 0 0"></p>`;
+  }
+  return h+'</section>';
+}
+function bindBackup(){
+  const d=$('#dlx');if(d)d.onclick=()=>{downloadBackup();flash('Excel backup downloaded: '+backupName()+'. Find it in your Downloads folder.')};
+  const s2=$('#shx');if(s2)s2.onclick=async()=>{if(!await shareBackup()){downloadBackup();flash('Sharing isn’t available here, so the file was downloaded instead.')}};
+  const f=$('#bkf');if(f)f.onsubmit=async e=>{e.preventDefault();const m=$('#bkM');m.className='note';m.textContent='Checking your repository…';f.querySelector('button').disabled=true;
+    try{await connectBackup(f.t.value);render();flash('Daily backup is on. Your first Excel backup is saved in GitHub.')}catch(err){delete DB.backup;m.className='dnc';m.textContent=err.message;f.querySelector('button').disabled=false}};
+  const n=$('#bkNow');if(n)n.onclick=()=>runBackup(true);
+  confirm2($('#bkOff'),'Tap again to turn off',async()=>{delete DB.backup;DB.backupOff=Date.now();await persist();render()});
+  confirm2($('#bkRestore'),'Tap again: restore from GitHub',async()=>{const m=$('#bkMsg');m.textContent='Restoring…';try{const r=await restoreLatest();st.year=null;render();flash('Restored from your latest backup: '+r.months+' month sheets.')}catch(e){m.className='dnc';m.textContent=e.message}});
+}
+
 function syncSection(){
   if(!canCrypt)return'';
   let h=`<section class="card" id="syncCard"><h2>Sync with your laptop</h2>`;
@@ -911,7 +1131,7 @@ function viewCheck(){
   <li>The app locks itself after 5 minutes away, and after 5 wrong PINs it makes you wait longer each time.</li>
   <li>If you forget your PIN, the saved data cannot be opened by anyone, including you. Clear it and upload your Excel again.</li></ul>
   ${!canCrypt?'<p class="dnc">This browser can’t encrypt, so nothing is saved.</p>':KEYOBJ?`<p style="margin:0"><b class="upc">✓ Saved and encrypted with your PIN.</b></p><p style="margin:12px 0 0;font-weight:600">Change PIN</p>${pinForm('cp','Change PIN')}<div class="acts" style="margin-top:12px"><button class="btn" type="button" id="lk">Lock now</button><button class="btn" type="button" id="er">Clear all data</button></div>`:DB.demo?'<p class="note" style="margin:0">Sample data is never saved.</p>':hasData()?`<p style="margin:0" class="dnc">Not saved yet: set a PIN to keep this data.</p>${pinForm('pf2','Save with PIN')}<div class="acts" style="margin-top:12px"><button class="btn" type="button" id="er">Clear all data</button></div>`:`<p style="margin:0">Set a PIN to save your data on this device and to turn on sync.</p>${pinForm('pf2','Set PIN')}`}</section>`;
-  $('#view').innerHTML=syncSection()+h;bindSync();
+  $('#view').innerHTML=syncSection()+backupSection()+h;bindSync();bindBackup();
   bindPinForm('cp',()=>{flash('PIN changed.');render()});bindPinForm('pf2',()=>{flash('Saved and encrypted with your PIN.');render()});
   const lk=$('#lk');if(lk)lk.onclick=lockNow;confirm2($('#er'),'Tap again to delete all',()=>{eraseAll();flash('All data deleted from this device.')});
   const V=$('#view');
