@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.27.4">
+<meta name="app-version" content="2026.11.27.5">
 <meta name="theme-color" content="#0b0a14">
 <meta name="description" content="Your personal budget diary">
 <link rel="manifest" href="manifest.webmanifest">
@@ -159,7 +159,9 @@ nav.tabs a.nv:focus-visible,.menuonly:focus-visible{outline:3px solid #c4b5fd;ou
  nav.tabs a.nv{min-height:46px;padding:0 14px;font-size:15px}
  nav.tabs a.nv .short{display:none}
  nav.tabs a.fab{color:#fff;background:linear-gradient(135deg,rgba(124,58,237,.8),rgba(236,72,153,.65));margin:4px 0}
- .acts{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
+ .acts{display:flex;flex:1;flex-direction:column;align-items:stretch;gap:8px}
+ .acts label[for=file]{margin-top:auto}
+ .acts .backbtn{justify-content:flex-start;padding:0 14px;min-height:46px;font-size:15px}
  .acts .btn{justify-content:center}
  .content{padding:26px 0 56px;min-width:0}
  .hero .big{font-size:clamp(44px,4.4vw,60px)!important}
@@ -186,6 +188,7 @@ nav.tabs a.nv:focus-visible,.menuonly:focus-visible{outline:3px solid #c4b5fd;ou
         <a href="#invest" data-r="invest" class="menuonly"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>Mutual funds</a>
         <a href="#check" data-r="check" class="menuonly"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Settings &amp; sync</a>
         <a href="#tokens" data-r="tokens" class="menuonly"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2"/></svg>Tokens</a>
+      <button class="btn backbtn" type="button" id="backBtn" hidden aria-label="Go back to the previous page">← Back</button>
       <label class="btn pri" for="file">Upload Excel</label>
       <input id="file" type="file" accept=".xlsx,.csv" multiple hidden>
       <button class="btn pri" id="installBtn" type="button" hidden>Install app</button>
@@ -195,7 +198,6 @@ nav.tabs a.nv:focus-visible,.menuonly:focus-visible{outline:3px solid #c4b5fd;ou
     </div>
   </aside>
   <div class="content">
-    <div class="ctop"><button class="btn" type="button" id="backBtn" hidden aria-label="Go back to the previous page">← Back</button></div>
     <div id="updBar" class="msg" hidden style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-top:12px"><span><b>✨ A new version of Money Diary is ready.</b> <span class="note">Your data stays as it is.</span></span><button class="btn pri" type="button" id="updBtn">Update now</button></div>
     <div class="bar" id="yearbar">
       <label class="note" style="display:flex;gap:8px;align-items:center">Year <select id="year"></select></label>
