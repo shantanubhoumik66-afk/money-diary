@@ -1137,7 +1137,7 @@ function viewTokens(){
   <section class="card"><h2>Sync token <span class="note" style="font-size:14px">(starts with ghp_)</span></h2>
   <p style="margin:0 0 6px">Keeps your phone and laptop in step.</p>
   <p style="margin:0 0 10px" id="sExp">${sOn?expLine(null):'<span class="note">Sync is not set up on this device.</span>'}</p>
-  ${DB.sync?`<label class="note" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 0">Expiry date shown on GitHub <input type="date" class="in" id="sExpD" value="${esc((DB.sync).exp||'')}" style="width:auto"></label>`:''}
+  ${DB.sync?`<label class="note" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 0">Expiry date shown on GitHub <input type="date" class="in" id="sExpD" min="2024-01-01" max="2099-12-31" value="${esc((DB.sync).exp||'')}" style="width:auto"></label>`:''}
   <ol style="margin:12px 0 0;padding-left:20px"><li><b>Renew the old one:</b> <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">GitHub › my classic tokens</a> → tap <b>Money Diary sync</b> → <b>Regenerate token</b> → pick a new expiry → copy it.</li>
   <li>Or <b>make a brand-new one:</b> <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Money%20Diary%20sync" target="_blank" rel="noopener">GitHub › new sync token</a> (only <b>gist</b> ticked) → <b>Generate token</b> → copy it.</li>
   <li>Paste it here and tap <b>Use new sync token</b>. Do the same on your other device.</li></ol>
@@ -1145,7 +1145,7 @@ function viewTokens(){
   <section class="card"><h2>Backup token <span class="note" style="font-size:14px">(starts with github_pat_)</span></h2>
   <p style="margin:0 0 6px">Saves your BUDGETING year Excel files to your private money-diary-backup repository.</p>
   <p style="margin:0 0 10px" id="bExp">${bOn?expLine(null):'<span class="note">Cloud backup is not set up yet.</span>'}</p>
-  ${bk()?`<label class="note" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 0">Expiry date shown on GitHub <input type="date" class="in" id="bExpD" value="${esc((bk()).exp||'')}" style="width:auto"></label>`:''}
+  ${bk()?`<label class="note" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 0">Expiry date shown on GitHub <input type="date" class="in" id="bExpD" min="2024-01-01" max="2099-12-31" value="${esc((bk()).exp||'')}" style="width:auto"></label>`:''}
   <ol style="margin:12px 0 0;padding-left:20px"><li><b>Renew the old one:</b> <a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener">GitHub › my fine-grained tokens</a> → tap <b>Money Diary backup</b> → <b>Regenerate token</b> → pick a new expiry → copy it.</li>
   <li>Or <b>make a brand-new one:</b> <a href="https://github.com/settings/personal-access-tokens/new?name=Money+Diary+backup&amp;description=Excel+backup&amp;contents=write" target="_blank" rel="noopener">GitHub › new backup token</a> → <b>Only select repositories</b> → <b>money-diary-backup</b> → <b>Generate token</b> → copy it.</li>
   <li>Paste it here and tap <b>Use new backup token</b>. Your other device gets it through sync.</li></ol>
@@ -1153,8 +1153,10 @@ function viewTokens(){
   <section class="card"><p style="margin:0" class="note">If GitHub asks to confirm it’s you, choose to get a code by email, or enter your GitHub password. Copy each new token straight away: GitHub shows it only once. After renewing, you can delete the old token on GitHub.</p></section>`;
   if(sOn)tokenExpiry(DB.sync.token).then(x=>{const e=$('#sExp');if(e)e.innerHTML=expLine(x,DB.sync&&DB.sync.exp)});
   if(bOn)tokenExpiry(bk().token).then(x=>{const e=$('#bExp');if(e)e.innerHTML=expLine(x,bk()&&bk().exp)});
-  const sd=$('#sExpD');if(sd)sd.onchange=async()=>{DB.sync.exp=sd.value;await persist();render()};
-  const bd=$('#bExpD');if(bd)bd.onchange=async()=>{DB.backup.exp=bd.value;DB.backup.setAt=Date.now();await persist();render()};
+  /* save the date without redrawing the page, so typing a 4-digit year isn't interrupted; only full years 2000+ count */
+  const saveExp=async(inp,obj,line,extra)=>{const v=inp.value;if(v&&+v.slice(0,4)<2000)return;if(!obj())return;obj().exp=v;if(extra)extra();await persist();const e=$(line);if(e)e.innerHTML=expLine({ok:true},v)};
+  const sd=$('#sExpD');if(sd){sd.onchange=()=>saveExp(sd,()=>DB.sync,'#sExp');sd.onblur=sd.onchange}
+  const bd=$('#bExpD');if(bd){bd.onchange=()=>saveExp(bd,()=>DB.backup,'#bExp',()=>{DB.backup.setAt=Date.now()});bd.onblur=bd.onchange}
   const fs=$('#ntS');if(fs)fs.onsubmit=async e=>{e.preventDefault();const m=$('#ntSM');m.className='note';m.textContent='Checking the new token…';fs.querySelector('button').disabled=true;
     const old=DB.sync;try{await connectSync(fs.t.value);if(DB.sync)delete DB.sync.exp;await persist();flash('New sync token saved. ✓ Synced.');render()}catch(err){DB.sync=old;m.className='dnc';m.textContent=err.message==='offline'?'No internet connection. Try again when you are online.':err.message;fs.querySelector('button').disabled=false}};
   const fb=$('#ntB');if(fb)fb.onsubmit=async e=>{e.preventDefault();const m=$('#ntBM');m.className='note';m.textContent='Checking the new token and your repository…';fb.querySelector('button').disabled=true;
