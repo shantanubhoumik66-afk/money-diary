@@ -59,7 +59,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;font-weight:500;color:var(--muted);font-size:13px;padding:8px;border-bottom:1px solid var(--line)}
 td{padding:9px 8px;border-bottom:1px solid var(--line)}
 .r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-.upc{color:var(--up);font-weight:600}.exc{color:var(--x)!important}tr.offrow{background:light-dark(#fde4e4,#3b1416)}tr.offrow td{color:var(--x)}tr.offrow td b{color:var(--x)}.lnk{background:none;border:0;padding:4px 0;min-height:32px;color:var(--m);font:600 14px Inter,sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-align:left}.items{font-size:13px;line-height:1.5}.btn:disabled{opacity:.4;cursor:default}td.heat{background:color-mix(in srgb,var(--m) calc(var(--a)*100%),transparent)}.exred{color:#b91c1c;background:#fff;border-radius:6px;padding:0 6px;display:inline-block}.dnc{color:var(--down);font-weight:600}
+.upc{color:var(--up);font-weight:600}.exc{color:var(--x)!important}.mrow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:8px 0;font-size:14px}.mrow .t{grid-column:1/-1;height:10px;background:var(--mist);border-radius:5px;overflow:hidden}.mrow .t i{display:block;height:100%;border-radius:5px}tr.offrow{background:light-dark(#fde4e4,#3b1416)}tr.offrow td{color:var(--x)}tr.offrow td b{color:var(--x)}.lnk{background:none;border:0;padding:4px 0;min-height:32px;color:var(--m);font:600 14px Inter,sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-align:left}.items{font-size:13px;line-height:1.5}.btn:disabled{opacity:.4;cursor:default}td.heat{background:color-mix(in srgb,var(--m) calc(var(--a)*100%),transparent)}.exred{color:#b91c1c;background:#fff;border-radius:6px;padding:0 6px;display:inline-block}.dnc{color:var(--down);font-weight:600}
 .hb{display:grid;grid-template-columns:minmax(0,9em) 1fr auto;gap:10px;align-items:center;padding:6px 0;font-size:14px;width:100%;background:none;border:0;color:inherit;font-family:inherit;text-align:left;cursor:pointer;min-height:36px}
 .hb span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hb .t{height:10px;background:var(--mist);border-radius:5px;overflow:hidden}.hb .t i{display:block;height:100%;background:var(--x);border-radius:5px}
@@ -767,6 +767,10 @@ function viewIncome(){
   const ca=$('#ca'),cb=$('#cb');if(ca){ca.onchange=e=>{st.ca=e.target.value;render()};cb.onchange=e=>{st.cb=e.target.value;render()}}
   chart('c2',groups);
 }
+const modeOf=x=>x.mode||'Not set';
+const MODE_COL={Cash:'var(--e)',GPay:'var(--m)',Online:'var(--b)'};const EXTRA_COL=['#f2a600','#d6336c','#6b7280'];
+const modeCol=m=>MODE_COL[m]||(m==='Not set'?'#9aa0a6':EXTRA_COL[Math.abs([...m].reduce((a,c)=>a+c.charCodeAt(0),0))%2]);
+function MODES_IN(list){const t={};for(const x of list)t[modeOf(x)]=(t[modeOf(x)]||0)+x.amt;return Object.keys(t).sort((a,b)=>t[b]-t[a])}
 function xGo(ym){st.group='day';st.xmon=ym;render();scrollTo({top:0,behavior:'smooth'})}
 function viewSearch(){
   const{exp}=data();const top=itemTotals(exp);
@@ -777,16 +781,19 @@ function viewSearch(){
   <datalist id="items">${top.map(t=>`<option value="${esc(t.name)}">`).join('')}</datalist></div>
   <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px">${segBtns('g',[['day','Daily'],['week','Weekly'],['month','Monthly'],['quarter','Quarterly'],['year','Yearly']],st.group)}
   <label class="note" id="xmonL" style="display:${st.group==='day'?'flex':'none'};gap:8px;align-items:center">Month <select id="xmon"><option value="all">Whole year</option>${xmonths.map(m=>`<option value="${m}" ${m===st.xmon?'selected':''}>${ymLabel(m)}</option>`).join('')}</select></label></div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px"><span class="note">Paid by</span>${segBtns('pm',[['all','All'],...MODES_IN(exp).map(m=>[m,m])],st.pm||'all')}</div>
   <p class="note" style="margin:8px 0 0">Leave the search empty to see all expenses. Separate several names with commas: “fish, meat”.</p></section><div id="res" class="stackv" style="padding:0"></div>`;
   const q=$('#q');q.oninput=()=>{st.q=q.value;results()};
   document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{st.group=b.dataset.g;document.querySelectorAll('[data-g]').forEach(x=>x.classList.toggle('on',x===b));$('#xmonL').style.display=st.group==='day'?'flex':'none';results()});
   $('#xmon').onchange=e=>{st.xmon=e.target.value;results()};
+  document.querySelectorAll('[data-pm]').forEach(b=>b.onclick=()=>{st.pm=b.dataset.pm;document.querySelectorAll('[data-pm]').forEach(x=>x.classList.toggle('on',x===b));results()});
   results();
   function results(){
     ros.forEach(r=>r.disconnect());ros=[];
     const terms=st.q.split(',').map(norm).filter(Boolean);const R=$('#res');const g=st.group;
     let hit=terms.length?exp.filter(x=>{const n=norm(x.item);return terms.some(t=>n.includes(t))}):exp;
     const scope=g==='day'&&st.xmon!=='all'?st.xmon:null;if(scope)hit=hit.filter(x=>x.d.startsWith(scope));
+    const preMode=hit;const pm=st.pm&&st.pm!=='all'?st.pm:null;if(pm)hit=hit.filter(x=>modeOf(x)===pm);
     const tot=hit.reduce((s,x)=>s+x.amt,0);
     const key=d=>g==='day'?d:g==='week'?mondayOf(d):g==='year'?d.slice(0,4):g==='quarter'?d.slice(0,4)+'-Q'+(Math.floor((+d.slice(5,7)-1)/3)+1):d.slice(0,7);
     const lab=k=>g==='day'?dl(k)+' · '+WD[new Date(k+'T00:00').getDay()]:g==='week'?wkLabel(k):g==='month'?ymLabel(k):g==='quarter'?k.slice(5)+' '+k.slice(0,4):k;
@@ -799,7 +806,15 @@ function viewSearch(){
     for(const x of hit)G[key(x.d)]=(G[key(x.d)]||0)+x.amt;
     const ks=Object.keys(G).sort();const names=itemTotals(hit);const byDay={};for(const x of hit.slice().reverse())(byDay[x.d]||(byDay[x.d]=[])).push(x);const unit={day:'day',week:'week',month:'month',quarter:'quarter',year:'year'}[g];
     const hiK=ks.reduce((a,k)=>!a||G[k]>G[a]?k:a,null);const nz=ks.filter(k=>G[k]>0).length;
-    const what=terms.length?esc(terms.join(', ')):'All expenses';
+    const what=(terms.length?esc(terms.join(', ')):'All expenses')+(pm?' paid by '+esc(pm):'');
+    const MS=MODES_IN(preMode);const mt={};for(const m of MS)mt[m]={a:0,n:0};for(const x of preMode){const o=mt[modeOf(x)];o.a+=x.amt;o.n++}
+    const mAll=preMode.reduce((s2,x)=>s2+x.amt,0)||1;const GM={};for(const k of ks)GM[k]={};for(const x of preMode){const k=key(x.d);(GM[k]||(GM[k]={}))[modeOf(x)]=(GM[k][modeOf(x)]||0)+x.amt}
+    const order=scope&&g==='day'?ks:ks.slice().reverse();
+    const modeCard=preMode.length?`<section class="card"><h2>Cash vs GPay${scope?' · '+esc(ymLabel(scope)):''}</h2>
+    ${MS.map(m=>`<div class="mrow"><span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${modeCol(m)};margin-right:6px"></i><b>${esc(m)}</b> <span class="note">${mt[m].n} ${mt[m].n===1?'time':'times'}</span></span><span class="r"><b class="exc">${inr(mt[m].a)}</b> <span class="note">${Math.round(mt[m].a/mAll*100)}%</span></span><span class="t"><i style="width:${Math.max(.5,mt[m].a/mAll*100).toFixed(1)}%;background:${modeCol(m)}"></i></span></div>`).join('')}
+    <h3 style="margin:16px 0 6px;font-size:16px">By ${unit}</h3>${leg(MS.map(m=>[modeCol(m),esc(m)]))}${fig('c5',240)}
+    <div class="scroll" style="margin-top:12px;max-height:420px;overflow-y:auto"><table style="min-width:${200+MS.length*110}px"><thead><tr><th>${unit[0].toUpperCase()+unit.slice(1)}</th>${MS.map(m=>`<th class="r">${esc(m)}</th>`).join('')}<th class="r">Total</th></tr></thead><tbody>${order.filter(k=>Object.keys(GM[k]||{}).length).map(k=>`<tr><td>${esc(lab(k))}</td>${MS.map(m=>`<td class="r exc">${GM[k][m]?inr(GM[k][m]):'<span class="note">—</span>'}</td>`).join('')}<td class="r exc"><b>${inr(MS.reduce((s2,m)=>s2+(GM[k][m]||0),0))}</b></td></tr>`).join('')}
+    <tr style="font-weight:700"><td>Total</td>${MS.map(m=>`<td class="r exc">${inr(mt[m].a)}</td>`).join('')}<td class="r exc">${inr(mAll)}</td></tr></tbody></table></div></section>`:'';
     R.innerHTML=`<div class="kpis"><div class="kpi"><span>Total spent</span><b class="exc">${inr(tot)}</b><small>${what}${scope?' · '+ymLabel(scope):''}</small></div>
     <div class="kpi"><span>Entries</span><b>${hit.length}</b><small>avg ${inr(hit.length?tot/hit.length:0)} each</small></div>
     <div class="kpi"><span>Average per ${unit}</span><b class="exc">${inr(ks.length?tot/ks.length:0)}</b><small>over ${ks.length} ${unit}s, ${nz} with spending</small></div>
@@ -810,10 +825,11 @@ function viewSearch(){
     <div class="scroll" style="margin-top:12px;max-height:620px;overflow-y:auto"><table class="stack"><thead><tr><th>Day</th><th class="r">Spent</th><th>What you spent on</th></tr></thead><tbody>${ks.map(k=>{const its=byDay[k]||[];return`<tr><td style="white-space:nowrap">${esc(dl(k))} · ${WD[new Date(k+'T00:00').getDay()]}</td><td class="r exc"><b>${G[k]?inr(G[k]):'<span class="note">—</span>'}</b></td><td class="items">${its.length?its.map(x=>`${esc(x.item)} <span class="exc">${inr(x.amt)}</span>${x.mode?` <span class="note">(${esc(x.mode)})</span>`:''}`).join(' · '):'<span class="note">No spending</span>'}</td></tr>`}).join('')}
     <tr style="font-weight:700"><td>Total ${esc(ymLabel(scope))}</td><td class="r exc">${inr(tot)}</td><td class="note">${hit.length} entries · ${ks.filter(k=>G[k]>0).length} days with spending</td></tr></tbody></table></div></section>`
     :`<div class="scroll" style="margin-top:12px;max-height:460px;overflow-y:auto"><table><thead><tr><th>${unit[0].toUpperCase()+unit.slice(1)}</th><th class="r">Spent</th><th class="r">vs previous ${unit}</th></tr></thead><tbody>${ks.slice().reverse().map(k=>{const i=ks.indexOf(k);return`<tr><td>${g==='month'?`<button class="lnk" type="button" data-xgo="${k}">${esc(lab(k))} ›</button>`:esc(lab(k))}</td><td class="r exc">${G[k]?inr(G[k]):'<span class="note">—</span>'}</td><td class="r">${G[k]?chg(G[k],i?G[ks[i-1]]:0).replace('upc','tmp').replace('dnc','upc').replace('tmp','dnc'):''}</td></tr>`}).join('')}</tbody></table></div><p class="note" style="margin:8px 0 0">For spending, ▲ (more spent) shows in red and ▼ in green.${g==='month'?' Tap a month to see every day of it.':''}</p></section>`}
-    <div class="grid2"><section class="card"><h2>${terms.length?'Names matched':'Top items'}</h2>${names.slice(0,terms.length?100:15).map(n=>`<button class="hb" type="button" data-q="${esc(n.name)}"><span>${esc(n.name)}</span><span class="note">${n.n} ${n.n===1?'time':'times'}</span><span class="r exc">${inr(n.amt)}</span></button>`).join('')}</section>
+    ${modeCard}<div class="grid2"><section class="card"><h2>${terms.length?'Names matched':'Top items'}</h2>${names.slice(0,terms.length?100:15).map(n=>`<button class="hb" type="button" data-q="${esc(n.name)}"><span>${esc(n.name)}</span><span class="note">${n.n} ${n.n===1?'time':'times'}</span><span class="r exc">${inr(n.amt)}</span></button>`).join('')}</section>
     <section class="card"><h2>Every entry</h2><div class="scroll" style="max-height:460px;overflow-y:auto"><table class="stack"><thead><tr><th>Date</th><th>Item</th><th>Paid by</th><th class="r">Amount</th></tr></thead><tbody>${hit.slice(0,400).map(x=>`<tr><td>${esc(x.d.split('-').reverse().join('-'))}</td><td>${esc(x.item)}</td><td>${esc(x.mode||'')}</td><td class="r exc">${inr(x.amt)}</td></tr>`).join('')}</tbody></table></div>${hit.length>400?'<p class="note">Showing the latest 400.</p>':''}</section></div>`
     :`<section class="card"><p style="margin:0">No expense matches “${esc(st.q)}”${scope?' in '+ymLabel(scope):''}.</p></section>`}`;
     if(hit.length)chart('c3',ks.map(k=>({go:g==='month'?()=>xGo(k):null,label:short2(k),tip:lab(k)+(g==='month'?' · tap to open':''),bars:[[{v:G[k],c:'var(--x)',n:'Spent'}]]})));
+    if(preMode.length)chart('c5',ks.map(k=>({label:short2(k),tip:lab(k),bars:[MS.map(m=>({v:(GM[k]||{})[m]||0,c:modeCol(m),n:m}))]})));
     R.querySelectorAll('[data-xgo]').forEach(b=>b.onclick=()=>xGo(b.dataset.xgo));
     R.querySelectorAll('[data-xall]').forEach(b=>b.onclick=()=>{st.group='month';render()});
   }
