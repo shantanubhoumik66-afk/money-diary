@@ -59,7 +59,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;font-weight:500;color:var(--muted);font-size:13px;padding:8px;border-bottom:1px solid var(--line)}
 td{padding:9px 8px;border-bottom:1px solid var(--line)}
 .r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-.upc{color:var(--up);font-weight:600}.exc{color:var(--x)!important}.lnk{background:none;border:0;padding:4px 0;min-height:32px;color:var(--m);font:600 14px Inter,sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-align:left}.items{font-size:13px;line-height:1.5}.btn:disabled{opacity:.4;cursor:default}td.heat{background:color-mix(in srgb,var(--m) calc(var(--a)*100%),transparent)}.exred{color:#b91c1c;background:#fff;border-radius:6px;padding:0 6px;display:inline-block}.dnc{color:var(--down);font-weight:600}
+.upc{color:var(--up);font-weight:600}.exc{color:var(--x)!important}tr.offrow{background:light-dark(#fde4e4,#3b1416)}tr.offrow td{color:var(--x)}tr.offrow td b{color:var(--x)}.lnk{background:none;border:0;padding:4px 0;min-height:32px;color:var(--m);font:600 14px Inter,sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-align:left}.items{font-size:13px;line-height:1.5}.btn:disabled{opacity:.4;cursor:default}td.heat{background:color-mix(in srgb,var(--m) calc(var(--a)*100%),transparent)}.exred{color:#b91c1c;background:#fff;border-radius:6px;padding:0 6px;display:inline-block}.dnc{color:var(--down);font-weight:600}
 .hb{display:grid;grid-template-columns:minmax(0,9em) 1fr auto;gap:10px;align-items:center;padding:6px 0;font-size:14px;width:100%;background:none;border:0;color:inherit;font-family:inherit;text-align:left;cursor:pointer;min-height:36px}
 .hb span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hb .t{height:10px;background:var(--mist);border-radius:5px;overflow:hidden}.hb .t i{display:block;height:100%;background:var(--x);border-radius:5px}
@@ -733,8 +733,8 @@ function viewIncome(){
     const fd=d=>FULLDAY[new Date(d+'T00:00').getDay()];
     groups=all.map(r=>({label:String(+r.d.slice(8)),tip:dl(r.d)+' · '+fd(r.d)+(r.off?' · Off day':r.none?' · Nothing entered':''),bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'}]]}));
     let prev=0;table=`<thead><tr><th>Date</th><th>Day</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">vs previous working day</th></tr></thead><tbody>${all.map(r=>{const dd=WD[new Date(r.d+'T00:00').getDay()];
-      if(r.off)return`<tr style="background:var(--mist)"><td>${dl(r.d)}</td><td>${dd}</td><td class="r" colspan="4"><b>Off day</b></td></tr>`;
-      if(r.none)return`<tr><td>${dl(r.d)}</td><td>${dd}</td><td class="r note" colspan="4">Nothing entered</td></tr>`;
+      if(r.off)return`<tr class="offrow"><td>${dl(r.d)}</td><td>${dd}</td><td class="r" colspan="4" data-l="Status"><b>Off day</b></td></tr>`;
+      if(r.none)return`<tr><td>${dl(r.d)}</td><td>${dd}</td><td class="r note" colspan="4" data-l="Status">Nothing entered</td></tr>`;
       const c=chg(tot(r),prev);prev=tot(r);return`<tr><td>${dl(r.d)}</td><td>${dd}</td><td class="r">${inr(r.m)}</td><td class="r">${inr(r.e)}</td><td class="r"><b>${inr(tot(r))}</b></td><td class="r">${c}</td></tr>`}).join('')}</tbody>`;
     const i=months.indexOf(ym),pm=months[i-1],nm=months[i+1];
     top=`<section class="card"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><h2 style="margin:0">${ym?ymLabel(ym):''}, every day</h2>
