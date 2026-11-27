@@ -31,4 +31,4 @@ Both devices now share the same data. Only an encrypted copy (locked with your P
 
 ## Updating the app later
 
-Upload the new `index.html` (and any changed files) to the same repository. The installed app picks up the new version the next time it opens online.
+Change the `app-version` value near the top of `index.html` (for example `2026.11.27.1` → `2026.11.27.2`), then upload the new `index.html` (and any changed files) to the same repository. Installed apps notice the new version within a few minutes and show **Update now**; one tap updates them. You can also tap **Check for updates** at the bottom of Settings & sync.

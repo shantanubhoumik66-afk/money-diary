@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
+<!-- Change app-version on every update so installed apps show the "Update now" bar -->
+<meta name="app-version" content="2026.11.27.1">
 <meta name="theme-color" content="#7b3ff2">
 <meta name="description" content="Your personal budget diary">
 <link rel="manifest" href="manifest.webmanifest">
@@ -107,6 +109,7 @@ pre,.scroll{overflow-x:auto}
     <a href="#check" data-r="check">Settings &amp; sync</a>
     <a href="#tokens" data-r="tokens">Tokens</a>
   </nav><button class="btn" type="button" id="backBtn" hidden aria-label="Go back to the previous page">← Back</button></div>
+  <div id="updBar" class="msg" hidden style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-top:12px;background:light-dark(#efe8ff,#22173d)"><span><b>✨ A new version of Money Diary is ready.</b> <span class="note">Your data stays as it is.</span></span><button class="btn pri" type="button" id="updBtn">Update now</button></div>
   <div class="bar" id="yearbar">
     <label class="note" style="display:flex;gap:8px;align-items:center">Year <select id="year"></select></label>
     <span class="note" id="src"></span>
@@ -1230,7 +1233,9 @@ function viewCheck(){
   <li>The app locks itself after 5 minutes away, and after 5 wrong PINs it makes you wait longer each time.</li>
   <li>If you forget your PIN, the saved data cannot be opened by anyone, including you. Clear it and upload your Excel again.</li></ul>
   ${!canCrypt?'<p class="dnc">This browser can’t encrypt, so nothing is saved.</p>':KEYOBJ?`<p style="margin:0"><b class="upc">✓ Saved and encrypted with your PIN.</b></p><p style="margin:12px 0 0;font-weight:600">Change PIN</p>${pinForm('cp','Change PIN')}<div class="acts" style="margin-top:12px"><button class="btn" type="button" id="lk">Lock now</button><button class="btn" type="button" id="er">Clear all data</button></div>`:DB.demo?'<p class="note" style="margin:0">Sample data is never saved.</p>':hasData()?`<p style="margin:0" class="dnc">Not saved yet: set a PIN to keep this data.</p>${pinForm('pf2','Save with PIN')}<div class="acts" style="margin-top:12px"><button class="btn" type="button" id="er">Clear all data</button></div>`:`<p style="margin:0">Set a PIN to save your data on this device and to turn on sync.</p>${pinForm('pf2','Set PIN')}`}</section>`;
+  h+=`<section class="card"><h2>App version</h2><p style="margin:0 0 10px">You are using version <b>${esc(APP_VERSION||'—')}</b>.</p><div class="acts"><button class="btn" type="button" id="chkUpd">Check for updates</button></div><p class="note" id="chkUpdM" style="margin:8px 0 0"></p></section>`;
   $('#view').innerHTML=syncSection()+backupSection()+h;bindSync();bindBackup();
+  {const c=$('#chkUpd');if(c)c.onclick=async()=>{const m=$('#chkUpdM');m.className='note';m.textContent='Checking…';const v=await checkUpdate();m.textContent=!v?'Couldn’t check right now (no internet?).':v!==APP_VERSION?'A new version ('+v+') is ready: tap “Update now” at the top.':'You have the latest version.'}}
   bindPinForm('cp',()=>{flash('PIN changed.');render()});bindPinForm('pf2',()=>{flash('Saved and encrypted with your PIN.');render()});
   const lk=$('#lk');if(lk)lk.onclick=lockNow;confirm2($('#er'),'Tap again to delete all',()=>{eraseAll();flash('All data deleted from this device.')});
   const V=$('#view');
@@ -1284,6 +1289,28 @@ $('#demoBtn').onclick=demo;
 
 $('#year').onchange=e=>{st.year=e.target.value;render()};
 addEventListener('hashchange',render);
+/* ---------- app updates: check for a newer published version and update with one tap ---------- */
+const APP_VERSION=(document.querySelector('meta[name=app-version]')||{}).content||'';
+const verOf=html=>{const m=html.match(/<meta name="app-version" content="([^"]+)"/);return m?m[1]:''};
+let newVersion='';
+async function checkUpdate(){
+  if(!/^https?:/.test(location.protocol))return'';
+  try{const r=await fetch('./?v='+Date.now(),{cache:'no-store'});if(!r.ok)return'';const v=verOf(await r.text());
+    if(v&&v!==APP_VERSION){newVersion=v;$('#updBar').hidden=false}else $('#updBar').hidden=true;return v}catch(e){return''}
+}
+async function applyUpdate(){
+  const b=$('#updBtn');b.disabled=true;b.textContent='Updating…';
+  try{
+    for(const u of['./','./index.html']){const r=await fetch(u,{cache:'reload'});if(r.ok&&'caches' in window){const ks=await caches.keys();for(const k of ks)if(k.startsWith('money-diary'))await(await caches.open(k)).put(u,r.clone())}}
+    if(navigator.serviceWorker){const reg=await navigator.serviceWorker.getRegistration();if(reg)await reg.update().catch(()=>{})}
+    location.reload();
+  }catch(e){b.disabled=false;b.textContent='Update now';flash('No internet connection. Try updating when you are online.',true)}
+}
+$('#updBtn').onclick=applyUpdate;
+setTimeout(checkUpdate,4000);setInterval(()=>{if(!document.hidden)checkUpdate()},30*60e3);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(checkUpdate,1500)});
+addEventListener('online',()=>checkUpdate());
+
 render();
 let deferredInstall=null;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;$('#installBtn').hidden=false});
