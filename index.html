@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.27.8">
+<meta name="app-version" content="2026.11.27.9">
 <meta name="theme-color" content="#0b0a14">
+<script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -15,7 +16,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Money Diary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Outfit:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* VOICE: a calm personal money ledger, plain and exact
    IDEA: the daily cash book you keep in Excel, read back as answers
@@ -84,76 +85,128 @@ input:disabled{opacity:.45}
 @media(max-width:600px){.xrow{grid-template-columns:1fr 1fr 44px}.xrow .xi{grid-column:1/-1}}
 pre,.scroll{overflow-x:auto}
 @media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--muted)}.stack td:empty{display:none}}
-/* ===== Midnight Glass theme ===== */
-:root,:root[data-theme=light],:root[data-theme=dark]{color-scheme:dark;--bg:#0b0a14;--card:rgba(255,255,255,.06);--ink:#f4f2ff;--muted:#a8a3c7;--line:rgba(255,255,255,.10);--mist:rgba(255,255,255,.07);--band:#a78bfa;--bandInk:#fff;--m:#a78bfa;--e:#22d3ee;--x:#ff7a8a;--b:#f0abfc;--u:#8b8aa5;--up:#34d399;--down:#ff7a8a;--glass:rgba(255,255,255,.06);--glassB:rgba(255,255,255,.10)}
-*{font-family:'Plus Jakarta Sans',system-ui,sans-serif!important}
-html{background:#0b0a14}
+/* ===== Looks: one structure, four colour sets (Midnight Glass, Clean Fintech, Pastel Bento, Sunset Brand) ===== */
+:root,:root[data-theme=light],:root[data-theme=dark]{color-scheme:dark;
+ --font:'Plus Jakarta Sans';--bg:#0b0a14;--ink:#f4f2ff;--muted:#a8a3c7;--line:rgba(255,255,255,.10);--mist:rgba(255,255,255,.07);
+ --glass:rgba(255,255,255,.06);--glassB:rgba(255,255,255,.10);--blur:blur(14px);--shadow:none;--radius:22px;
+ --glow1:#7c3aed;--glow1o:.32;--glow2:#ec4899;--glow2o:.16;
+ --hero:linear-gradient(135deg,rgba(124,58,237,.6),rgba(236,72,153,.38));--heroB:1px solid rgba(255,255,255,.16);--heroInk:#fff;--heroSub:#ece8ff;
+ --acc:linear-gradient(135deg,#7c3aed,#ec4899);--accInk:#fff;--accShadow:0 6px 18px rgba(124,58,237,.35);
+ --pri:linear-gradient(135deg,#7c3aed,#ec4899);--priInk:#fff;--priShadow:0 8px 20px rgba(124,58,237,.35);
+ --btnB:rgba(255,255,255,.16);--in:rgba(255,255,255,.06);--inB:rgba(255,255,255,.14);--opt:#1a1730;--ph:#8f89b3;
+ --segOn:#c4b5fd;--segOnInk:#0b0a14;--head:rgba(11,10,20,.94);--headB:rgba(255,255,255,.08);
+ --nav:rgba(28,24,48,.94);--navB:rgba(255,255,255,.12);--navInk:#a8a3c7;--menu:rgba(24,21,42,.98);--menuB:rgba(255,255,255,.14);
+ --tip:#f4f2ff;--tipInk:#0b0a14;--link:#c4b5fd;--exBg:rgba(255,122,138,.24);--exInk:#ffd6dc;--off:rgba(255,122,138,.14);
+ --msg:rgba(167,139,250,.14);--msgB:rgba(167,139,250,.25);--chip:rgba(255,255,255,.08);--focus:#c4b5fd;--dateIcon:invert(1);
+ --m:#a78bfa;--e:#22d3ee;--x:#ff7a8a;--b:#f0abfc;--u:#8b8aa5;--up:#34d399;--down:#ff7a8a;--band:#a78bfa;--bandInk:#fff;--card:var(--glass)}
+html[data-look=fintech]{color-scheme:light;--font:'Inter';--num:'Space Grotesk';--bg:#f3f4f6;--ink:#0d0f14;--muted:#5b616e;--line:#e5e7eb;--mist:#eef0f3;
+ --glass:#ffffff;--glassB:#e6e8ec;--blur:none;--shadow:0 1px 2px rgba(16,24,40,.05);--radius:20px;--glow1o:0;--glow2o:0;
+ --hero:#0d0f14;--heroB:0;--heroInk:#fff;--heroSub:#b8bcc6;--acc:#d4ff3f;--accInk:#0d0f14;--accShadow:none;
+ --pri:#0d0f14;--priInk:#fff;--priShadow:none;--btnB:#d9dce2;--in:#fff;--inB:#d4d7de;--opt:#fff;--ph:#8a909c;
+ --segOn:#0d0f14;--segOnInk:#fff;--head:rgba(243,244,246,.96);--headB:#e5e7eb;--nav:#ffffff;--navB:#e5e7eb;--navInk:#5b616e;--menu:#ffffff;--menuB:#e5e7eb;
+ --tip:#0d0f14;--tipInk:#fff;--link:#0d0f14;--exBg:#ffe3e3;--exInk:#b42318;--off:#ffe8e8;--msg:#eef3ff;--msgB:#d6e0ff;--chip:#eef0f3;--focus:#0d0f14;--dateIcon:none;
+ --m:#257de0;--e:#00a884;--x:#d92d2d;--b:#6a4ce2;--u:#8b93a1;--up:#067647;--down:#b42318}
+html[data-look=bento]{color-scheme:light;--font:'Outfit';--bg:#f4f1ff;--ink:#1d1636;--muted:#5f5880;--line:#e3ddf7;--mist:#ece7ff;
+ --glass:#ffffff;--glassB:transparent;--blur:none;--shadow:none;--radius:26px;--glow1:#c9b8ff;--glow1o:.55;--glow2:#bff0d8;--glow2o:.55;
+ --hero:#c9b8ff;--heroB:0;--heroInk:#1d1636;--heroSub:#2a1d5c;--acc:#c9b8ff;--accInk:#1d1636;--accShadow:none;
+ --pri:#1d1636;--priInk:#fff;--priShadow:none;--btnB:#ddd5f5;--in:#fff;--inB:#d9d2f2;--opt:#fff;--ph:#8a83a8;
+ --segOn:#1d1636;--segOnInk:#fff;--head:rgba(244,241,255,.96);--headB:#e3ddf7;--nav:#1d1636;--navB:transparent;--navInk:#b7aee0;--menu:#ffffff;--menuB:#e3ddf7;
+ --tip:#1d1636;--tipInk:#fff;--link:#3b2a8a;--exBg:#ffc9d4;--exInk:#8a0f26;--off:#ffe0e7;--msg:#ffffff;--msgB:#e3ddf7;--chip:#ffffff;--focus:#3b2a8a;--dateIcon:none;
+ --m:#7c5cff;--e:#14b8a6;--x:#d6214a;--b:#f59e0b;--u:#9a93b5;--up:#0f7a4a;--down:#b4122f}
+html[data-look=sunset]{color-scheme:light;--font:'Manrope';--bg:#ffffff;--ink:#16121f;--muted:#6b6478;--line:#ece6f3;--mist:#f4f0fa;
+ --glass:#faf8fd;--glassB:#efe9f7;--blur:none;--shadow:0 8px 24px rgba(64,20,90,.06);--radius:24px;--glow1:#ff8a1e;--glow1o:.08;--glow2:#7b3ff2;--glow2o:.08;
+ --hero:linear-gradient(140deg,#7b3ff2 0%,#d6336c 55%,#ff8a1e 100%);--heroB:0;--heroInk:#fff;--heroSub:#ffe9f0;
+ --acc:linear-gradient(140deg,#7b3ff2,#d6336c 60%,#ff8a1e);--accInk:#fff;--accShadow:0 6px 18px rgba(214,51,108,.3);
+ --pri:linear-gradient(140deg,#7b3ff2,#d6336c 60%,#ff8a1e);--priInk:#fff;--priShadow:0 8px 20px rgba(214,51,108,.28);--btnB:#e6dff0;--in:#fff;--inB:#e0d8ec;--opt:#fff;--ph:#9a93a8;
+ --segOn:#7b3ff2;--segOnInk:#fff;--head:rgba(255,255,255,.96);--headB:#efe9f7;--nav:#ffffff;--navB:#efe9f7;--navInk:#6b6478;--menu:#ffffff;--menuB:#efe9f7;
+ --tip:#16121f;--tipInk:#fff;--link:#7b3ff2;--exBg:rgba(255,255,255,.24);--exInk:#fff;--off:#ffe6ec;--msg:#f6f0ff;--msgB:#e7dcfb;--chip:#f4f0fa;--focus:#7b3ff2;--dateIcon:none;
+ --m:#7b3ff2;--e:#0ea5e9;--x:#d22b4a;--b:#ff8a1e;--u:#9a93a8;--up:#067647;--down:#c2185b}
+*{font-family:var(--font),system-ui,sans-serif!important}
+.hero .big,.kpi b,.hk b,h1,h2{font-family:var(--num,var(--font)),system-ui,sans-serif!important}
+html{background:var(--bg)}
 body{background:transparent;color:var(--ink);min-height:100vh}
 body::before,body::after{content:"";position:fixed;z-index:-1;border-radius:50%;filter:blur(90px);pointer-events:none}
-body::before{width:420px;height:420px;background:#7c3aed;opacity:.32;top:-160px;left:-120px}
-body::after{width:360px;height:360px;background:#ec4899;opacity:.16;bottom:-140px;right:-140px}
+body::before{width:420px;height:420px;background:var(--glow1);opacity:var(--glow1o);top:-160px;left:-120px}
+body::after{width:360px;height:360px;background:var(--glow2);opacity:var(--glow2o);bottom:-140px;right:-140px}
 h1,h2{letter-spacing:-.02em;font-weight:800}
-.card,.kpi{background:var(--glass);border:1px solid var(--glassB);border-radius:22px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.card,.kpi{background:var(--glass);border:1px solid var(--glassB);border-radius:var(--radius);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);box-shadow:var(--shadow)}
 .kpi b,.hk b{font-weight:800}
-.hero{background:linear-gradient(135deg,rgba(124,58,237,.6),rgba(236,72,153,.38));border:1px solid rgba(255,255,255,.16);color:#fff;border-radius:26px}
-.hero .lbl,.hk span{color:#ece8ff}
+.hero{background:var(--hero);border:var(--heroB);color:var(--heroInk);border-radius:calc(var(--radius) + 4px)}
+.hero .lbl,.hk span{color:var(--heroSub)}
 .hero .big{font-weight:800!important;letter-spacing:-.03em}
-.exred,.hk b.exred{display:inline-block;color:#ffd6dc;background:rgba(255,122,138,.24);border-radius:8px;padding:0 8px}
-.btn{background:var(--glass);border:1px solid rgba(255,255,255,.16);color:var(--ink);border-radius:14px}
-.btn.pri{background:linear-gradient(135deg,#7c3aed,#ec4899);border:0;color:#fff;box-shadow:0 8px 20px rgba(124,58,237,.35)}
-select,input[type=search],.in,.xrow input,.xrow select{background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.14)!important;color:var(--ink)!important;border-radius:14px!important}
-select option{background:#1a1730;color:#f4f2ff}
-input::placeholder{color:#8f89b3}
-.seg{background:var(--glass);border:1px solid var(--glassB);border-radius:14px}
-.seg button{border-radius:10px}
-.seg button.on{background:#c4b5fd;color:#0b0a14}
-.seg{max-width:100%;overflow-x:auto;scrollbar-width:none}.seg::-webkit-scrollbar{display:none}.seg button{flex:none}
-input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.8;cursor:pointer}
-input[type=checkbox]{accent-color:#a78bfa}
-.chip{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12)}
-.msg{background:rgba(167,139,250,.14);border:1px solid rgba(167,139,250,.25);border-radius:16px}
-.lnk,a{color:#c4b5fd}
-.drop{background:var(--glass);border-color:rgba(255,255,255,.18);border-radius:26px}
-.tip{background:#f4f2ff;color:#0b0a14;border-radius:10px}
-tr.offrow{background:rgba(255,122,138,.14)}
-.hb .t,.mrow .t{background:rgba(255,255,255,.08)}
-#updBar{background:linear-gradient(135deg,rgba(124,58,237,.35),rgba(236,72,153,.25))!important}
+.exred,.hk b.exred{display:inline-block;color:var(--exInk);background:var(--exBg);border-radius:8px;padding:0 8px}
+.btn{background:var(--glass);border:1px solid var(--btnB);color:var(--ink);border-radius:14px}
+.btn.pri{background:var(--pri);border:0;color:var(--priInk);box-shadow:var(--priShadow)}
+select,input[type=search],.in,.xrow input,.xrow select{background:var(--in)!important;border:1px solid var(--inB)!important;color:var(--ink)!important;border-radius:14px!important}
+select option{background:var(--opt);color:var(--ink)}
+input::placeholder{color:var(--ph)}
+.seg{background:var(--glass);border:1px solid var(--glassB);border-radius:14px;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{border-radius:10px;flex:none}
+.seg button.on{background:var(--segOn);color:var(--segOnInk)}
+input[type=date]::-webkit-calendar-picker-indicator{filter:var(--dateIcon);opacity:.8;cursor:pointer}
+input[type=checkbox]{accent-color:var(--m)}
+.chip{background:var(--chip);border-color:var(--line)}
+.msg{background:var(--msg);border:1px solid var(--msgB);border-radius:16px}
+.lnk,a{color:var(--link)}
+.drop{background:var(--glass);border-color:var(--line);border-radius:calc(var(--radius) + 4px)}
+.tip{background:var(--tip);color:var(--tipInk);border-radius:10px}
+tr.offrow{background:var(--off)}
+.hb .t,.mrow .t{background:var(--mist)}
+#updBar{background:var(--msg)!important;border:1px solid var(--msgB)}
+/* Pastel Bento: each figure tile gets its own soft colour */
+html[data-look=bento] .kpi:nth-child(6n+1){background:#bff0d8}html[data-look=bento] .kpi:nth-child(6n+2){background:#ffd9c2}
+html[data-look=bento] .kpi:nth-child(6n+3){background:#ffc9d4}html[data-look=bento] .kpi:nth-child(6n+4){background:#bfe3ff}
+html[data-look=bento] .kpi:nth-child(6n+5){background:#fff4b8}html[data-look=bento] .kpi:nth-child(6n){background:#e2d9ff}
+html[data-look=bento] .kpi span,html[data-look=bento] .kpi small{color:#3d3560}
 /* layout */
 .shell{max-width:1440px;margin:0 auto}
 .side{display:flex;flex-direction:column;gap:14px}
 .sidehead{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .brand{font-weight:800;font-size:20px;display:flex;gap:10px;align-items:center;letter-spacing:-.02em}
-.iconbtn{width:44px;height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:var(--glass);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.iconbtn{width:44px;height:44px;border-radius:14px;border:1px solid var(--btnB);background:var(--glass);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer}
 nav.tabs{border:0}
 nav.tabs a.nv{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--muted);font-weight:700;border-radius:14px;border-bottom:0;padding:0}
-nav.tabs a.nv.on{color:#fff;background:linear-gradient(135deg,#7c3aed,#ec4899);box-shadow:0 6px 18px rgba(124,58,237,.35)}
-nav.tabs a.nv:focus-visible,.menuonly:focus-visible{outline:3px solid #c4b5fd;outline-offset:2px}
+nav.tabs a.nv.on{color:var(--accInk);background:var(--acc);box-shadow:var(--accShadow)}
+nav.tabs a.nv:focus-visible,.menuonly:focus-visible,.lookbtn:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 .menuonly{display:none}
-.backbtn{display:flex;align-items:center;gap:12px;width:100%;min-height:46px;border:0;background:none;box-shadow:none;color:var(--muted);font-weight:700;font-size:15px;text-align:left;border-radius:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.backbtn,.lookbtn{display:flex;align-items:center;gap:12px;width:100%;min-height:46px;border:0;background:none;box-shadow:none;color:var(--muted);font-weight:700;font-size:15px;text-align:left;border-radius:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .backbtn[hidden]{display:none!important}
-.backbtn:hover{color:var(--ink)}
+.backbtn:hover,.lookbtn:hover{color:var(--ink)}
 .backbtn:active,.backbtn:focus-visible{color:#0b0a14;background:#39ff14;box-shadow:0 0 18px rgba(57,255,20,.55);outline:none}
-.ctop{display:flex;justify-content:flex-end}
-.ctop:has(#backBtn[hidden]){display:none}
+/* Look switcher */
+.looks{width:100%}
+.looks>summary{list-style:none}.looks>summary::-webkit-details-marker{display:none}
+.lookbtn .lookname{margin-left:auto;font-size:12px;font-weight:600;color:var(--muted)}
+.lookbtn .chev{transition:transform .2s}
+.looks[open] .lookbtn{color:var(--ink);background:var(--mist)}
+.looks[open] .chev{transform:rotate(180deg)}
+.looklist{display:flex;flex-direction:column;gap:4px;padding:6px;margin-top:6px;border-radius:16px;background:var(--glass);border:1px solid var(--glassB);box-shadow:var(--shadow)}
+.looklist button{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 10px;border:0;border-radius:12px;background:none;color:var(--ink);font-weight:700;font-size:14px;cursor:pointer;text-align:left}
+.looklist button:hover{background:var(--mist)}
+.looklist button.on{background:var(--acc);color:var(--accInk)}
+.looklist .sw{width:26px;height:26px;border-radius:8px;flex:none;border:1px solid rgba(0,0,0,.15)}
+.looklist .tick{margin-left:auto;visibility:hidden}.looklist button.on .tick{visibility:visible}
 /* phone and small tablet */
 @media (max-width:899px){
- .side{position:sticky;top:0;z-index:20;padding:12px max(4vw,14px);background:rgba(11,10,20,.94);border-bottom:1px solid rgba(255,255,255,.08)}
- .content{padding:0 max(4vw,14px) 120px}
- nav.tabs{position:fixed;left:10px;right:10px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:30;height:68px;border-radius:24px;background:rgba(28,24,48,.94);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:space-around;overflow:visible;padding:0 4px;gap:0}
- nav.tabs a.nv{flex-direction:column;gap:2px;font-size:10.5px;width:62px;height:54px;justify-content:center}
+ .side{position:sticky;top:0;z-index:20;padding:12px max(4vw,14px);background:var(--head);border-bottom:1px solid var(--headB)}
+ .content{padding:12px max(4vw,14px) 120px}
+ nav.tabs{position:fixed;left:10px;right:10px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:30;height:68px;border-radius:24px;background:var(--nav);border:1px solid var(--navB);box-shadow:0 10px 30px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:space-around;overflow:visible;padding:0 4px;gap:0}
+ nav.tabs a.nv{flex-direction:column;gap:2px;font-size:10.5px;width:62px;height:54px;justify-content:center;color:var(--navInk)}
  nav.tabs a.nv .full{display:none}
  nav.tabs a.sec{display:none}
- nav.tabs a.fab{width:58px;height:58px;flex:none;border-radius:19px;margin-top:-30px;color:#fff;background:linear-gradient(135deg,#7c3aed,#ec4899);box-shadow:0 10px 24px rgba(124,58,237,.45)}
+ nav.tabs a.fab{width:58px;height:58px;flex:none;border-radius:19px;margin-top:-30px;color:var(--priInk);background:var(--pri);box-shadow:0 10px 24px rgba(0,0,0,.25)}
+ html[data-look=fintech] nav.tabs a.fab{background:#d4ff3f;color:#0d0f14}
+ html[data-look=bento] nav.tabs a.fab{background:#c9b8ff;color:#1d1636}
  nav.tabs a.fab .short{display:none}
  nav.tabs a.fab svg{width:28px;height:28px;stroke-width:2.6}
- nav.tabs a.fab.on{outline:3px solid rgba(255,255,255,.75)}
- .acts{display:none;position:fixed;top:66px;right:12px;z-index:40;width:min(300px,calc(100vw - 24px));flex-direction:column;align-items:stretch;gap:8px;padding:12px;border-radius:20px;background:rgba(24,21,42,.98);border:1px solid rgba(255,255,255,.14);box-shadow:0 20px 50px rgba(0,0,0,.55)}
+ nav.tabs a.fab.on{outline:3px solid var(--focus)}
+ .acts{display:none;position:fixed;top:66px;right:12px;z-index:40;width:min(300px,calc(100vw - 24px));max-height:calc(100vh - 170px);overflow-y:auto;flex-direction:column;align-items:stretch;gap:8px;padding:12px;border-radius:20px;background:var(--menu);border:1px solid var(--menuB);box-shadow:0 20px 50px rgba(0,0,0,.35)}
  body.menu-open .acts{display:flex}
  .acts .btn{justify-content:center}
  .menuonly{display:flex;align-items:center;gap:12px;min-height:46px;padding:0 12px;border-radius:12px;color:var(--ink);text-decoration:none;font-weight:700}
- .backbtn{padding:0 12px;color:var(--ink)}
- .menuonly.on{color:#fff;background:linear-gradient(135deg,#7c3aed,#ec4899)}
- .ctop{padding-top:12px}
+ .backbtn,.lookbtn{padding:0 12px;color:var(--ink)}
+ .menuonly.on{color:var(--accInk);background:var(--acc)}
 }
 /* laptop and desktop */
 @media (min-width:900px){
@@ -163,10 +216,9 @@ nav.tabs a.nv:focus-visible,.menuonly:focus-visible{outline:3px solid #c4b5fd;ou
  nav.tabs{display:flex;flex-direction:column;gap:4px;overflow:visible}
  nav.tabs a.nv{min-height:46px;padding:0 14px;font-size:15px}
  nav.tabs a.nv .short{display:none}
- .acts{display:flex;flex:1;flex-direction:column;align-items:stretch;gap:8px}
+ .acts{display:flex;flex:1;flex-direction:column;align-items:stretch;gap:8px;margin-top:-10px}
  .acts label[for=file]{margin-top:auto}
- .acts{margin-top:-10px}
- .backbtn{padding:0 14px;font-size:15px}
+ .backbtn,.lookbtn{padding:0 14px;font-size:15px}
  .acts .btn{justify-content:center}
  .content{padding:26px 0 56px;min-width:0}
  .hero .big{font-size:clamp(44px,4.4vw,60px)!important}
@@ -193,6 +245,7 @@ nav.tabs a.nv:focus-visible,.menuonly:focus-visible{outline:3px solid #c4b5fd;ou
         <a href="#invest" data-r="invest" class="menuonly"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>Mutual funds</a>
         <a href="#check" data-r="check" class="menuonly"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Settings &amp; sync</a>
         <a href="#tokens" data-r="tokens" class="menuonly"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2"/></svg>Tokens</a>
+      <details class="looks" id="looks"><summary class="lookbtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.9 1.2-1.8-.5-1.1.3-2.2 1.5-2.2H17a4 4 0 0 0 4-4c0-5.5-4-10-9-10z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7" r="1.2"/></svg>Look<span class="lookname" id="lookName">Midnight Glass</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary><div class="looklist" role="group" aria-label="Choose a look"><button type="button" data-look="midnight"><i class="sw" style="background:linear-gradient(135deg,#0b0a14 50%,#7c3aed 50%)" aria-hidden="true"></i>Midnight Glass<svg class="tick" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button><button type="button" data-look="fintech"><i class="sw" style="background:linear-gradient(135deg,#0d0f14 50%,#d4ff3f 50%)" aria-hidden="true"></i>Clean Fintech<svg class="tick" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button><button type="button" data-look="bento"><i class="sw" style="background:linear-gradient(135deg,#c9b8ff 50%,#bff0d8 50%)" aria-hidden="true"></i>Pastel Bento<svg class="tick" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button><button type="button" data-look="sunset"><i class="sw" style="background:linear-gradient(135deg,#7b3ff2,#d6336c,#ff8a1e)" aria-hidden="true"></i>Sunset Brand<svg class="tick" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></button></div></details>
       <button class="backbtn" type="button" id="backBtn" hidden aria-label="Go back to the previous page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Back</button>
       <label class="btn pri" for="file">Upload Excel</label>
       <input id="file" type="file" accept=".xlsx,.csv" multiple hidden>
@@ -1381,6 +1434,13 @@ function render(){
    if(w.length)V.insertAdjacentHTML('afterbegin',`<a class="msg dnc" href="#tokens" style="display:block;text-decoration:none"><b>⚠ ${esc(w.join(' · '))}.</b> Tap here to renew it in the Tokens tab.</a>`)}
 }
 $('#lockBtn').onclick=lockNow;
+const LOOKS={midnight:['Midnight Glass','#0b0a14'],fintech:['Clean Fintech','#f3f4f6'],bento:['Pastel Bento','#f4f1ff'],sunset:['Sunset Brand','#7b3ff2']};
+function setLook(k,save){if(!LOOKS[k])k='midnight';if(k==='midnight')delete document.documentElement.dataset.look;else document.documentElement.dataset.look=k;
+  $('#lookName').textContent=LOOKS[k][0];document.querySelectorAll('.looklist button').forEach(b=>b.classList.toggle('on',b.dataset.look===k));
+  const tc=document.querySelector('meta[name=theme-color]');if(tc)tc.content=LOOKS[k][1];
+  if(save){try{localStorage.setItem('md.look',k)}catch(e){}$('#looks').open=false}}
+{let k='midnight';try{k=localStorage.getItem('md.look')||'midnight'}catch(e){}setLook(k,false)}
+document.querySelectorAll('.looklist button').forEach(b=>b.onclick=()=>{setLook(b.dataset.look,true);render()});
 $('#moreBtn').onclick=()=>{const o=document.body.classList.toggle('menu-open');$('#moreBtn').setAttribute('aria-expanded',String(o))};
 document.addEventListener('click',e=>{if(document.body.classList.contains('menu-open')&&!e.target.closest('#acts,#moreBtn'))document.body.classList.remove('menu-open')});
 $('#acts').addEventListener('click',e=>{if(e.target.closest('button,a'))setTimeout(()=>document.body.classList.remove('menu-open'),0)});
