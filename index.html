@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.27.6">
+<meta name="app-version" content="2026.11.27.7">
 <meta name="theme-color" content="#0b0a14">
 <meta name="description" content="Your personal budget diary">
 <link rel="manifest" href="manifest.webmanifest">
@@ -126,13 +126,13 @@ tr.offrow{background:rgba(255,122,138,.14)}
 .iconbtn{width:44px;height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:var(--glass);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer}
 nav.tabs{border:0}
 nav.tabs a.nv{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--muted);font-weight:700;border-radius:14px;border-bottom:0;padding:0}
-nav.tabs a.nv.on{color:#fff;background:rgba(167,139,250,.22)}
+nav.tabs a.nv.on{color:#fff;background:linear-gradient(135deg,#7c3aed,#ec4899);box-shadow:0 6px 18px rgba(124,58,237,.35)}
 nav.tabs a.nv:focus-visible,.menuonly:focus-visible{outline:3px solid #c4b5fd;outline-offset:2px}
 .menuonly{display:none}
 .backbtn{display:flex;align-items:center;gap:12px;width:100%;min-height:46px;border:0;background:none;box-shadow:none;color:var(--muted);font-weight:700;font-size:15px;text-align:left;border-radius:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .backbtn[hidden]{display:none!important}
 .backbtn:hover{color:var(--ink)}
-.backbtn:active,.backbtn:focus-visible{color:#fff;background:rgba(167,139,250,.22);outline:none}
+.backbtn:active,.backbtn:focus-visible{color:#fff;background:linear-gradient(135deg,#7c3aed,#ec4899);outline:none}
 .ctop{display:flex;justify-content:flex-end}
 .ctop:has(#backBtn[hidden]){display:none}
 /* phone and small tablet */
@@ -152,7 +152,7 @@ nav.tabs a.nv:focus-visible,.menuonly:focus-visible{outline:3px solid #c4b5fd;ou
  .acts .btn{justify-content:center}
  .menuonly{display:flex;align-items:center;gap:12px;min-height:46px;padding:0 12px;border-radius:12px;color:var(--ink);text-decoration:none;font-weight:700}
  .backbtn{padding:0 12px;color:var(--ink)}
- .menuonly.on{background:rgba(167,139,250,.22)}
+ .menuonly.on{color:#fff;background:linear-gradient(135deg,#7c3aed,#ec4899)}
  .ctop{padding-top:12px}
 }
 /* laptop and desktop */
@@ -163,7 +163,6 @@ nav.tabs a.nv:focus-visible,.menuonly:focus-visible{outline:3px solid #c4b5fd;ou
  nav.tabs{display:flex;flex-direction:column;gap:4px;overflow:visible}
  nav.tabs a.nv{min-height:46px;padding:0 14px;font-size:15px}
  nav.tabs a.nv .short{display:none}
- nav.tabs a.fab{color:#fff;background:linear-gradient(135deg,rgba(124,58,237,.8),rgba(236,72,153,.65));margin:4px 0}
  .acts{display:flex;flex:1;flex-direction:column;align-items:stretch;gap:8px}
  .acts label[for=file]{margin-top:auto}
  .acts{margin-top:-10px}
@@ -1385,7 +1384,7 @@ $('#lockBtn').onclick=lockNow;
 $('#moreBtn').onclick=()=>{const o=document.body.classList.toggle('menu-open');$('#moreBtn').setAttribute('aria-expanded',String(o))};
 document.addEventListener('click',e=>{if(document.body.classList.contains('menu-open')&&!e.target.closest('#acts,#moreBtn'))document.body.classList.remove('menu-open')});
 $('#acts').addEventListener('click',e=>{if(e.target.closest('button,a'))setTimeout(()=>document.body.classList.remove('menu-open'),0)});
-$('#backBtn').onclick=()=>{const bb=$('#backBtn');bb.style.background='rgba(167,139,250,.22)';bb.style.color='#fff';setTimeout(()=>{bb.style.background='';bb.style.color=''},250);navHist.pop();const to=navHist.pop()||'overview';location.hash=to;scrollTo({top:0})};
+$('#backBtn').onclick=()=>{const bb=$('#backBtn');bb.style.background='linear-gradient(135deg,#7c3aed,#ec4899)';bb.style.color='#fff';setTimeout(()=>{bb.style.background='';bb.style.color=''},250);navHist.pop();const to=navHist.pop()||'overview';location.hash=to;scrollTo({top:0})};
 confirm2($('#clearBtn'),'Tap again to delete all',()=>{eraseAll();flash('All data deleted from this device.')});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-q]');if(!b)return;st.q=b.dataset.q;if(location.hash==='#search')render();else location.hash='search'});
 $('#file').onchange=e=>{if(e.target.files.length)handleFiles([...e.target.files]);e.target.value=''};
