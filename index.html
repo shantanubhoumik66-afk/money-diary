@@ -430,11 +430,7 @@ function ingest(sheets){
   if(DB.demo)DB=blank();
   for(const s of sheets){const y=String(s.name).match(/\b(20\d\d)\b/);if(y&&!sheetMonth(s.name)){defYear=+y[1];break}}
   const names=new Set(sheets.map(s=>s.name));
-  for(const r of DB.report.filter(r=>names.has(r.name))){
-    for(const ym of r.yms||[])delete DB.months[ym];
-    for(const ym of r.ovYms||[]){delete DB.mf[ym];delete DB.mfF[ym];delete DB.biz[ym]}}
-  const rep=DB.report.filter(r=>!names.has(r.name));
-  const owned=new Set(rep.flatMap(r=>r.yms||[]));
+  const rep=[];const owned=new Set();
   for(const s of sheets){
     const ov=DB.map[s.name]||{};const ctx=sheetMonth(s.name);
     const isOv=/^\s*(20\d\d)\s*$/.test(s.name)||/overview|summary|mother/i.test(s.name);
@@ -451,14 +447,17 @@ function ingest(sheets){
           sum:{m:iv.reduce((a,o)=>a+o.m,0),e:iv.reduce((a,o)=>a+o.e,0),x:ms.exp.reduce((a,o)=>a+o.amt,0),days:iv.filter(o=>o.m||o.e).length,off:iv.filter(o=>o.off).length,ne:ms.exp.length}});
       }else R.empty=true;
     }else if(type==='overview'){const y=String(s.name).match(/\b(20\d\d)\b/);const o=parseOverview(s.rows,y?+y[1]:defYear);
+      for(const ym of o.yms){delete DB.mf[ym];delete DB.mfF[ym];delete DB.biz[ym]}
       Object.assign(DB.mf,o.mf);Object.assign(DB.mfF,o.mfF);Object.assign(DB.biz,o.biz);if(o.funds.length)DB.funds=o.funds;
       Object.assign(R,{ovYms:o.yms,ovXl:o.xl,nMf:Object.keys(o.mf).length,nBiz:Object.keys(o.biz).length,nFunds:o.funds.length});
       if(!o.yms.length&&!o.funds.length)R.empty=true;
     }
     rep.push(R);
   }
-  DB.report=rep;DB.impT=Date.now();persist();
-  const mine=rep.filter(r=>names.has(r.name));
+  const yk=r=>r.name+'|'+[...new Set([...(r.yms||[]),...(r.ovYms||[])].map(k=>k.slice(0,4)))].sort().join(',');
+  const newKeys=new Set(rep.map(yk));
+  DB.report=DB.report.filter(r=>!newKeys.has(yk(r))&&!(names.has(r.name)&&r.type==='skip')).concat(rep);DB.impT=Date.now();persist();
+  const mine=rep;
   return{months:mine.filter(r=>r.type==='month'&&!r.empty&&r.ctx).length,ov:mine.some(r=>r.type==='overview'&&!r.empty),warn:mine.some(warnOf)};
 }
 const close=(a,b)=>Math.abs(a-b)<1;
