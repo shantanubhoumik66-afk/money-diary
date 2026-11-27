@@ -59,7 +59,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;font-weight:500;color:var(--muted);font-size:13px;padding:8px;border-bottom:1px solid var(--line)}
 td{padding:9px 8px;border-bottom:1px solid var(--line)}
 .r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-.upc{color:var(--up);font-weight:600}.exc{color:var(--x)!important}td.heat{background:color-mix(in srgb,var(--m) calc(var(--a)*100%),transparent)}.exred{color:#b91c1c;background:#fff;border-radius:6px;padding:0 6px;display:inline-block}.dnc{color:var(--down);font-weight:600}
+.upc{color:var(--up);font-weight:600}.exc{color:var(--x)!important}.lnk{background:none;border:0;padding:4px 0;min-height:32px;color:var(--m);font:600 14px Inter,sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-align:left}.items{font-size:13px;line-height:1.5}.btn:disabled{opacity:.4;cursor:default}td.heat{background:color-mix(in srgb,var(--m) calc(var(--a)*100%),transparent)}.exred{color:#b91c1c;background:#fff;border-radius:6px;padding:0 6px;display:inline-block}.dnc{color:var(--down);font-weight:600}
 .hb{display:grid;grid-template-columns:minmax(0,9em) 1fr auto;gap:10px;align-items:center;padding:6px 0;font-size:14px;width:100%;background:none;border:0;color:inherit;font-family:inherit;text-align:left;cursor:pointer;min-height:36px}
 .hb span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hb .t{height:10px;background:var(--mist);border-radius:5px;overflow:hidden}.hb .t i{display:block;height:100%;background:var(--x);border-radius:5px}
@@ -560,6 +560,8 @@ function chart(id,groups){
     tip.innerHTML='<b>'+esc(g.tip||g.label)+'</b><br>'+g.bars.flat().map(z=>esc(z.n)+': '+inr(z.v)).join('<br>');
     tip.style.display='block';const tw=tip.offsetWidth;tip.style.left=Math.max(0,Math.min(x+14,geo.W-tw))+'px';tip.style.top=Math.max(0,ev.clientY-b.top-tip.offsetHeight-10)+'px'};
   svg.onpointerleave=()=>{tip.style.display='none'};
+  svg.style.cursor=groups.some(g=>g.go)?'pointer':'';
+  svg.onclick=ev=>{if(!geo)return;const b=svg.getBoundingClientRect();const i=Math.floor((ev.clientX-b.left-geo.pl)/geo.gw);const g=groups[i];if(g&&g.go)g.go()};
 }
 const fig=(id,h)=>`<div class="fig" id="${id}" style="min-height:${h||300}px"><svg role="img" aria-label="Bar chart"></svg><div class="tip"></div></div>`;
 const leg=a=>'<div class="legend">'+a.map(([c,n])=>`<span><i style="background:${c}"></i>${n}</span>`).join('')+'</div>';
@@ -685,6 +687,7 @@ const dm=d=>+d.slice(8)+' '+MON[+d.slice(5,7)-1];
 const wkLabel=k=>dm(k)+' – '+dm(addDays(k,6));
 const segBtns=(name,opts,cur)=>`<div class="seg" role="group" aria-label="${name}">${opts.map(([v,l])=>`<button type="button" data-${name}="${v}" class="${cur===v?'on':''}">${l}</button>`).join('')}</div>`;
 const monthEnd=ym=>toISO(+ym.slice(0,4),+ym.slice(5,7)-1,new Date(+ym.slice(0,4),+ym.slice(5,7),0).getDate());
+function goMonth(ym){st.iv='daily';st.month=ym;render();scrollTo({top:0,behavior:'smooth'})}
 function viewIncome(){
   const{inc}=data();const work=inc.filter(r=>!r.off);const tot=r=>r.m+r.e;
   const months=[...new Set(inc.map(r=>r.d.slice(0,7)))].sort();
@@ -705,26 +708,42 @@ function viewIncome(){
   <div class="kpi"><span>Best month</span><b>${bestM?inr(bestM.m+bestM.e):'—'}</b><small>${bestM?ymLabel(bestM.ym):''}</small></div>
   <div class="kpi"><span>Best week</span><b>${bestW?inr(bestW.m+bestW.e):'—'}</b><small>${bestW?wkLabel(bestW.k):''}</small></div></div>`;
   const L=leg([['var(--m)','Morning'],['var(--e)','Evening']]);
-  let groups=[],table='',extra='';
+  let groups=[],table='',extra='',top='';
   if(st.iv==='mtotal'){
-    groups=MR.map(r=>({label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym)+' · Total Credit '+inr(r.m+r.e),bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'}]]}));
-    table=`<thead><tr><th>Month</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Working / off</th><th class="r">vs last month</th></tr></thead><tbody>${MR.map((r,i)=>`<tr><td>${ymLabel(r.ym)}</td><td class="r">${inr(r.m)}</td><td class="r">${inr(r.e)}</td><td class="r"><b>${inr(r.m+r.e)}</b></td><td class="r">${r.days} / ${r.off}</td><td class="r">${chg(r.m+r.e,i?MR[i-1].m+MR[i-1].e:0)}</td></tr>`).join('')}</tbody>`;
+    groups=MR.map(r=>({go:()=>goMonth(r.ym),label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym)+' · Total Credit '+inr(r.m+r.e)+' · tap to open',bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'}]]}));
+    table=`<thead><tr><th>Month</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Working / off</th><th class="r">vs last month</th></tr></thead><tbody>${MR.map((r,i)=>`<tr><td><button class="lnk" type="button" data-gm="${r.ym}">${ymLabel(r.ym)} ›</button></td><td class="r">${inr(r.m)}</td><td class="r">${inr(r.e)}</td><td class="r"><b>${inr(r.m+r.e)}</b></td><td class="r">${r.days} / ${r.off}</td><td class="r">${chg(r.m+r.e,i?MR[i-1].m+MR[i-1].e:0)}</td></tr>`).join('')}</tbody>`;
   }else if(st.iv==='mavg'){
     const av=r=>r.days?{m:r.m/r.days,e:r.e/r.days}:{m:0,e:0};
-    groups=MR.map(r=>{const a=av(r);return{label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym)+' · per working day '+inr(a.m+a.e),bars:[[{v:a.m,c:'var(--m)',n:'Morning avg'},{v:a.e,c:'var(--e)',n:'Evening avg'}]]}});
-    table=`<thead><tr><th>Month</th><th class="r">Working days</th><th class="r">Avg morning</th><th class="r">Avg evening</th><th class="r">Avg per working day</th><th class="r">vs last month</th></tr></thead><tbody>${MR.map((r,i)=>{const a=av(r),p=i?av(MR[i-1]):null;return`<tr><td>${ymLabel(r.ym)}</td><td class="r">${r.days}</td><td class="r">${inr(a.m)}</td><td class="r">${inr(a.e)}</td><td class="r"><b>${inr(a.m+a.e)}</b></td><td class="r">${chg(a.m+a.e,p?p.m+p.e:0)}</td></tr>`}).join('')}</tbody>`;
+    groups=MR.map(r=>{const a=av(r);return{go:()=>goMonth(r.ym),label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym)+' · per working day '+inr(a.m+a.e)+' · tap to open',bars:[[{v:a.m,c:'var(--m)',n:'Morning avg'},{v:a.e,c:'var(--e)',n:'Evening avg'}]]}});
+    table=`<thead><tr><th>Month</th><th class="r">Working days</th><th class="r">Avg morning</th><th class="r">Avg evening</th><th class="r">Avg per working day</th><th class="r">vs last month</th></tr></thead><tbody>${MR.map((r,i)=>{const a=av(r),p=i?av(MR[i-1]):null;return`<tr><td><button class="lnk" type="button" data-gm="${r.ym}">${ymLabel(r.ym)} ›</button></td><td class="r">${r.days}</td><td class="r">${inr(a.m)}</td><td class="r">${inr(a.e)}</td><td class="r"><b>${inr(a.m+a.e)}</b></td><td class="r">${chg(a.m+a.e,p?p.m+p.e:0)}</td></tr>`}).join('')}</tbody>`;
   }else if(st.iv==='weekly'){
     groups=WK.map(w=>({label:dm(w.k),tip:'Week '+wkLabel(w.k)+' · '+w.days+' working days',bars:[[{v:w.m,c:'var(--m)',n:'Morning'},{v:w.e,c:'var(--e)',n:'Evening'}]]}));
     table=`<thead><tr><th>Week (Mon–Sun)</th><th class="r">Working / off</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">vs last week</th></tr></thead><tbody>${WK.map((w,i)=>`<tr><td>${wkLabel(w.k)}</td><td class="r">${w.days} / ${w.off}</td><td class="r">${inr(w.m)}</td><td class="r">${inr(w.e)}</td><td class="r"><b>${inr(w.m+w.e)}</b></td><td class="r">${chg(w.m+w.e,i?WK[i-1].m+WK[i-1].e:0)}</td></tr>`).join('')}</tbody>`;
     const B=['1–7','8–14','15–21','22–28','29–31'];const grid=months.map(ym=>{const c=[0,0,0,0,0];for(const r of work)if(r.d.startsWith(ym))c[Math.min(4,Math.floor((+r.d.slice(8)-1)/7))]+=tot(r);return{ym,c}});
     const gmax=Math.max(1,...grid.flatMap(g=>g.c));const avg=[0,1,2,3,4].map(i=>grid.length?grid.reduce((s,g)=>s+g.c[i],0)/grid.length:0);
     extra=`<section class="card"><h2>Compare weeks across months</h2><p class="note" style="margin:0 0 10px">Total Credit in each week of the month. Darker blue means more income; bold is that month’s best week.</p>
-    <div class="scroll"><table style="min-width:560px"><thead><tr><th>Month</th>${B.map((b,i)=>`<th class="r">Week ${i+1}<br><span class="note">${b}</span></th>`).join('')}<th class="r">Total</th></tr></thead><tbody>${grid.map(g=>{const mx=Math.max(...g.c);return`<tr><td>${ymLabel(g.ym)}</td>${g.c.map(v=>`<td class="r heat" style="--a:${(v/gmax*.55).toFixed(2)};${v&&v===mx?'font-weight:700':''}">${v?inr(v):'—'}</td>`).join('')}<td class="r"><b>${inr(g.c.reduce((a,b)=>a+b,0))}</b></td></tr>`}).join('')}
+    <div class="scroll"><table style="min-width:560px"><thead><tr><th>Month</th>${B.map((b,i)=>`<th class="r">Week ${i+1}<br><span class="note">${b}</span></th>`).join('')}<th class="r">Total</th></tr></thead><tbody>${grid.map(g=>{const mx=Math.max(...g.c);return`<tr><td><button class="lnk" type="button" data-gm="${g.ym}">${ymLabel(g.ym)} ›</button></td>${g.c.map(v=>`<td class="r heat" style="--a:${(v/gmax*.55).toFixed(2)};${v&&v===mx?'font-weight:700':''}">${v?inr(v):'—'}</td>`).join('')}<td class="r"><b>${inr(g.c.reduce((a,b)=>a+b,0))}</b></td></tr>`}).join('')}
     <tr><td><b>Average</b></td>${avg.map(v=>`<td class="r"><b>${inr(v)}</b></td>`).join('')}<td></td></tr></tbody></table></div></section>`;
   }else{
-    const sel=inc.filter(r=>r.d.startsWith(st.month));const ws=sel.filter(r=>!r.off);
-    groups=ws.map(r=>({label:String(+r.d.slice(8)),tip:dl(r.d)+' · '+WD[new Date(r.d+'T00:00').getDay()],bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'}]]}));
-    let prev=0;table=`<thead><tr><th>Date</th><th>Day</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">vs previous working day</th></tr></thead><tbody>${sel.map(r=>{const dd=WD[new Date(r.d+'T00:00').getDay()];if(r.off)return`<tr><td>${dl(r.d)}</td><td>${dd}</td><td class="r note">Off day</td><td></td><td></td><td></td></tr>`;const c=chg(tot(r),prev);prev=tot(r);return`<tr><td>${dl(r.d)}</td><td>${dd}</td><td class="r">${inr(r.m)}</td><td class="r">${inr(r.e)}</td><td class="r"><b>${inr(tot(r))}</b></td><td class="r">${c}</td></tr>`}).join('')}</tbody>`;
+    const ym=st.month,t=todayISO(),end=ym===t.slice(0,7)?t:monthEnd(ym);
+    const by={};for(const r of inc)if(r.d.startsWith(ym))by[r.d]=r;
+    const all=[];if(ym)for(let d=ym+'-01';d<=end;d=addDays(d,1))all.push(by[d]||{d,m:0,e:0,none:true});
+    const ws=all.filter(r=>!r.off&&!r.none),mt=ws.reduce((s2,r)=>s2+tot(r),0),offs=all.filter(r=>r.off).length,nones=all.filter(r=>r.none).length;
+    const bd=ws.reduce((a2,r)=>!a2||tot(r)>tot(a2)?r:a2,null),ld=ws.reduce((a2,r)=>!a2||tot(r)<tot(a2)?r:a2,null);
+    const fd=d=>FULLDAY[new Date(d+'T00:00').getDay()];
+    groups=all.map(r=>({label:String(+r.d.slice(8)),tip:dl(r.d)+' · '+fd(r.d)+(r.off?' · Off day':r.none?' · Nothing entered':''),bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'}]]}));
+    let prev=0;table=`<thead><tr><th>Date</th><th>Day</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">vs previous working day</th></tr></thead><tbody>${all.map(r=>{const dd=WD[new Date(r.d+'T00:00').getDay()];
+      if(r.off)return`<tr style="background:var(--mist)"><td>${dl(r.d)}</td><td>${dd}</td><td class="r" colspan="4"><b>Off day</b></td></tr>`;
+      if(r.none)return`<tr><td>${dl(r.d)}</td><td>${dd}</td><td class="r note" colspan="4">Nothing entered</td></tr>`;
+      const c=chg(tot(r),prev);prev=tot(r);return`<tr><td>${dl(r.d)}</td><td>${dd}</td><td class="r">${inr(r.m)}</td><td class="r">${inr(r.e)}</td><td class="r"><b>${inr(tot(r))}</b></td><td class="r">${c}</td></tr>`}).join('')}</tbody>`;
+    const i=months.indexOf(ym),pm=months[i-1],nm=months[i+1];
+    top=`<section class="card"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><h2 style="margin:0">${ym?ymLabel(ym):''}, every day</h2>
+      <div class="acts"><button class="btn" type="button" ${pm?`data-gm="${pm}"`:'disabled'}>‹ ${pm?ymLabel(pm):'Previous'}</button><button class="btn" type="button" ${nm?`data-gm="${nm}"`:'disabled'}>${nm?ymLabel(nm):'Next'} ›</button><button class="btn" type="button" data-iv="mtotal">All months</button></div></div>
+      <div class="kpis" style="margin-top:12px"><div class="kpi"><span>Total Credit</span><b>${inr(mt)}</b><small>morning ${inr(ws.reduce((s2,r)=>s2+r.m,0))} · evening ${inr(ws.reduce((s2,r)=>s2+r.e,0))}</small></div>
+      <div class="kpi"><span>Working days</span><b>${ws.length}</b><small>${offs} off day${offs===1?'':'s'}${nones?' · '+nones+' not entered':''}</small></div>
+      <div class="kpi"><span>Average per working day</span><b>${inr(ws.length?mt/ws.length:0)}</b></div>
+      <div class="kpi"><span>Best day</span><b>${bd?inr(tot(bd)):'—'}</b><small>${bd?dl(bd.d)+' · '+fd(bd.d):''}</small></div>
+      <div class="kpi"><span>Lowest working day</span><b>${ld?inr(tot(ld)):'—'}</b><small>${ld?dl(ld.d)+' · '+fd(ld.d):''}</small></div></div></section>`;
   }
   if((st.iv==='mtotal'||st.iv==='mavg')&&mW.length>1){
     if(!st.ca||!mW.find(r=>r.ym===st.ca))st.ca=mW[mW.length-2].ym;if(!st.cb||!mW.find(r=>r.ym===st.cb))st.cb=mW[mW.length-1].ym;
@@ -734,19 +753,21 @@ function viewIncome(){
     extra=`<section class="card"><h2>Compare two months</h2><div class="frow" style="margin-top:0"><label>First month<select id="ca" class="in">${opt(st.ca)}</select></label><label>Second month<select id="cb" class="in">${opt(st.cb)}</select></label></div>
     <div class="scroll" style="margin-top:12px"><table style="min-width:420px"><thead><tr><th></th><th class="r">${ymLabel(A.ym)}</th><th class="r">${ymLabel(Bm.ym)}</th><th class="r">Difference</th></tr></thead><tbody>${rows.map(([l,a,b,isN])=>`<tr><td>${l}</td><td class="r">${isN?a:inr(a)}</td><td class="r">${isN?b:inr(b)}</td><td class="r">${b-a===0?'<span class="note">same</span>':`<span class="${b>a?'upc':'dnc'}">${b>a?'▲ +':'▼ −'}${isN?Math.abs(b-a):inr(Math.abs(b-a)).slice(0)}</span> ${a?`<span class="note">(${Math.round((b-a)/a*100)}%)</span>`:''}`}</td></tr>`).join('')}</tbody></table></div></section>`;
   }
-  const titles={mtotal:'Total Credit by month',mavg:'Average per working day, by month',weekly:'Total Credit by week',daily:'Each working day, '+(st.month?ymLabel(st.month):'')};
+  const titles={mtotal:'Total Credit by month',mavg:'Average per working day, by month',weekly:'Total Credit by week',daily:'Every day, '+(st.month?ymLabel(st.month):'')+' (empty bars are off days)'};
   const Wd=[1,2,3,4,5,6,0].map(w=>{const rs=work.filter(r=>new Date(r.d+'T00:00').getDay()===w);const n=rs.length||1;return{w,n:rs.length,off:inc.filter(r=>r.off&&new Date(r.d+'T00:00').getDay()===w).length,m:rs.reduce((s,r)=>s+r.m,0)/n,e:rs.reduce((s,r)=>s+r.e,0)/n}});
   const bw=Wd.reduce((a,b)=>b.m+b.e>a.m+a.e?b:a,Wd[0]);
-  h+=`<section class="card"><h2>${titles[st.iv]}</h2>${L}${fig('c2')}<p class="note" style="margin:8px 0 0">Business amount is not included here; it is in the Overview.</p></section>${extra}
+  h+=top+`<section class="card"><h2>${titles[st.iv]}</h2>${(st.iv==='mtotal'||st.iv==='mavg')?'<p class="note" style="margin:0 0 6px">Tap a month’s bar or name to see every day of that month.</p>':''}${L}${fig('c2')}<p class="note" style="margin:8px 0 0">Business amount is not included here; it is in the Overview.</p></section>${extra}
   <div class="grid2"><section class="card"><h2>${{mtotal:'Each month',mavg:'Each month',weekly:'Each week',daily:'Each day'}[st.iv]}, up or down</h2><div class="scroll" style="max-height:520px;overflow-y:auto"><table class="stack">${table}</table></div></section>
   <section class="card"><h2>Average by weekday</h2><p class="note" style="margin:0 0 8px">${bw.n?'Your best day is usually '+FULLDAY[bw.w]+'.':''}</p>
   <table><thead><tr><th>Day</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Off days</th></tr></thead><tbody>${Wd.map(w=>`<tr><td>${WD[w.w]}${w===bw&&w.n?' <span class="upc">best</span>':''}</td><td class="r">${inr(w.m)}</td><td class="r">${inr(w.e)}</td><td class="r"><b>${inr(w.m+w.e)}</b></td><td class="r">${w.off}</td></tr>`).join('')}</tbody></table></section></div>`;
   $('#view').innerHTML=h;
   document.querySelectorAll('[data-iv]').forEach(b=>b.onclick=()=>{st.iv=b.dataset.iv;render()});
+  document.querySelectorAll('[data-gm]').forEach(b=>b.onclick=()=>goMonth(b.dataset.gm));
   const mo=$('#mon');if(mo)mo.onchange=e=>{st.month=e.target.value;render()};
   const ca=$('#ca'),cb=$('#cb');if(ca){ca.onchange=e=>{st.ca=e.target.value;render()};cb.onchange=e=>{st.cb=e.target.value;render()}}
   chart('c2',groups);
 }
+function xGo(ym){st.group='day';st.xmon=ym;render();scrollTo({top:0,behavior:'smooth'})}
 function viewSearch(){
   const{exp}=data();const top=itemTotals(exp);
   const xmonths=[...new Set(exp.map(x=>x.d.slice(0,7)))].sort();
@@ -776,7 +797,7 @@ function viewSearch(){
         for(let d=g==='week'?mondayOf(from):from;d<=to;d=addDays(d,g==='week'?7:1))G[d]=0}
       else for(const d of days)G[key(d)]=0}
     for(const x of hit)G[key(x.d)]=(G[key(x.d)]||0)+x.amt;
-    const ks=Object.keys(G).sort();const names=itemTotals(hit);const unit={day:'day',week:'week',month:'month',quarter:'quarter',year:'year'}[g];
+    const ks=Object.keys(G).sort();const names=itemTotals(hit);const byDay={};for(const x of hit.slice().reverse())(byDay[x.d]||(byDay[x.d]=[])).push(x);const unit={day:'day',week:'week',month:'month',quarter:'quarter',year:'year'}[g];
     const hiK=ks.reduce((a,k)=>!a||G[k]>G[a]?k:a,null);const nz=ks.filter(k=>G[k]>0).length;
     const what=terms.length?esc(terms.join(', ')):'All expenses';
     R.innerHTML=`<div class="kpis"><div class="kpi"><span>Total spent</span><b class="exc">${inr(tot)}</b><small>${what}${scope?' · '+ymLabel(scope):''}</small></div>
@@ -784,12 +805,17 @@ function viewSearch(){
     <div class="kpi"><span>Average per ${unit}</span><b class="exc">${inr(ks.length?tot/ks.length:0)}</b><small>over ${ks.length} ${unit}s, ${nz} with spending</small></div>
     <div class="kpi"><span>Highest ${unit}</span><b class="exc">${hiK&&G[hiK]?inr(G[hiK]):'—'}</b><small>${hiK&&G[hiK]?esc(lab(hiK)):''}</small></div>
     <div class="kpi"><span>Last spent</span><b>${hit[0]?esc(dm(hit[0].d)):'—'}</b><small>${hit[0]?esc(hit[0].item)+' '+inr(hit[0].amt):''}</small></div></div>
-    ${hit.length?`<section class="card"><h2>${what}, ${{day:'daily',week:'weekly',month:'monthly',quarter:'quarterly',year:'yearly'}[g]}</h2>${fig('c3',280)}
-    <div class="scroll" style="margin-top:12px;max-height:460px;overflow-y:auto"><table><thead><tr><th>${unit[0].toUpperCase()+unit.slice(1)}</th><th class="r">Spent</th><th class="r">vs previous ${unit}</th></tr></thead><tbody>${ks.slice().reverse().map(k=>{const i=ks.indexOf(k);return`<tr><td>${esc(lab(k))}</td><td class="r exc">${G[k]?inr(G[k]):'<span class="note">—</span>'}</td><td class="r">${G[k]?chg(G[k],i?G[ks[i-1]]:0).replace('upc','tmp').replace('dnc','upc').replace('tmp','dnc'):''}</td></tr>`}).join('')}</tbody></table></div><p class="note" style="margin:8px 0 0">For spending, ▲ (more spent) shows in red and ▼ in green.</p></section>
+    ${hit.length?`<section class="card"><h2>${what}, ${scope&&g==='day'?esc(ymLabel(scope))+', day by day':{day:'daily',week:'weekly',month:'monthly',quarter:'quarterly',year:'yearly'}[g]}</h2>${fig('c3',280)}
+    ${scope&&g==='day'?`<div class="acts" style="margin-top:12px">${(()=>{const i=xmonths.indexOf(scope),pm=xmonths[i-1],nm=xmonths[i+1];return`<button class="btn" type="button" ${pm?`data-xgo="${pm}"`:'disabled'}>‹ ${pm?ymLabel(pm):'Previous'}</button><button class="btn" type="button" ${nm?`data-xgo="${nm}"`:'disabled'}>${nm?ymLabel(nm):'Next'} ›</button><button class="btn" type="button" data-xall="1">All months</button>`})()}</div>
+    <div class="scroll" style="margin-top:12px;max-height:620px;overflow-y:auto"><table class="stack"><thead><tr><th>Day</th><th class="r">Spent</th><th>What you spent on</th></tr></thead><tbody>${ks.map(k=>{const its=byDay[k]||[];return`<tr><td style="white-space:nowrap">${esc(dl(k))} · ${WD[new Date(k+'T00:00').getDay()]}</td><td class="r exc"><b>${G[k]?inr(G[k]):'<span class="note">—</span>'}</b></td><td class="items">${its.length?its.map(x=>`${esc(x.item)} <span class="exc">${inr(x.amt)}</span>${x.mode?` <span class="note">(${esc(x.mode)})</span>`:''}`).join(' · '):'<span class="note">No spending</span>'}</td></tr>`}).join('')}
+    <tr style="font-weight:700"><td>Total ${esc(ymLabel(scope))}</td><td class="r exc">${inr(tot)}</td><td class="note">${hit.length} entries · ${ks.filter(k=>G[k]>0).length} days with spending</td></tr></tbody></table></div></section>`
+    :`<div class="scroll" style="margin-top:12px;max-height:460px;overflow-y:auto"><table><thead><tr><th>${unit[0].toUpperCase()+unit.slice(1)}</th><th class="r">Spent</th><th class="r">vs previous ${unit}</th></tr></thead><tbody>${ks.slice().reverse().map(k=>{const i=ks.indexOf(k);return`<tr><td>${g==='month'?`<button class="lnk" type="button" data-xgo="${k}">${esc(lab(k))} ›</button>`:esc(lab(k))}</td><td class="r exc">${G[k]?inr(G[k]):'<span class="note">—</span>'}</td><td class="r">${G[k]?chg(G[k],i?G[ks[i-1]]:0).replace('upc','tmp').replace('dnc','upc').replace('tmp','dnc'):''}</td></tr>`}).join('')}</tbody></table></div><p class="note" style="margin:8px 0 0">For spending, ▲ (more spent) shows in red and ▼ in green.${g==='month'?' Tap a month to see every day of it.':''}</p></section>`}
     <div class="grid2"><section class="card"><h2>${terms.length?'Names matched':'Top items'}</h2>${names.slice(0,terms.length?100:15).map(n=>`<button class="hb" type="button" data-q="${esc(n.name)}"><span>${esc(n.name)}</span><span class="note">${n.n} ${n.n===1?'time':'times'}</span><span class="r exc">${inr(n.amt)}</span></button>`).join('')}</section>
     <section class="card"><h2>Every entry</h2><div class="scroll" style="max-height:460px;overflow-y:auto"><table class="stack"><thead><tr><th>Date</th><th>Item</th><th>Paid by</th><th class="r">Amount</th></tr></thead><tbody>${hit.slice(0,400).map(x=>`<tr><td>${esc(x.d.split('-').reverse().join('-'))}</td><td>${esc(x.item)}</td><td>${esc(x.mode||'')}</td><td class="r exc">${inr(x.amt)}</td></tr>`).join('')}</tbody></table></div>${hit.length>400?'<p class="note">Showing the latest 400.</p>':''}</section></div>`
     :`<section class="card"><p style="margin:0">No expense matches “${esc(st.q)}”${scope?' in '+ymLabel(scope):''}.</p></section>`}`;
-    if(hit.length)chart('c3',ks.map(k=>({label:short2(k),tip:lab(k),bars:[[{v:G[k],c:'var(--x)',n:'Spent'}]]})));
+    if(hit.length)chart('c3',ks.map(k=>({go:g==='month'?()=>xGo(k):null,label:short2(k),tip:lab(k)+(g==='month'?' · tap to open':''),bars:[[{v:G[k],c:'var(--x)',n:'Spent'}]]})));
+    R.querySelectorAll('[data-xgo]').forEach(b=>b.onclick=()=>xGo(b.dataset.xgo));
+    R.querySelectorAll('[data-xall]').forEach(b=>b.onclick=()=>{st.group='month';render()});
   }
 }
 /* ---------- import check & security ---------- */
