@@ -20,7 +20,7 @@
    PICTURE: month-by-month bars of morning + evening earnings against spending
    COLOUR and TYPE: white, ink, signal green band for the headline figure; Space Grotesk + Inter
    LAYOUT: headline band, tabs, then one main chart and ruled tables */
-:root{color-scheme:light dark;--bg:light-dark(#ffffff,#07130d);--card:light-dark(#ffffff,#0c1d14);--ink:light-dark(#0b0b10,#eef5f1);--muted:light-dark(#5a5f6b,#9fb3a8);--line:light-dark(#e4e7ea,#1f3a2c);--mist:light-dark(#eafaf2,#10271b);--band:#00a862;--bandInk:#03130a;--m:light-dark(#257de0,#338ced);--e:light-dark(#00b894,#00a888);--x:light-dark(#d92d2d,#f06363);--up:light-dark(#007a45,#4be09a);--down:light-dark(#b8400c,#ff9466);--b:light-dark(#6a4ce2,#9887ef)}
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#07130d);--card:light-dark(#ffffff,#0c1d14);--ink:light-dark(#0b0b10,#eef5f1);--muted:light-dark(#5a5f6b,#9fb3a8);--line:light-dark(#e4e7ea,#1f3a2c);--mist:light-dark(#eafaf2,#10271b);--band:#00a862;--bandInk:#03130a;--m:light-dark(#257de0,#338ced);--e:light-dark(#00b894,#00a888);--x:light-dark(#d92d2d,#f06363);--up:light-dark(#007a45,#4be09a);--down:light-dark(#b8400c,#ff9466);--b:light-dark(#6a4ce2,#9887ef);--u:light-dark(#8b93a1,#7d8696)}
 :root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
@@ -348,7 +348,9 @@ const normMode=v=>{const s=String(v??'').toUpperCase().replace(/[\s.\-]/g,'');re
 function mapHeader(row){
   const h={};
   row.forEach((c,i)=>{const s=String(c??'').toLowerCase().replace(/\s+/g,' ').trim();if(!s)return;
-    if(/^total (credit|exp|daily)|^buss|^bus/.test(s))return;
+    if(/^buss|^bus|^total daily|^average|^working|^offday|^saving/.test(s))return;
+    if(/^total credit/.test(s)){if(h.c==null)h.c=i;return}
+    if(/^total exp/.test(s)){if(h.amt==null)h.amt=i;return}
     if(/date/.test(s)){if(h.date==null)h.date=i;return}
     if(/^day/.test(s)){if(h.day==null)h.day=i;return}
     if(/morn/.test(s)){if(h.m==null)h.m=i;return}
@@ -356,7 +358,7 @@ function mapHeader(row){
     if(/mode|paid|payment|\bvia\b/.test(s)){if(h.mode==null)h.mode=i;return}
     if(/name|product|item|particular|detail|purpose|summary/.test(s)){if(h.item==null)h.item=i;return}
     if(/exp|spent|cost|price/.test(s)){if(h.amt==null)h.amt=i;return}
-    if(/credit|income|earn|^total$/.test(s)){if(h.c==null)h.c=i;return}
+    if(/credit|income|earn|^total$|^total amount|^daily total|^day total/.test(s)){if(h.c==null)h.c=i;return}
     if(/amount|amt/.test(s)&&h.amt==null)h.amt=i;});
   return h;
 }
@@ -374,7 +376,7 @@ function parseMonthSheet(rows,ctx,ov){
     const m=num(cell(r,'m')),e=num(cell(r,'e')),a=num(cell(r,'amt'));
     if(!hasDate&&!it&&!m&&!e&&!a)continue;
     const first=r.find(c=>c!==''&&c!=null);
-    if((typeof first==='string'&&/^(grand )?total\b|^sum\b/i.test(first.trim()))||(!hasDate&&!it)){if(!xl.row)xl.row={m,e,x:a};continue}
+    if((typeof first==='string'&&/^(grand )?total\b|^sum\b/i.test(first.trim()))||(!hasDate&&!it)){if(!xl.row)xl.row={m,e,c:num(cell(r,'c')),x:a};continue}
     let d=null;
     if(hasDate){d=parseDate(dv,ctx);
       if(d&&ctx&&(+d.slice(5,7)!==ctx.mo+1||+d.slice(0,4)!==ctx.y)){
@@ -383,10 +385,11 @@ function parseMonthSheet(rows,ctx,ov){
       if(!d)bad++;else last=d}
     const day=d||last;if(!day)continue;
     const off=[cell(r,'c'),cell(r,'m'),cell(r,'e')].some(v=>/off/i.test(String(v??'')));
-    if(m||e){const o=inc[day]||(inc[day]={m:0,e:0});o.m=Math.max(o.m,m);o.e=Math.max(o.e,e);delete o.off}
+    const u=!m&&!e?num(cell(r,'c')):0;
+    if(m||e||u){const o=inc[day]||(inc[day]={m:0,e:0});o.m=Math.max(o.m,m);o.e=Math.max(o.e,e);if(u)o.u=Math.max(o.u||0,u);delete o.off}
     else if(off&&d&&!inc[day])inc[day]={m:0,e:0,off:true};
     if(a>0){exp.push({d:day,item:it||'Unnamed',amt:a,mode:normMode(cell(r,'mode'))});xr.push([i+1,a])}
-    if(m||e||a>0||off)n++;
+    if(m||e||u||a>0||off)n++;
   }
   let miss=null;const xs=exp.reduce((s,o)=>s+o.amt,0);
   if(xl.x&&xs-xl.x>=1){let acc=0;for(let k=xr.length-1;k>=0;k--){acc+=xr[k][1];if(Math.abs(acc-(xs-xl.x))<1){miss={from:xr[k][0],n:xr.length-k,amt:acc};break}if(acc>xs-xl.x)break}}
@@ -424,7 +427,7 @@ function parseOverview(rows,year){
   return out;
 }
 let lastSheets=[];
-const FIELDS=[['date','Date'],['m','Morning'],['e','Evening (night)'],['c','Credit amount / OFFDAY'],['item','Product summary'],['amt','Expense amount'],['mode','Payment mode']];
+const FIELDS=[['date','Date'],['m','Morning'],['e','Evening (night)'],['c','Credit amount (total) / OFFDAY'],['item','Product summary'],['amt','Expense amount'],['mode','Payment mode']];
 function ingest(sheets){
   lastSheets=sheets;
   if(DB.demo)DB=blank();
@@ -444,7 +447,7 @@ function ingest(sheets){
         for(const ym in fresh){if(!owned.has(ym)){DB.months[ym]={inc:{},exp:[]};owned.add(ym)}const M=DB.months[ym];Object.assign(M.inc,fresh[ym].inc);M.exp.push(...fresh[ym].exp)}
         const iv=Object.values(ms.inc);
         Object.assign(R,{miss:ms.miss,hdr:ms.hi,headers:(s.rows[ms.hi]||[]).map(c=>String(c??'')),h:ms.h,bad:ms.bad,swapped:ms.swapped,outside:ms.outside,xl:ms.xl,yms:[...yms],
-          sum:{m:iv.reduce((a,o)=>a+o.m,0),e:iv.reduce((a,o)=>a+o.e,0),x:ms.exp.reduce((a,o)=>a+o.amt,0),days:iv.filter(o=>o.m||o.e).length,off:iv.filter(o=>o.off).length,ne:ms.exp.length}});
+          sum:{m:iv.reduce((a,o)=>a+o.m,0),e:iv.reduce((a,o)=>a+o.e,0),u:iv.reduce((a,o)=>a+(o.u||0),0),x:ms.exp.reduce((a,o)=>a+o.amt,0),days:iv.filter(o=>o.m||o.e||o.u).length,off:iv.filter(o=>o.off).length,ne:ms.exp.length}});
       }else R.empty=true;
     }else if(type==='overview'){const y=String(s.name).match(/\b(20\d\d)\b/);const o=parseOverview(s.rows,y?+y[1]:defYear);
       for(const ym of o.yms){delete DB.mf[ym];delete DB.mfF[ym];delete DB.biz[ym]}
@@ -461,12 +464,12 @@ function ingest(sheets){
   return{months:mine.filter(r=>r.type==='month'&&!r.empty&&r.ctx).length,ov:mine.some(r=>r.type==='overview'&&!r.empty),warn:mine.some(warnOf)};
 }
 const close=(a,b)=>Math.abs(a-b)<1;
-function excelMonth(ym){const M=DB.months[ym];if(!M)return null;const v=Object.values(M.inc);return{c:v.reduce((a,o)=>a+o.m+o.e,0),x:M.exp.reduce((a,o)=>a+o.amt,0)}}
+function excelMonth(ym){const M=DB.months[ym];if(!M)return null;const v=Object.values(M.inc);return{c:v.reduce((a,o)=>a+o.m+o.e+(o.u||0),0),x:M.exp.reduce((a,o)=>a+o.amt,0)}}
 function warnOf(r){
   if(r.empty)return r.type!=='skip';
   if(r.type==='overview')return(r.ovYms||[]).some(ym=>{const a=excelMonth(ym),b=r.ovXl[ym];return a&&b&&((b.c&&!close(a.c,b.c))||(b.x&&!close(a.x,b.x)))});
   if(r.type!=='month')return false;const x=r.xl;
-  return!!(r.bad||r.swapped||r.outside||(r.ctx&&r.h.m==null)||r.h.amt==null||(x.c&&!close(x.c,r.sum.m+r.sum.e))||(x.x&&!close(x.x,r.sum.x)));
+  return!!(r.bad||r.swapped||r.outside||(r.ctx&&r.h.m==null&&r.h.c==null)||r.h.amt==null||(x.c&&!close(x.c,r.sum.m+r.sum.e+(r.sum.u||0)))||(x.x&&!close(x.x,r.sum.x)));
 }
 async function handleFiles(files){
   const box=$('#status');box.innerHTML='<div class="msg">Reading your file…</div>';
@@ -505,14 +508,14 @@ const fixMode=m=>!m||!String(m).trim()?'Cash':/^online$/i.test(String(m).trim())
 function allDays(){
   const D={};const g=d=>D[d]||(D[d]={m:0,e:0,off:false,exp:[]});
   for(const ym in DB.months){const M=DB.months[ym];
-    for(const d in M.inc){const o=g(d);o.m=M.inc[d].m;o.e=M.inc[d].e;o.off=!!M.inc[d].off}
+    for(const d in M.inc){const o=g(d);o.m=M.inc[d].m;o.e=M.inc[d].e;o.u=M.inc[d].u||0;o.off=!!M.inc[d].off}
     for(const x of M.exp)g(x.d).exp.push(x.mode&&!/^online$/i.test(x.mode)?x:Object.assign({},x,{mode:fixMode(x.mode)}))}
-  for(const d in DB.manual){const x=DB.manual[d];D[d]={m:x.m,e:x.e,off:!!x.off,exp:x.exp.map(z=>({d,item:z.item,amt:z.amt,mode:fixMode(z.mode)})),app:true}}
+  for(const d in DB.manual){const x=DB.manual[d];D[d]={m:x.m,e:x.e,u:x.u||0,off:!!x.off,exp:x.exp.map(z=>({d,item:z.item,amt:z.amt,mode:fixMode(z.mode)})),app:true}}
   return D;
 }
 function data(){
   const D=allDays(),inc=[],exp=[];
-  for(const d in D){if(!inP(d))continue;const o=D[d];if(o.m||o.e||o.off)inc.push({d,m:o.m,e:o.e,off:o.off&&!(o.m+o.e)});exp.push(...o.exp)}
+  for(const d in D){if(!inP(d))continue;const o=D[d];if(o.m||o.e||o.u||o.off)inc.push({d,m:o.m,e:o.e,u:o.u||0,off:o.off&&!(o.m+o.e+(o.u||0))});exp.push(...o.exp)}
   inc.sort((a,b)=>a.d<b.d?-1:1);exp.sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:0);
   return{inc,exp};
 }
@@ -521,8 +524,8 @@ const mfOf=ym=>Object.values(mfFOf(ym)).reduce((a,b)=>a+b,0);
 const bizOf=ym=>DB.manualM[ym]&&DB.manualM[ym].biz!=null?DB.manualM[ym].biz:DB.biz[ym]||0;
 const hasData=()=>Object.keys(DB.months).length+Object.keys(DB.manual).length+Object.keys(DB.mf).length+Object.keys(DB.biz).length>0;
 function monthRows(){
-  const{inc,exp}=data();const M={};const g=k=>M[k]||(M[k]={ym:k,m:0,e:0,x:0,mf:0,biz:0,days:0,off:0});
-  for(const r of inc){const o=g(r.d.slice(0,7));if(r.off)o.off++;else{o.m+=r.m;o.e+=r.e;o.days++}}
+  const{inc,exp}=data();const M={};const g=k=>M[k]||(M[k]={ym:k,m:0,e:0,u:0,x:0,mf:0,biz:0,days:0,off:0});
+  for(const r of inc){const o=g(r.d.slice(0,7));if(r.off)o.off++;else{o.m+=r.m;o.e+=r.e;o.u+=r.u||0;o.days++}}
   for(const r of exp)g(r.d.slice(0,7)).x+=r.amt;
   for(const k of new Set([...Object.keys(DB.mf),...Object.keys(DB.biz),...Object.keys(DB.manualM)]))if(inP(k)&&(mfOf(k)||bizOf(k)))g(k);
   for(const k in M){M[k].mf=mfOf(k);M[k].biz=bizOf(k)}
@@ -560,7 +563,7 @@ function chart(id,groups){
   const ro=new ResizeObserver(draw);ro.observe(svg);ros.push(ro);
   svg.onpointermove=ev=>{if(!geo)return;const b=svg.getBoundingClientRect();const x=ev.clientX-b.left;const i=Math.floor((x-geo.pl)/geo.gw);const g=groups[i];
     if(!g){tip.style.display='none';return}
-    tip.innerHTML='<b>'+esc(g.tip||g.label)+'</b><br>'+g.bars.flat().map(z=>esc(z.n)+': '+inr(z.v)).join('<br>');
+    tip.innerHTML='<b>'+esc(g.tip||g.label)+'</b><br>'+g.bars.flat().filter(z=>z.v||!/no split/.test(z.n)).map(z=>esc(z.n)+': '+inr(z.v)).join('<br>');
     tip.style.display='block';const tw=tip.offsetWidth;tip.style.left=Math.max(0,Math.min(x+14,geo.W-tw))+'px';tip.style.top=Math.max(0,ev.clientY-b.top-tip.offsetHeight-10)+'px'};
   svg.onpointerleave=()=>{tip.style.display='none'};
   svg.style.cursor=groups.some(g=>g.go)?'pointer':'';
@@ -570,27 +573,28 @@ const fig=(id,h)=>`<div class="fig" id="${id}" style="min-height:${h||300}px"><s
 const leg=a=>'<div class="legend">'+a.map(([c,n])=>`<span><i style="background:${c}"></i>${n}</span>`).join('')+'</div>';
 
 /* ---------- views ---------- */
+const mE=(r,k)=>(r.u||0)&&!r.m&&!r.e?'<span class="note">—</span>':inr(r[k]);
 function viewOverview(){
   const rows=monthRows();const{exp}=data();
-  const T=rows.reduce((a,r)=>({m:a.m+r.m,e:a.e+r.e,b:a.b+r.biz,x:a.x+r.x,mf:a.mf+r.mf,d:a.d+r.days,o:a.o+r.off}),{m:0,e:0,b:0,x:0,mf:0,d:0,o:0});
-  const inc=T.m+T.e+T.b,left=inc-T.x-T.mf,label=st.year==='all'?'all years':st.year;
+  const T=rows.reduce((a,r)=>({m:a.m+r.m,e:a.e+r.e,u:a.u+(r.u||0),b:a.b+r.biz,x:a.x+r.x,mf:a.mf+r.mf,d:a.d+r.days,o:a.o+r.off}),{m:0,e:0,u:0,b:0,x:0,mf:0,d:0,o:0});
+  const inc=T.m+T.e+(T.u||0)+T.b,left=inc-T.x-T.mf,label=st.year==='all'?'all years':st.year;
   const top=itemTotals(exp).slice(0,10);const tmax=top[0]?.amt||1;
   const modes={};for(const x of exp){const k=x.mode||'Not set';modes[k]=(modes[k]||0)+x.amt}
   $('#view').innerHTML=`<section class="hero"><div><div class="lbl">Net saving in ${esc(label)}, after expenses and MF</div><div class="big num">${inr(left)}</div><div class="lbl" style="margin-top:6px">Saved before MF: ${inr(inc-T.x)}</div></div>
-  <div class="hk"><div><span>Total Credit</span><b>${inr(T.m+T.e)}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>MF invested</span><b>${inr(T.mf)}</b></div><div><span>Working days</span><b>${T.d}</b></div><div><span>Off days</span><b>${T.o}</b></div></div></section>
+  <div class="hk"><div><span>Total Credit</span><b>${inr(T.m+T.e+(T.u||0))}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>MF invested</span><b>${inr(T.mf)}</b></div><div><span>Working days</span><b>${T.d}</b></div><div><span>Off days</span><b>${T.o}</b></div></div></section>
   <div class="grid2">
-  <section class="card"><h2>Nett income vs expenses by month</h2>${leg([['var(--m)','Morning'],['var(--e)','Evening'],['var(--b)','Business'],['var(--x)','Expenses']])}${fig('c1')}</section>
+  <section class="card"><h2>Nett income vs expenses by month</h2>${leg([['var(--m)','Morning'],['var(--e)','Evening'],...(T.u?[['var(--u)','Total only (no split)']]:[]),['var(--b)','Business'],['var(--x)','Expenses']])}${fig('c1')}</section>
   <section class="card"><h2>Where the money goes</h2><p class="note" style="margin:0 0 8px">Tap an item to see its full history.</p>
   ${top.map(t=>`<button class="hb" type="button" data-q="${esc(t.name)}"><span>${esc(t.name)}</span><span class="t"><i style="width:${(t.amt/tmax*100).toFixed(1)}%"></i></span><span class="r exc">${inr(t.amt)}</span></button>`).join('')||'<p class="note">No expenses yet.</p>'}
   ${Object.keys(modes).length?`<p class="note" style="margin:12px 0 0">Paid by: ${Object.entries(modes).sort((a,b)=>b[1]-a[1]).map(([k,v])=>esc(k)+' '+inr(v)).join(' · ')}</p>`:''}</section></div>
   <section class="card"><h2>Month by month</h2><div class="scroll"><table style="min-width:860px"><thead><tr><th>Month</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Business</th><th class="r">Nett income</th><th class="r">vs last month</th><th class="r">Expenses</th><th class="r">MF</th><th class="r">Net saving</th></tr></thead><tbody>
-  ${rows.map((r,i)=>{const a=r.m+r.e+r.biz,p=i?rows[i-1].m+rows[i-1].e+rows[i-1].biz:0,l=a-r.x-r.mf;return`<tr><td>${ymLabel(r.ym)}</td><td class="r">${inr(r.m)}</td><td class="r">${inr(r.e)}</td><td class="r">${inr(r.m+r.e)}</td><td class="r">${inr(r.biz)}</td><td class="r"><b>${inr(a)}</b></td><td class="r">${chg(a,p)}</td><td class="r exc">${inr(r.x)}</td><td class="r">${inr(r.mf)}</td><td class="r ${l<0?'dnc':''}">${inr(l)}</td></tr>`}).join('')}
-  <tr style="font-weight:700"><td>Total</td><td class="r">${inr(T.m)}</td><td class="r">${inr(T.e)}</td><td class="r">${inr(T.m+T.e)}</td><td class="r">${inr(T.b)}</td><td class="r">${inr(inc)}</td><td></td><td class="r exc">${inr(T.x)}</td><td class="r">${inr(T.mf)}</td><td class="r">${inr(left)}</td></tr>
-  </tbody></table></div></section>`;
-  chart('c1',rows.map(r=>({label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym),bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'},{v:r.biz,c:'var(--b)',n:'Business'}],[{v:r.x,c:'var(--x)',n:'Expenses'}]]})));
+  ${rows.map((r,i)=>{const a=r.m+r.e+(r.u||0)+r.biz,p=i?rows[i-1].m+rows[i-1].e+rows[i-1].biz:0,l=a-r.x-r.mf;return`<tr><td>${ymLabel(r.ym)}</td><td class="r">${mE(r,'m')}</td><td class="r">${mE(r,'e')}</td><td class="r">${inr(r.m+r.e+(r.u||0))}</td><td class="r">${inr(r.biz)}</td><td class="r"><b>${inr(a)}</b></td><td class="r">${chg(a,p)}</td><td class="r exc">${inr(r.x)}</td><td class="r">${inr(r.mf)}</td><td class="r ${l<0?'dnc':''}">${inr(l)}</td></tr>`}).join('')}
+  <tr style="font-weight:700"><td>Total</td><td class="r">${inr(T.m)}</td><td class="r">${inr(T.e)}</td><td class="r">${inr(T.m+T.e+(T.u||0))}</td><td class="r">${inr(T.b)}</td><td class="r">${inr(inc)}</td><td></td><td class="r exc">${inr(T.x)}</td><td class="r">${inr(T.mf)}</td><td class="r">${inr(left)}</td></tr>
+  </tbody></table></div>${T.u?`<p class="note" style="margin:8px 0 0">${inr(T.u)} of Total Credit comes from sheets with only a total (no MORNING/NIGHT columns), so it is not split into morning and evening.</p>`:''}</section>`;
+  chart('c1',rows.map(r=>({label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym),bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'},{v:r.u||0,c:'var(--u)',n:'Total only (no split)'},{v:r.biz,c:'var(--b)',n:'Business'}],[{v:r.x,c:'var(--x)',n:'Expenses'}]]})));
 }
 function viewInvest(){
-  const rows=monthRows().filter(r=>r.mf);const tot=rows.reduce((s,r)=>s+r.mf,0),inc=rows.reduce((s,r)=>s+r.m+r.e+r.biz,0);
+  const rows=monthRows().filter(r=>r.mf);const tot=rows.reduce((s,r)=>s+r.mf,0),inc=rows.reduce((s,r)=>s+r.m+r.e+(r.u||0)+r.biz,0);
   const funds=[...new Set(rows.flatMap(r=>Object.keys(mfFOf(r.ym))))];const cols=['var(--m)','var(--e)','var(--b)','var(--x)'];
   const H=DB.funds||[];const hI=H.reduce((s,f)=>s+f.inv,0),hV=H.reduce((s,f)=>s+(f.val||0),0);
   let h='';
@@ -601,7 +605,7 @@ function viewInvest(){
   <div class="kpi"><span>Share of income</span><b>${inc?Math.round(tot/inc*100):0}%</b><small>of Nett income, same months</small></div>
   ${funds.map(f=>`<div class="kpi"><span>${esc(f)}</span><b>${inr(rows.reduce((s,r)=>s+(mfFOf(r.ym)[f]||0),0))}</b></div>`).join('')}</div>`+h+
   `<section class="card"><h2>MF investment by month</h2>${leg(funds.map((f,i)=>[cols[i%4],esc(f)]))}${fig('c4',260)}
-  <div class="scroll" style="margin-top:12px"><table style="min-width:520px"><thead><tr><th>Month</th>${funds.map(f=>`<th class="r">${esc(f)}</th>`).join('')}<th class="r">Total</th><th class="r">% of income</th></tr></thead><tbody>${rows.map(r=>{const F=mfFOf(r.ym),a=r.m+r.e+r.biz;return`<tr><td>${ymLabel(r.ym)}</td>${funds.map(f=>`<td class="r">${F[f]?inr(F[f]):'—'}</td>`).join('')}<td class="r"><b>${inr(r.mf)}</b></td><td class="r">${a?Math.round(r.mf/a*100)+'%':'—'}</td></tr>`}).join('')}</tbody></table></div></section>`;
+  <div class="scroll" style="margin-top:12px"><table style="min-width:520px"><thead><tr><th>Month</th>${funds.map(f=>`<th class="r">${esc(f)}</th>`).join('')}<th class="r">Total</th><th class="r">% of income</th></tr></thead><tbody>${rows.map(r=>{const F=mfFOf(r.ym),a=r.m+r.e+(r.u||0)+r.biz;return`<tr><td>${ymLabel(r.ym)}</td>${funds.map(f=>`<td class="r">${F[f]?inr(F[f]):'—'}</td>`).join('')}<td class="r"><b>${inr(r.mf)}</b></td><td class="r">${a?Math.round(r.mf/a*100)+'%':'—'}</td></tr>`}).join('')}</tbody></table></div></section>`;
   $('#view').innerHTML=h;
   chart('c4',rows.map(r=>{const F=mfFOf(r.ym);return{label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym),bars:[funds.map((f,i)=>({v:F[f]||0,c:cols[i%4],n:f}))]}}));
 }
@@ -611,14 +615,14 @@ const xrow=(x={})=>`<div class="xrow"><input class="xi" list="items" placeholder
 function tsvFor(ym){
   const days=Object.keys(DB.manual).filter(d=>d.startsWith(ym)).sort();const out=[];let sl=0;
   for(const d of days){const x=DB.manual[d];const ds=d.slice(8)+'-'+d.slice(5,7)+'-'+d.slice(0,4);const day=FULLDAY[new Date(d+'T00:00').getDay()];
-    const credit=x.off&&!(x.m+x.e)?'OFFDAY':x.m+x.e;const ex=x.exp.length?x.exp:[null];
+    const credit=x.off&&!(x.m+x.e+(x.u||0))?'OFFDAY':x.m+x.e+(x.u||0);const ex=x.exp.length?x.exp:[null];
     ex.forEach((z,i)=>{const f=i===0;if(f&&z)sl++;out.push([f?ds:'',f?day:'',f&&x.m?x.m:'',f&&x.e?x.e:'',f?credit:'',f?ds:'',f&&z?sl:'',z?z.item:'',z?z.amt:'',z?String(z.mode).toUpperCase():''].join('\t'))})}
   return out.join('\n');
 }
 function viewAdd(){
   if(!st.ed)st.ed=todayISO();const d=st.ed;const D=allDays();
   const man=DB.manual[d],xl=D[d]&&!D[d].app?D[d]:null;
-  const cur=man?{m:man.m,e:man.e,off:man.off,exp:man.exp}:xl?{m:xl.m,e:xl.e,off:xl.off,exp:xl.exp}:{m:0,e:0,off:false,exp:[]};
+  const cur=man?{m:man.m,e:man.e,u:man.u||0,off:man.off,exp:man.exp}:xl?{m:xl.m,e:xl.e,u:xl.u||0,off:xl.off,exp:xl.exp}:{m:0,e:0,u:0,off:false,exp:[]};
   const names=itemTotals(Object.values(D).flatMap(o=>o.exp)).map(t=>t.name);
   const yms=[...new Set([todayISO().slice(0,7),...Object.keys(DB.months),...Object.keys(DB.mf),...Object.keys(DB.biz),...Object.keys(DB.manualM)])].sort().reverse();
   if(!st.em||!yms.includes(st.em))st.em=todayISO().slice(0,7);
@@ -628,10 +632,11 @@ function viewAdd(){
   const mine=Object.keys(DB.manual).sort().reverse();const myM=[...new Set(mine.map(x=>x.slice(0,7)))];
   $('#view').innerHTML=`<section class="card entry"><h2>Add or edit a day</h2>
   <div class="frow"><label>Date<input type="date" id="fd" class="in" value="${d}" max="2099-12-31"></label><div class="note" style="padding-bottom:12px"><b style="color:var(--ink)">${FULLDAY[new Date(d+'T00:00').getDay()]}</b> · ${man?'<span class="upc">added in the app</span>':xl?'from your Excel file':'new day'}</div></div>
-  ${(()=>{const t=todayISO(),ym=t.slice(0,7);const miss=[];for(let k=1;k<=+t.slice(8);k++){const dd=ym+'-'+pad(k);const o=D[dd];if(!o||!(o.m||o.e||o.off||o.exp.length))miss.push(dd)}
+  ${(()=>{const t=todayISO(),ym=t.slice(0,7);const miss=[];for(let k=1;k<=+t.slice(8);k++){const dd=ym+'-'+pad(k);const o=D[dd];if(!o||!(o.m||o.e||o.u||o.off||o.exp.length))miss.push(dd)}
     return miss.length?`<div style="margin-top:12px"><p class="note" style="margin:0 0 6px">Days in ${ymLabel(ym)} with nothing entered yet. Tap one to fill it in:</p><div class="chips">${miss.map(x=>`<button class="chip" type="button" data-ed="${x}" ${x===d?'style="border-color:var(--band);font-weight:700"':''}>${+x.slice(8)} ${MON[+x.slice(5,7)-1]}</button>`).join('')}</div></div>`:''})()}
   ${xl&&!man?'<p class="note" style="margin:8px 0 0">This day came from your Excel file. If you save changes, the app uses your version for this day. Your Excel file is not changed.</p>':''}
-  <label class="tog"><input type="checkbox" id="foff" ${cur.off&&!(cur.m+cur.e)?'checked':''}> Off day (no credit today)</label>
+  ${cur.u&&!cur.m&&!cur.e?`<p class="msg" style="margin:10px 0 0">This day has a total of <b>${inr(cur.u)}</b> without a morning/evening split. Leave Morning and Evening empty to keep it, or type them to replace it.</p>`:''}
+  <label class="tog"><input type="checkbox" id="foff" ${cur.off&&!(cur.m+cur.e+(cur.u||0))?'checked':''}> Off day (no credit today)</label>
   <div class="frow"><label>Morning ₹<input id="fm" class="in" inputmode="numeric" value="${cur.m||''}" placeholder="0"></label><label>Evening (night) ₹<input id="fe" class="in" inputmode="numeric" value="${cur.e||''}" placeholder="0"></label><div class="kpi" style="flex:1 1 140px"><span>Total Credit</span><b id="fc">₹0</b></div></div>
   <h3 style="margin:20px 0 8px;font-size:17px">Expenses</h3>
   <datalist id="items">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
@@ -645,12 +650,12 @@ function viewAdd(){
   ${fundNames.map((f,i)=>`<label>${esc(f)} ₹<input class="in ef" data-f="${esc(f)}" inputmode="numeric" value="${F[f]||''}" placeholder="0"></label>`).join('')}</div>
   <div class="acts" style="margin-top:12px"><button class="btn pri" type="button" id="msave">Save month</button>${DB.manualM[st.em]?'<button class="btn" type="button" id="mundo">Use the Excel values again</button>':''}</div><p id="mmsg" style="margin:10px 0 0"></p></section>
   <section class="card"><h2>Days you added in the app</h2>
-  ${mine.length?`<div class="scroll" style="max-height:420px;overflow-y:auto"><table class="stack"><thead><tr><th>Date</th><th class="r">Total Credit</th><th class="r">Expenses</th><th></th></tr></thead><tbody>${mine.map(k=>{const x=DB.manual[k];const xs=x.exp.reduce((s,z)=>s+z.amt,0);return`<tr><td>${dl(k)} · ${WD[new Date(k+'T00:00').getDay()]}</td><td class="r">${x.off&&!(x.m+x.e)?'<span class="note">Off day</span>':inr(x.m+x.e)}</td><td class="r exc">${inr(xs)} <span class="note">(${x.exp.length})</span></td><td><button class="btn" type="button" data-ed="${k}" style="min-height:36px">Edit</button></td></tr>`}).join('')}</tbody></table></div>
+  ${mine.length?`<div class="scroll" style="max-height:420px;overflow-y:auto"><table class="stack"><thead><tr><th>Date</th><th class="r">Total Credit</th><th class="r">Expenses</th><th></th></tr></thead><tbody>${mine.map(k=>{const x=DB.manual[k];const xs=x.exp.reduce((s,z)=>s+z.amt,0);return`<tr><td>${dl(k)} · ${WD[new Date(k+'T00:00').getDay()]}</td><td class="r">${x.off&&!(x.m+x.e+(x.u||0))?'<span class="note">Off day</span>':inr(x.m+x.e+(x.u||0))}</td><td class="r exc">${inr(xs)} <span class="note">(${x.exp.length})</span></td><td><button class="btn" type="button" data-ed="${k}" style="min-height:36px">Edit</button></td></tr>`}).join('')}</tbody></table></div>
   <h3 style="margin:16px 0 6px;font-size:16px">Put them in your Excel</h3><p class="note" style="margin:0 0 8px">Copies the rows in your sheet's column order: DATE, DAY, MORNING, NIGHT, CREDIT AMOUNT, DATE2, SL NO, PRODUCT SUMMARY, EXP AMOUNT, PAYMENT MODE. In Excel, click the empty DATE cell where the day goes and paste.</p>
   <div class="acts">${myM.map(k=>`<button class="btn" type="button" data-copy="${k}">Copy ${ymLabel(k)}</button>`).join('')}</div><textarea id="cpbox" hidden readonly style="width:100%;height:140px;margin-top:10px;font:13px monospace"></textarea>`
   :'<p class="note" style="margin:0">Nothing added yet. Days you save above show up here and on every dashboard page straight away.</p>'}</section>`;
   const V=$('#view'),fm=$('#fm'),fe=$('#fe'),off=$('#foff');
-  const sums=()=>{$('#fc').textContent=inr(num(fm.value)+num(fe.value));$('#fx').textContent=inr([...V.querySelectorAll('.xa')].reduce((s,i)=>s+num(i.value),0));fm.disabled=fe.disabled=off.checked};
+  const sums=()=>{$('#fc').textContent=inr(num(fm.value)+num(fe.value)||(off.checked?0:cur.u||0));$('#fx').textContent=inr([...V.querySelectorAll('.xa')].reduce((s,i)=>s+num(i.value),0));fm.disabled=fe.disabled=off.checked};
   V.oninput=sums;off.onchange=sums;sums();
   $('#fd').onchange=e=>{if(e.target.value){st.ed=e.target.value;render()}};
   $('#addx').onclick=()=>{$('#xrows').insertAdjacentHTML('beforeend',xrow());const r=V.querySelectorAll('.xi');r[r.length-1].focus()};
@@ -662,10 +667,10 @@ function viewAdd(){
   $('#save').onclick=async()=>{const msg=$('#fmsg');const m=off.checked?0:num(fm.value),e=off.checked?0:num(fe.value);
     const exp=[...V.querySelectorAll('.xrow')].map(r=>({item:r.querySelector('.xi').value.trim(),amt:num(r.querySelector('.xa').value),mode:r.querySelector('.xm').value})).filter(x=>x.item||x.amt);
     const noAmt=exp.find(x=>x.item&&!x.amt);if(noAmt){msg.className='dnc';msg.textContent='Add an amount for “'+noAmt.item+'”.';return}
-    if(!m&&!e&&!off.checked&&!exp.length){msg.className='dnc';msg.textContent='Nothing to save yet: add morning, evening, an expense, or tick Off day.';return}
+    if(!m&&!e&&!(cur.u)&&!off.checked&&!exp.length){msg.className='dnc';msg.textContent='Nothing to save yet: add morning, evening, an expense, or tick Off day.';return}
     if(DB.demo){DB=blank();st.year=null}
     if(exp.length)st.lastMode=exp[exp.length-1].mode;
-    DB.manual[d]={m,e,off:off.checked,exp:exp.map(x=>({item:x.item||'Unnamed',amt:x.amt,mode:x.mode})),t:Date.now()};if(DB.del)delete DB.del[d];
+    DB.manual[d]={m,e,u:m||e||off.checked?0:(cur.u||0),off:off.checked,exp:exp.map(x=>({item:x.item||'Unnamed',amt:x.amt,mode:x.mode})),t:Date.now()};if(DB.del)delete DB.del[d];
     await persist();render();
     const ok=$('#fmsg');ok.className='upc';ok.innerHTML='✓ Saved '+esc(dl(d))+': credit '+inr(m+e)+', expenses '+inr(exp.reduce((s,x)=>s+x.amt,0))+'. Your dashboard is updated. <a href="#overview">View dashboard</a>'+(KEYOBJ?'':' <span class="dnc">Set a PIN (box at the top) so it is kept after you close the page.</span>');};
   const u=$('#undo');if(u)confirm2(u,'Tap again to remove',async()=>{delete DB.manual[d];(DB.del||(DB.del={}))[d]=Date.now();await persist();render()});
@@ -692,15 +697,15 @@ const segBtns=(name,opts,cur)=>`<div class="seg" role="group" aria-label="${name
 const monthEnd=ym=>toISO(+ym.slice(0,4),+ym.slice(5,7)-1,new Date(+ym.slice(0,4),+ym.slice(5,7),0).getDate());
 function goMonth(ym){st.iv='daily';st.month=ym;render();scrollTo({top:0,behavior:'smooth'})}
 function viewIncome(){
-  const{inc}=data();const work=inc.filter(r=>!r.off);const tot=r=>r.m+r.e;
+  const{inc}=data();const work=inc.filter(r=>!r.off);const tot=r=>r.m+r.e+(r.u||0);
   const months=[...new Set(inc.map(r=>r.d.slice(0,7)))].sort();
   if(!st.iv)st.iv='mtotal';
   if(!st.month||st.month==='all'||!months.includes(st.month))st.month=months[months.length-1]||'';
   const MR=monthRows().filter(r=>r.days||r.off);
-  const W={};for(const r of inc){const k=mondayOf(r.d);const o=W[k]||(W[k]={k,m:0,e:0,days:0,off:0});if(r.off)o.off++;else{o.m+=r.m;o.e+=r.e;o.days++}}
+  const W={};for(const r of inc){const k=mondayOf(r.d);const o=W[k]||(W[k]={k,m:0,e:0,u:0,days:0,off:0});if(r.off)o.off++;else{o.m+=r.m;o.e+=r.e;o.u+=r.u||0;o.days++}}
   const WK=Object.values(W).sort((a,b)=>a.k<b.k?-1:1);
   const sum=work.reduce((s,r)=>s+tot(r),0);const mW=MR.filter(r=>r.days),wW=WK.filter(w=>w.days);
-  const bestM=mW.reduce((a,r)=>!a||r.m+r.e>a.m+a.e?r:a,null),bestW=wW.reduce((a,w)=>!a||w.m+w.e>a.m+a.e?w:a,null);
+  const bestM=mW.reduce((a,r)=>!a||r.m+r.e+(r.u||0)>a.m+a.e+(a.u||0)?r:a,null),bestW=wW.reduce((a,w)=>!a||w.m+w.e+(w.u||0)>a.m+a.e+(a.u||0)?w:a,null);
   const yl=st.year==='all'?'all years':st.year;
   let h=`<div class="bar" style="padding:0;gap:10px">${segBtns('iv',[['mtotal','Monthly total'],['mavg','Monthly average'],['weekly','Weekly'],['daily','Daily']],st.iv)}
   ${st.iv==='daily'?`<label class="note" style="display:flex;gap:8px;align-items:center">Month <select id="mon">${months.map(m=>`<option value="${m}" ${m===st.month?'selected':''}>${ymLabel(m)}</option>`).join('')}</select></label>`:''}</div>
@@ -708,20 +713,20 @@ function viewIncome(){
   <div class="kpi"><span>Average per month</span><b>${inr(mW.length?sum/mW.length:0)}</b><small>over ${mW.length} months</small></div>
   <div class="kpi"><span>Average per week</span><b>${inr(wW.length?sum/wW.length:0)}</b><small>over ${wW.length} weeks</small></div>
   <div class="kpi"><span>Average per working day</span><b>${inr(work.length?sum/work.length:0)}</b></div>
-  <div class="kpi"><span>Best month</span><b>${bestM?inr(bestM.m+bestM.e):'—'}</b><small>${bestM?ymLabel(bestM.ym):''}</small></div>
-  <div class="kpi"><span>Best week</span><b>${bestW?inr(bestW.m+bestW.e):'—'}</b><small>${bestW?wkLabel(bestW.k):''}</small></div></div>`;
-  const L=leg([['var(--m)','Morning'],['var(--e)','Evening']]);
+  <div class="kpi"><span>Best month</span><b>${bestM?inr(bestM.m+bestM.e+(bestM.u||0)):'—'}</b><small>${bestM?ymLabel(bestM.ym):''}</small></div>
+  <div class="kpi"><span>Best week</span><b>${bestW?inr(bestW.m+bestW.e+(bestW.u||0)):'—'}</b><small>${bestW?wkLabel(bestW.k):''}</small></div></div>`;
+  const L=leg([['var(--m)','Morning'],['var(--e)','Evening'],...(inc.some(r=>r.u)?[['var(--u)','Total only (no split)']]:[])]);
   let groups=[],table='',extra='',top='';
   if(st.iv==='mtotal'){
-    groups=MR.map(r=>({go:()=>goMonth(r.ym),label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym)+' · Total Credit '+inr(r.m+r.e)+' · tap to open',bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'}]]}));
-    table=`<thead><tr><th>Month</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Working / off</th><th class="r">vs last month</th></tr></thead><tbody>${MR.map((r,i)=>`<tr><td><button class="lnk" type="button" data-gm="${r.ym}">${ymLabel(r.ym)} ›</button></td><td class="r">${inr(r.m)}</td><td class="r">${inr(r.e)}</td><td class="r"><b>${inr(r.m+r.e)}</b></td><td class="r">${r.days} / ${r.off}</td><td class="r">${chg(r.m+r.e,i?MR[i-1].m+MR[i-1].e:0)}</td></tr>`).join('')}</tbody>`;
+    groups=MR.map(r=>({go:()=>goMonth(r.ym),label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym)+' · Total Credit '+inr(r.m+r.e+(r.u||0))+' · tap to open',bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'},{v:r.u||0,c:'var(--u)',n:'Total only (no split)'}]]}));
+    table=`<thead><tr><th>Month</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Working / off</th><th class="r">vs last month</th></tr></thead><tbody>${MR.map((r,i)=>`<tr><td><button class="lnk" type="button" data-gm="${r.ym}">${ymLabel(r.ym)} ›</button></td><td class="r">${mE(r,'m')}</td><td class="r">${mE(r,'e')}</td><td class="r"><b>${inr(r.m+r.e+(r.u||0))}</b></td><td class="r">${r.days} / ${r.off}</td><td class="r">${chg(r.m+r.e+(r.u||0),i?MR[i-1].m+MR[i-1].e:0)}</td></tr>`).join('')}</tbody>`;
   }else if(st.iv==='mavg'){
-    const av=r=>r.days?{m:r.m/r.days,e:r.e/r.days}:{m:0,e:0};
-    groups=MR.map(r=>{const a=av(r);return{go:()=>goMonth(r.ym),label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym)+' · per working day '+inr(a.m+a.e)+' · tap to open',bars:[[{v:a.m,c:'var(--m)',n:'Morning avg'},{v:a.e,c:'var(--e)',n:'Evening avg'}]]}});
-    table=`<thead><tr><th>Month</th><th class="r">Working days</th><th class="r">Avg morning</th><th class="r">Avg evening</th><th class="r">Avg per working day</th><th class="r">vs last month</th></tr></thead><tbody>${MR.map((r,i)=>{const a=av(r),p=i?av(MR[i-1]):null;return`<tr><td><button class="lnk" type="button" data-gm="${r.ym}">${ymLabel(r.ym)} ›</button></td><td class="r">${r.days}</td><td class="r">${inr(a.m)}</td><td class="r">${inr(a.e)}</td><td class="r"><b>${inr(a.m+a.e)}</b></td><td class="r">${chg(a.m+a.e,p?p.m+p.e:0)}</td></tr>`}).join('')}</tbody>`;
+    const av=r=>r.days?{m:r.m/r.days,e:r.e/r.days,u:(r.u||0)/r.days}:{m:0,e:0,u:0};
+    groups=MR.map(r=>{const a=av(r);return{go:()=>goMonth(r.ym),label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym)+' · per working day '+inr(a.m+a.e+(a.u||0))+' · tap to open',bars:[[{v:a.m,c:'var(--m)',n:'Morning avg'},{v:a.e,c:'var(--e)',n:'Evening avg'},{v:a.u||0,c:'var(--u)',n:'Total only (no split)'}]]}});
+    table=`<thead><tr><th>Month</th><th class="r">Working days</th><th class="r">Avg morning</th><th class="r">Avg evening</th><th class="r">Avg per working day</th><th class="r">vs last month</th></tr></thead><tbody>${MR.map((r,i)=>{const a=av(r),p=i?av(MR[i-1]):null;return`<tr><td><button class="lnk" type="button" data-gm="${r.ym}">${ymLabel(r.ym)} ›</button></td><td class="r">${r.days}</td><td class="r">${inr(a.m)}</td><td class="r">${inr(a.e)}</td><td class="r"><b>${inr(a.m+a.e+(a.u||0))}</b></td><td class="r">${chg(a.m+a.e+(a.u||0),p?p.m+p.e+(p.u||0):0)}</td></tr>`}).join('')}</tbody>`;
   }else if(st.iv==='weekly'){
-    groups=WK.map(w=>({label:dm(w.k),tip:'Week '+wkLabel(w.k)+' · '+w.days+' working days',bars:[[{v:w.m,c:'var(--m)',n:'Morning'},{v:w.e,c:'var(--e)',n:'Evening'}]]}));
-    table=`<thead><tr><th>Week (Mon–Sun)</th><th class="r">Working / off</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">vs last week</th></tr></thead><tbody>${WK.map((w,i)=>`<tr><td>${wkLabel(w.k)}</td><td class="r">${w.days} / ${w.off}</td><td class="r">${inr(w.m)}</td><td class="r">${inr(w.e)}</td><td class="r"><b>${inr(w.m+w.e)}</b></td><td class="r">${chg(w.m+w.e,i?WK[i-1].m+WK[i-1].e:0)}</td></tr>`).join('')}</tbody>`;
+    groups=WK.map(w=>({label:dm(w.k),tip:'Week '+wkLabel(w.k)+' · '+w.days+' working days',bars:[[{v:w.m,c:'var(--m)',n:'Morning'},{v:w.e,c:'var(--e)',n:'Evening'},{v:w.u||0,c:'var(--u)',n:'Total only (no split)'}]]}));
+    table=`<thead><tr><th>Week (Mon–Sun)</th><th class="r">Working / off</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">vs last week</th></tr></thead><tbody>${WK.map((w,i)=>`<tr><td>${wkLabel(w.k)}</td><td class="r">${w.days} / ${w.off}</td><td class="r">${mE(w,'m')}</td><td class="r">${mE(w,'e')}</td><td class="r"><b>${inr(w.m+w.e+(w.u||0))}</b></td><td class="r">${chg(w.m+w.e+(w.u||0),i?WK[i-1].m+WK[i-1].e:0)}</td></tr>`).join('')}</tbody>`;
     const B=['1–7','8–14','15–21','22–28','29–31'];const grid=months.map(ym=>{const c=[0,0,0,0,0];for(const r of work)if(r.d.startsWith(ym))c[Math.min(4,Math.floor((+r.d.slice(8)-1)/7))]+=tot(r);return{ym,c}});
     const gmax=Math.max(1,...grid.flatMap(g=>g.c));const avg=[0,1,2,3,4].map(i=>grid.length?grid.reduce((s,g)=>s+g.c[i],0)/grid.length:0);
     extra=`<section class="card"><h2>Compare weeks across months</h2><p class="note" style="margin:0 0 10px">Total Credit in each week of the month. Darker blue means more income; bold is that month’s best week.</p>
@@ -734,15 +739,15 @@ function viewIncome(){
     const ws=all.filter(r=>!r.off&&!r.none),mt=ws.reduce((s2,r)=>s2+tot(r),0),offs=all.filter(r=>r.off).length,nones=all.filter(r=>r.none).length;
     const bd=ws.reduce((a2,r)=>!a2||tot(r)>tot(a2)?r:a2,null),ld=ws.reduce((a2,r)=>!a2||tot(r)<tot(a2)?r:a2,null);
     const fd=d=>FULLDAY[new Date(d+'T00:00').getDay()];
-    groups=all.map(r=>({label:String(+r.d.slice(8)),tip:dl(r.d)+' · '+fd(r.d)+(r.off?' · Off day':r.none?' · Nothing entered':''),bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'}]]}));
+    groups=all.map(r=>({label:String(+r.d.slice(8)),tip:dl(r.d)+' · '+fd(r.d)+(r.off?' · Off day':r.none?' · Nothing entered':''),bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'},{v:r.u||0,c:'var(--u)',n:'Total only (no split)'}]]}));
     let prev=0;table=`<thead><tr><th>Date</th><th>Day</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">vs previous working day</th></tr></thead><tbody>${all.map(r=>{const dd=WD[new Date(r.d+'T00:00').getDay()];
       if(r.off)return`<tr class="offrow"><td>${dl(r.d)}</td><td>${dd}</td><td class="r" colspan="4" data-l="Status"><b>Off day</b></td></tr>`;
       if(r.none)return`<tr><td>${dl(r.d)}</td><td>${dd}</td><td class="r note" colspan="4" data-l="Status">Nothing entered</td></tr>`;
-      const c=chg(tot(r),prev);prev=tot(r);return`<tr><td>${dl(r.d)}</td><td>${dd}</td><td class="r">${inr(r.m)}</td><td class="r">${inr(r.e)}</td><td class="r"><b>${inr(tot(r))}</b></td><td class="r">${c}</td></tr>`}).join('')}</tbody>`;
+      const c=chg(tot(r),prev);prev=tot(r);return`<tr><td>${dl(r.d)}</td><td>${dd}</td><td class="r">${mE(r,'m')}</td><td class="r">${mE(r,'e')}</td><td class="r"><b>${inr(tot(r))}</b></td><td class="r">${c}</td></tr>`}).join('')}</tbody>`;
     const i=months.indexOf(ym),pm=months[i-1],nm=months[i+1];
     top=`<section class="card"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><h2 style="margin:0">${ym?ymLabel(ym):''}, every day</h2>
       <div class="acts"><button class="btn" type="button" ${pm?`data-gm="${pm}"`:'disabled'}>‹ ${pm?ymLabel(pm):'Previous'}</button><button class="btn" type="button" ${nm?`data-gm="${nm}"`:'disabled'}>${nm?ymLabel(nm):'Next'} ›</button><button class="btn" type="button" data-iv="mtotal">All months</button></div></div>
-      <div class="kpis" style="margin-top:12px"><div class="kpi"><span>Total Credit</span><b>${inr(mt)}</b><small>morning ${inr(ws.reduce((s2,r)=>s2+r.m,0))} · evening ${inr(ws.reduce((s2,r)=>s2+r.e,0))}</small></div>
+      <div class="kpis" style="margin-top:12px"><div class="kpi"><span>Total Credit</span><b>${inr(mt)}</b><small>${ws.some(r=>r.u)&&!ws.some(r=>r.m||r.e)?'total only, no morning/evening split':`morning ${inr(ws.reduce((s2,r)=>s2+r.m,0))} · evening ${inr(ws.reduce((s2,r)=>s2+r.e,0))}`}</small></div>
       <div class="kpi"><span>Working days</span><b>${ws.length}</b><small>${offs} off day${offs===1?'':'s'}${nones?' · '+nones+' not entered':''}</small></div>
       <div class="kpi"><span>Average per working day</span><b>${inr(ws.length?mt/ws.length:0)}</b></div>
       <div class="kpi"><span>Best day</span><b>${bd?inr(tot(bd)):'—'}</b><small>${bd?dl(bd.d)+' · '+fd(bd.d):''}</small></div>
@@ -751,18 +756,18 @@ function viewIncome(){
   if((st.iv==='mtotal'||st.iv==='mavg')&&mW.length>1){
     if(!st.ca||!mW.find(r=>r.ym===st.ca))st.ca=mW[mW.length-2].ym;if(!st.cb||!mW.find(r=>r.ym===st.cb))st.cb=mW[mW.length-1].ym;
     const A=mW.find(r=>r.ym===st.ca),Bm=mW.find(r=>r.ym===st.cb);
-    const rows=[['Morning',A.m,Bm.m],['Evening',A.e,Bm.e],['Total Credit',A.m+A.e,Bm.m+Bm.e],['Working days',A.days,Bm.days,1],['Avg per working day',(A.m+A.e)/A.days,(Bm.m+Bm.e)/Bm.days],['Business',A.biz,Bm.biz],['Nett income',A.m+A.e+A.biz,Bm.m+Bm.e+Bm.biz]];
+    const rows=[['Morning',A.m,Bm.m],['Evening',A.e,Bm.e],['Total Credit',A.m+A.e+(A.u||0),Bm.m+Bm.e+(Bm.u||0)],['Working days',A.days,Bm.days,1],['Avg per working day',(A.m+A.e+(A.u||0))/A.days,(Bm.m+Bm.e+(Bm.u||0))/Bm.days],['Business',A.biz,Bm.biz],['Nett income',A.m+A.e+(A.u||0)+A.biz,Bm.m+Bm.e+(Bm.u||0)+Bm.biz]];
     const opt=cur=>mW.map(r=>`<option value="${r.ym}" ${r.ym===cur?'selected':''}>${ymLabel(r.ym)}</option>`).join('');
     extra=`<section class="card"><h2>Compare two months</h2><div class="frow" style="margin-top:0"><label>First month<select id="ca" class="in">${opt(st.ca)}</select></label><label>Second month<select id="cb" class="in">${opt(st.cb)}</select></label></div>
     <div class="scroll" style="margin-top:12px"><table style="min-width:420px"><thead><tr><th></th><th class="r">${ymLabel(A.ym)}</th><th class="r">${ymLabel(Bm.ym)}</th><th class="r">Difference</th></tr></thead><tbody>${rows.map(([l,a,b,isN])=>`<tr><td>${l}</td><td class="r">${isN?a:inr(a)}</td><td class="r">${isN?b:inr(b)}</td><td class="r">${b-a===0?'<span class="note">same</span>':`<span class="${b>a?'upc':'dnc'}">${b>a?'▲ +':'▼ −'}${isN?Math.abs(b-a):inr(Math.abs(b-a)).slice(0)}</span> ${a?`<span class="note">(${Math.round((b-a)/a*100)}%)</span>`:''}`}</td></tr>`).join('')}</tbody></table></div></section>`;
   }
   const titles={mtotal:'Total Credit by month',mavg:'Average per working day, by month',weekly:'Total Credit by week',daily:'Every day, '+(st.month?ymLabel(st.month):'')+' (empty bars are off days)'};
-  const Wd=[1,2,3,4,5,6,0].map(w=>{const rs=work.filter(r=>new Date(r.d+'T00:00').getDay()===w);const n=rs.length||1;return{w,n:rs.length,off:inc.filter(r=>r.off&&new Date(r.d+'T00:00').getDay()===w).length,m:rs.reduce((s,r)=>s+r.m,0)/n,e:rs.reduce((s,r)=>s+r.e,0)/n}});
-  const bw=Wd.reduce((a,b)=>b.m+b.e>a.m+a.e?b:a,Wd[0]);
+  const Wd=[1,2,3,4,5,6,0].map(w=>{const rs=work.filter(r=>new Date(r.d+'T00:00').getDay()===w);const n=rs.length||1;return{w,n:rs.length,off:inc.filter(r=>r.off&&new Date(r.d+'T00:00').getDay()===w).length,m:rs.reduce((s,r)=>s+r.m,0)/n,e:rs.reduce((s,r)=>s+r.e,0)/n,u:rs.reduce((s,r)=>s+(r.u||0),0)/n}});
+  const bw=Wd.reduce((a,b)=>b.m+b.e+(b.u||0)>a.m+a.e+(a.u||0)?b:a,Wd[0]);
   h+=top+`<section class="card"><h2>${titles[st.iv]}</h2>${(st.iv==='mtotal'||st.iv==='mavg')?'<p class="note" style="margin:0 0 6px">Tap a month’s bar or name to see every day of that month.</p>':''}${L}${fig('c2')}<p class="note" style="margin:8px 0 0">Business amount is not included here; it is in the Overview.</p></section>${extra}
   <div class="grid2"><section class="card"><h2>${{mtotal:'Each month',mavg:'Each month',weekly:'Each week',daily:'Each day'}[st.iv]}, up or down</h2><div class="scroll" style="max-height:520px;overflow-y:auto"><table class="stack">${table}</table></div></section>
   <section class="card"><h2>Average by weekday</h2><p class="note" style="margin:0 0 8px">${bw.n?'Your best day is usually '+FULLDAY[bw.w]+'.':''}</p>
-  <table><thead><tr><th>Day</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Off days</th></tr></thead><tbody>${Wd.map(w=>`<tr><td>${WD[w.w]}${w===bw&&w.n?' <span class="upc">best</span>':''}</td><td class="r">${inr(w.m)}</td><td class="r">${inr(w.e)}</td><td class="r"><b>${inr(w.m+w.e)}</b></td><td class="r">${w.off}</td></tr>`).join('')}</tbody></table></section></div>`;
+  <table><thead><tr><th>Day</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Off days</th></tr></thead><tbody>${Wd.map(w=>`<tr><td>${WD[w.w]}${w===bw&&w.n?' <span class="upc">best</span>':''}</td><td class="r">${mE(w,'m')}</td><td class="r">${mE(w,'e')}</td><td class="r"><b>${inr(w.m+w.e+(w.u||0))}</b></td><td class="r">${w.off}</td></tr>`).join('')}</tbody></table></section></div>`;
   $('#view').innerHTML=h;
   document.querySelectorAll('[data-iv]').forEach(b=>b.onclick=()=>{st.iv=b.dataset.iv;render()});
   document.querySelectorAll('[data-gm]').forEach(b=>b.onclick=()=>goMonth(b.dataset.gm));
@@ -917,19 +922,19 @@ function monthSheet(ym,D){
   let r=3,sl=0,cr=0,xs=0,wd=0,od=0;const first=4;
   for(let d=ym+'-01';d<=last;d=addDays(d,1)){
     const o=D[d]||{m:0,e:0,off:false,exp:[]},day=FULLDAY[new Date(d+'T00:00').getDay()].toUpperCase();
-    const off=o.off&&!(o.m+o.e),work=!off&&(o.m||o.e);
+    const off=o.off&&!(o.m+o.e+(o.u||0)),work=!off&&(o.m||o.e||o.u);
     const ex=o.exp.length?o.exp:[null];
     ex.forEach((z,i)=>{const row=[];const rn=r+1;
       if(i===0){row[0]=C(xserial(d),off?S.offDate:S.date);row[1]=C(day,off?S.off:S.txt);
         if(off){row[2]=C('',S.off);row[3]=C('',S.off);row[4]=C('OFFDAY',S.off);od++}
-        else{row[2]=C(o.m||'',S.money);row[3]=C(o.e||'',S.money);row[4]=work?C(o.m+o.e,S.money,`C${rn}+D${rn}`):C('',S.money);if(work){wd++;cr+=o.m+o.e}}}
+        else{row[2]=C(o.m||'',S.money);row[3]=C(o.e||'',S.money);row[4]=work?(o.u?C(o.m+o.e+o.u,S.money):C(o.m+o.e,S.money,`C${rn}+D${rn}`)):C('',S.money);if(work){wd++;cr+=o.m+o.e+(o.u||0)}}}
       else{row[0]=C('',S.txt);row[1]=C('',S.txt);row[2]=C('',S.money);row[3]=C('',S.money);row[4]=C('',S.money)}
       if(z){sl++;row[5]=C(sl,S.int);row[6]=C(z.item,S.txt);row[7]=C(z.amt,S.exp);row[8]=C(String(z.mode||'').toUpperCase(),S.txt);xs+=z.amt}
       else{row[5]=C('',S.int);row[6]=C('',S.txt);row[7]=C('',S.exp);row[8]=C('',S.txt)}
       rows[r++]=row});
   }
   const lr=r;rows[r]=[C('TOTAL',S.totL),C('',S.totL),C(0,S.totM,`SUM(C${first}:C${lr})`),C(0,S.totM,`SUM(D${first}:D${lr})`),C(cr,S.totM,`SUM(E${first}:E${lr})`),C(sl,S.totI),C('',S.totL),C(xs,S.totX,`SUM(H${first}:H${lr})`),C('',S.totL)];
-  let mm=0,ee=0;for(let d=ym+'-01';d<=last;d=addDays(d,1)){const o=D[d];if(o&&!(o.off&&!(o.m+o.e))){mm+=o.m||0;ee+=o.e||0}}rows[r][2].v=mm;rows[r][3].v=ee;
+  let mm=0,ee=0;for(let d=ym+'-01';d<=last;d=addDays(d,1)){const o=D[d];if(o&&!(o.off&&!(o.m+o.e+(o.u||0)))){mm+=o.m||0;ee+=o.e||0}}rows[r][2].v=mm;rows[r][3].v=ee;
   const side=[['TOTAL CREDIT',cr,`SUM(E${first}:E${lr})`,S.money],['TOTAL EXPENCE',xs,`SUM(H${first}:H${lr})`,S.exp],['SAVING',cr-xs,'L4-L5',S.money],['WORKING DAY',wd,`COUNT(E${first}:E${lr})`,S.int],['OFFDAY',od,`COUNTIF(E${first}:E${lr},"OFFDAY")`,S.int],['AVERAGE CREDIT',wd?Math.round(cr/wd):0,'IFERROR(ROUND(L4/L7,0),0)',S.money]];
   side.forEach(([l,v,f,st],i)=>{const row=rows[3+i]||(rows[3+i]=[]);row[10]=C(l,S.totL);row[11]=C(v,st,f)});
   return sheetXml(rows,[12.5,12,11,11,14,7,30,12,14,2,17,13],3,null);
@@ -942,7 +947,7 @@ function yearSheet(y,D){
   const H=['MONTH','CREDIT AMOUNT','BUSINESS AMOUNT','NETT INCOME','EXPENSES','SAVED',...funds.map(f=>/mf\b/i.test(f)?f:f+' MF'),'TOTAL INVESTED','NETT SAVING'];
   rows[2]=H.map(h=>C(h,S.hdr));rows[2].h=32;
   const nF=funds.length,cS=colName(6+nF),cN=colName(7+nF);const tot=Array(H.length).fill(0);
-  yms.forEach((ym,i)=>{const rn=i+4;let c=0,x=0;for(const d in D)if(d.startsWith(ym)){const o=D[d];if(!(o.off&&!(o.m+o.e)))c+=o.m+o.e;x+=o.exp.reduce((s2,z)=>s2+z.amt,0)}
+  yms.forEach((ym,i)=>{const rn=i+4;let c=0,x=0;for(const d in D)if(d.startsWith(ym)){const o=D[d];if(!(o.off&&!(o.m+o.e+(o.u||0))))c+=o.m+o.e+(o.u||0);x+=o.exp.reduce((s2,z)=>s2+z.amt,0)}
     const b=bizOf(ym),F=mfFOf(ym),mfT=funds.reduce((s2,f)=>s2+(F[f]||0),0);
     const row=[C(MON[i].toUpperCase()+' '+String(y).slice(2),S.txt),C(c,S.money),C(b,S.money),C(c+b,S.money,`B${rn}+C${rn}`),C(x,S.exp),C(c+b-x,S.money,`D${rn}-E${rn}`)];
     funds.forEach((f,j)=>row.push(C(F[f]||0,S.money)));row.push(C(mfT,S.money,nF?`SUM(G${rn}:${colName(5+nF)}${rn})`:'0'));row.push(C(c+b-x-mfT,S.money,`F${rn}-${cS}${rn}`));
@@ -1109,7 +1114,7 @@ function viewCheck(){
       const x=r.xl;
       h+=`<div class="grid2" style="gap:12px"><div><table><thead><tr><th>App field</th><th>Your column</th></tr></thead><tbody>${FIELDS.map(([k,l])=>`<tr><td>${l}</td><td>${can?sel(`data-sheet="${n}" data-act="col" data-f="${k}" aria-label="${l} column"`,'<option value="-1">— not used —</option>'+r.headers.map((c,i)=>`<option value="${i}" ${r.h[k]===i?'selected':''}>${colName(i)}: ${esc(c.trim()||'(blank)')}</option>`).join('')):(r.h[k]!=null?colName(r.h[k])+': '+esc(r.headers[r.h[k]]||''):'<span class="dnc">not found</span>')}</td></tr>`).join('')}
         <tr><td>Header row</td><td>${can?`<input type="number" min="1" max="60" value="${r.hdr+1}" data-sheet="${n}" data-act="hdr" aria-label="Header row number" class="in" style="width:90px">`:'row '+(r.hdr+1)}</td></tr></tbody></table></div>
-        <div><table><thead><tr><th>Total</th><th class="r">App</th><th class="r">Your sheet</th><th></th></tr></thead><tbody>${cmp('Credit (morning + night)',r.sum.m+r.sum.e,x.c||(x.row&&x.row.m+x.row.e))}${cmp('Expenses',r.sum.x,x.x||(x.row&&x.row.x))}</tbody></table>
+        <div><table><thead><tr><th>Total</th><th class="r">App</th><th class="r">Your sheet</th><th></th></tr></thead><tbody>${cmp('Total Credit',r.sum.m+r.sum.e+(r.sum.u||0),x.c||(x.row&&(x.row.m+x.row.e||x.row.c)))}${cmp('Expenses',r.sum.x,x.x||(x.row&&x.row.x))}</tbody></table>
         ${r.miss?`<p class="msg" style="margin:10px 0 0">Your sheet’s TOTAL EXPENCE formula leaves out the last ${r.miss.n} expense row${r.miss.n>1?'s':''} (from row ${r.miss.from}, ${inr(r.miss.amt)}). The app counts them, so its total is the right one. In Excel, extend that SUM range to fix your sheet.</p>`:(r.xl.x&&r.sum.x-r.xl.x>=1?`<p class="msg" style="margin:10px 0 0">The app found ${inr(r.sum.x-r.xl.x)} more expenses than your TOTAL EXPENCE cell. Check that its SUM range covers every row.</p>`:'')}
         <ul style="margin:10px 0 0;padding-left:18px;font-size:14px">${[r.bad&&r.bad+' date'+(r.bad>1?'s':'')+' could not be read; those rows were added to the date above them.',r.swapped&&r.swapped+' date'+(r.swapped>1?'s':'')+' looked like month/day, so '+(r.swapped>1?'they were':'it was')+' read as day/month.',r.outside&&r.outside+' date'+(r.outside>1?'s':'')+' had a different month or year, so '+(r.outside>1?'they were':'it was')+' kept in '+(r.ctx?MON[r.ctx.mo]+' '+r.ctx.y:'this sheet’s month')+'. Worth fixing in Excel.'].filter(Boolean).map(t=>`<li class="dnc">${esc(t)}</li>`).join('')}</ul></div></div>`;
     }else if(r.type==='overview'&&!r.empty){
