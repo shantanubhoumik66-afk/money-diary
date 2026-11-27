@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.27.2">
+<meta name="app-version" content="2026.11.27.3">
 <meta name="theme-color" content="#7b3ff2">
 <meta name="description" content="Your personal budget diary">
 <link rel="manifest" href="manifest.webmanifest">
@@ -103,8 +103,8 @@ pre,.scroll{overflow-x:auto}
     <a href="#years" data-r="years">Total Summary</a>
     <a href="#overview" data-r="overview">Overview</a>
     <a href="#add" data-r="add">Add entry</a>
-    <a href="#income" data-r="income">Income</a>
-    <a href="#search" data-r="search">Expenses</a>
+    <a href="#income" data-r="income">Credit</a>
+    <a href="#search" data-r="search">Debit</a>
     <a href="#invest" data-r="invest">Mutual funds</a>
     <a href="#check" data-r="check">Settings &amp; sync</a>
     <a href="#tokens" data-r="tokens">Tokens</a>
@@ -822,7 +822,7 @@ function viewSearch(){
   const{exp}=data();const top=itemTotals(exp);
   const xmonths=[...new Set(exp.map(x=>x.d.slice(0,7)))].sort();
   if(!st.group)st.group='month';if(!st.xmon||(st.xmon!=='all'&&!xmonths.includes(st.xmon)))st.xmon=xmonths[xmonths.length-1]||'all';
-  $('#view').innerHTML=`<section class="card"><h2>Expenses</h2>
+  $('#view').innerHTML=`<section class="card"><h2>Debit</h2>
   <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center"><input type="search" id="q" list="items" placeholder="Search: fish, petrol, Manas Bera… (empty = all expenses)" value="${esc(st.q)}" style="flex:1 1 260px" aria-label="Expense name">
   <datalist id="items">${top.map(t=>`<option value="${esc(t.name)}">`).join('')}</datalist></div>
   <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px">${segBtns('g',[['day','Daily'],['week','Weekly'],['month','Monthly'],['quarter','Quarterly'],['year','Yearly']],st.group)}
