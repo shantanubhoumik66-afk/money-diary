@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Money Diary</title>
+<meta name="theme-color" content="#7b3ff2">
+<meta name="description" content="Your personal budget diary">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Money Diary">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a calm personal money ledger, plain and exact
+   IDEA: the daily cash book you keep in Excel, read back as answers
+   PICTURE: month-by-month bars of morning + evening earnings against spending
+   COLOUR and TYPE: white, ink, signal green band for the headline figure; Space Grotesk + Inter
+   LAYOUT: headline band, tabs, then one main chart and ruled tables */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#07130d);--card:light-dark(#ffffff,#0c1d14);--ink:light-dark(#0b0b10,#eef5f1);--muted:light-dark(#5a5f6b,#9fb3a8);--line:light-dark(#e4e7ea,#1f3a2c);--mist:light-dark(#eafaf2,#10271b);--band:#00a862;--bandInk:#03130a;--m:light-dark(#257de0,#338ced);--e:light-dark(#00b894,#00a888);--x:light-dark(#d92d2d,#f06363);--up:light-dark(#007a45,#4be09a);--down:light-dark(#b8400c,#ff9466);--b:light-dark(#6a4ce2,#9887ef)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,.num{font-family:'Space Grotesk',Inter,sans-serif}
+h2{font-size:20px;margin:0 0 12px;line-height:1.2}
+.wrap{max-width:1240px;margin:0 auto;padding:0 max(4vw,16px)}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding-block:14px}
+.brand{font-family:'Space Grotesk';font-weight:700;font-size:22px;display:flex;gap:10px;align-items:center}
+.brand .note{font:500 13px Inter,sans-serif}.sync-ok{color:var(--up)}.sync-err{color:var(--down)}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.btn{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:600 14px Inter,sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--m);outline-offset:2px}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;flex:1}.navrow{display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line)}#backBtn{flex:none;min-height:40px;padding:0 12px}
+nav.tabs a{flex:none;padding:12px 14px;color:var(--muted);text-decoration:none;font-weight:600;font-size:15px;border-bottom:3px solid transparent}
+nav.tabs a.on{color:var(--ink);border-color:var(--band)}
+.bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding-block:16px}
+select,input[type=search]{min-height:44px;font:16px Inter,sans-serif;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.hero{background:var(--band);color:var(--bandInk);border-radius:16px;padding:clamp(20px,3vw,32px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:20px;align-items:end}
+.hero .big{font:700 clamp(36px,6vw,56px)/1.05 'Space Grotesk',sans-serif;white-space:nowrap}
+.hero .lbl{font-size:14px;font-weight:600}
+.hk{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}
+.hk b{display:block;font:700 22px 'Space Grotesk',sans-serif;white-space:nowrap}
+.hk span{font-size:13px;font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.kpi{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--card)}
+.kpi span{font-size:13px;color:var(--muted)}.kpi b{display:block;font:700 24px 'Space Grotesk',sans-serif;white-space:nowrap}.kpi small{font-size:13px;color:var(--muted)}
+.card{border:1px solid var(--line);border-radius:16px;padding:18px;background:var(--card)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px}
+.stackv{display:flex;flex-direction:column;gap:16px;padding-bottom:48px}
+.fig{position:relative;min-height:300px}.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:8px;padding:8px 10px;font-size:13px;line-height:1.4;display:none;white-space:nowrap;z-index:2}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin-bottom:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-weight:500;color:var(--muted);font-size:13px;padding:8px;border-bottom:1px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid var(--line)}
+.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.upc{color:var(--up);font-weight:600}.exc{color:var(--x)!important}td.heat{background:color-mix(in srgb,var(--m) calc(var(--a)*100%),transparent)}.exred{color:#b91c1c;background:#fff;border-radius:6px;padding:0 6px;display:inline-block}.dnc{color:var(--down);font-weight:600}
+.hb{display:grid;grid-template-columns:minmax(0,9em) 1fr auto;gap:10px;align-items:center;padding:6px 0;font-size:14px;width:100%;background:none;border:0;color:inherit;font-family:inherit;text-align:left;cursor:pointer;min-height:36px}
+.hb span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb .t{height:10px;background:var(--mist);border-radius:5px;overflow:hidden}.hb .t i{display:block;height:100%;background:var(--x);border-radius:5px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--mist);color:var(--ink);font:500 14px Inter,sans-serif;cursor:pointer}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{min-height:38px;padding:0 14px;border:0;border-radius:7px;background:none;color:var(--muted);font:600 14px Inter,sans-serif;cursor:pointer}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.drop{border:2px dashed var(--line);border-radius:16px;padding:clamp(24px,5vw,56px);text-align:center;background:var(--mist)}
+.drop.over{border-color:var(--band)}
+.msg{font-size:14px;padding:10px 14px;border-radius:10px;background:var(--mist);margin-top:12px}
+.note{font-size:13px;color:var(--muted)}
+.in{min-height:44px;font:16px Inter,sans-serif;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:100%}
+.frow{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-top:12px}.frow label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);flex:1 1 150px}
+.tog{display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600;min-height:44px}.tog input{width:22px;height:22px;accent-color:var(--band)}
+.xrow{display:grid;grid-template-columns:minmax(0,1fr) 120px 110px 44px;gap:8px;margin-bottom:8px}
+.xrow input,.xrow select{min-height:44px;font:16px Inter,sans-serif;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:100%}
+.xrow .xdel{padding:0;justify-content:center;font-size:20px}
+input:disabled{opacity:.45}
+@media(max-width:600px){.xrow{grid-template-columns:1fr 1fr 44px}.xrow .xi{grid-column:1/-1}}
+pre,.scroll{overflow-x:auto}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--muted)}.stack td:empty{display:none}}
+</style><script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script></head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><img src="icons/icon-192.png" width="34" height="34" alt="" style="border-radius:9px">Money Diary <span id="syncDot" class="note" hidden></span></div>
+    <div class="acts">
+      <label class="btn pri" for="file">Upload Excel</label>
+      <input id="file" type="file" accept=".xlsx,.csv" multiple hidden>
+      <button class="btn pri" id="installBtn" type="button" hidden>Install app</button>
+      <button class="btn" id="demoBtn" type="button">Try sample data</button>
+      <button class="btn" id="lockBtn" type="button" hidden>Lock</button>
+      <button class="btn" id="clearBtn" type="button" hidden>Clear data</button>
+    </div>
+  </div>
+  <div class="navrow">
+  <nav class="tabs" aria-label="Views">
+    <a href="#overview" data-r="overview">Overview</a>
+    <a href="#add" data-r="add">Add entry</a>
+    <a href="#income" data-r="income">Income</a>
+    <a href="#search" data-r="search">Expenses</a>
+    <a href="#invest" data-r="invest">Mutual funds</a>
+    <a href="#check" data-r="check">Settings &amp; sync</a>
+  </nav><button class="btn" type="button" id="backBtn" hidden aria-label="Go back to the previous page">← Back</button></div>
+  <div class="bar" id="yearbar">
+    <label class="note" style="display:flex;gap:8px;align-items:center">Year <select id="year"></select></label>
+    <span class="note" id="src"></span>
+  </div>
+  <div id="status"></div>
+  <main id="view" class="stackv"></main>
+</div>
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr=n=>(n<0?'−':'')+'₹'+Math.abs(Math.round(n)).toLocaleString('en-IN');
+const short=n=>n>=1e5?'₹'+(n/1e5).toFixed(1).replace(/\.0$/,'')+'L':n>=1e3?'₹'+(n/1e3).toFixed(n>=1e4?0:1).replace(/\.0$/,'')+'k':'₹'+Math.round(n);
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const pad=n=>String(n).padStart(2,'0');
+const toISO=(y,mo,d)=>y+'-'+pad(mo+1)+'-'+pad(d);
+const ymLabel=ym=>MON[+ym.slice(5,7)-1]+' '+ym.slice(2,4);
+/* ---------- storage: encrypted with your PIN (AES-256-GCM, key from PBKDF2) ---------- */
+const OLD='moneydiary.v1',KEY='moneydiary.enc.v2';
+const blank=()=>({months:{},mf:{},mfF:{},biz:{},funds:[],manual:{},manualM:{},del:{},delM:{},map:{},report:[]});
+let DB=blank(),KEYOBJ=null,SALT=null,locked=false,noSave=false,fails=0,waitUntil=0;
+const enc=new TextEncoder(),dec=new TextDecoder();
+const b64=u=>{let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
+const ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const canCrypt=!!(window.crypto&&crypto.subtle);
+const stored=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){return null}};
+async function deriveKey(pin,salt){
+  const base=await crypto.subtle.importKey('raw',enc.encode(pin),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:600000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function persist(noSync){
+  if(!KEYOBJ||DB.demo)return;
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},KEYOBJ,enc.encode(JSON.stringify(DB))));
+  try{localStorage.setItem(KEY,JSON.stringify({v:2,salt:b64(SALT),iv:b64(iv),ct:b64(ct)}))}catch(e){flash('Could not save: this browser’s storage is full.',true)}
+  if(!noSync)syncSoon();
+}
+async function setPin(pin,noSync){SALT=crypto.getRandomValues(new Uint8Array(16));KEYOBJ=await deriveKey(pin,SALT);PINMEM=pin;noSave=false;await persist(noSync)}
+async function unlock(pin){
+  const o=stored();const salt=ub64(o.salt);const k=await deriveKey(pin,salt);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},k,ub64(o.ct));
+  DB=Object.assign(blank(),JSON.parse(dec.decode(pt)));KEYOBJ=k;SALT=salt;PINMEM=pin;locked=false;setTimeout(syncNow,300);
+}
+function lockNow(){if(!KEYOBJ)return;KEYOBJ=null;PINMEM=null;DB=blank();lastSheets=[];locked=true;render()}
+function eraseAll(){PINMEM=null;try{localStorage.removeItem(KEY);localStorage.removeItem(OLD)}catch(e){}KEYOBJ=null;SALT=null;DB=blank();lastSheets=[];locked=false;noSave=false;$('#status').innerHTML='';render()}
+/* data from the earlier version was saved unencrypted: load it once, then remove it */
+try{const s=localStorage.getItem(OLD);if(s){DB=Object.assign(blank(),JSON.parse(s));localStorage.removeItem(OLD)}}catch(e){}
+if(stored())locked=true;
+let hiddenAt=0;
+document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(KEYOBJ&&Date.now()-hiddenAt>5*60e3)lockNow()});
+const flash=(t,bad)=>{$('#status').innerHTML='<div class="msg'+(bad?' dnc':'')+'">'+esc(t)+'</div>'};
+/* ---------- sync between devices: an encrypted copy in a secret GitHub gist ---------- */
+const GH='https://api.github.com',SYNC_FILE='money-diary.sync.json',SYNC_DESC='Money Diary encrypted sync (do not edit)';
+let PINMEM=null,syncing=false,syncAgain=false,syncTimer=null;
+const syncSt={state:'off',msg:'',at:0,needPin:false};
+const syncOn=()=>!!(DB.sync&&DB.sync.token&&KEYOBJ&&!DB.demo);
+async function gh(path,opt={},tok){
+  let r;try{r=await fetch(GH+path,{...opt,cache:'no-store',headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+(tok||DB.sync.token),'X-GitHub-Api-Version':'2022-11-28',...(opt.body?{'Content-Type':'application/json'}:{})}})}
+  catch(e){throw new Error('offline')}
+  if(r.status===401||r.status===403)throw new Error('The GitHub token was not accepted. Make a new one with the “gist” box ticked.');
+  if(r.status===404)throw new Error('notfound');
+  if(!r.ok)throw new Error('GitHub answered with error '+r.status+'. Try again later.');
+  return r.status===204?null:r.json();
+}
+const shareable=db=>{const o=Object.assign({},db);delete o.sync;delete o.demo;return o};
+async function sealRemote(){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},KEYOBJ,enc.encode(JSON.stringify(shareable(DB)))));
+  return JSON.stringify({app:'money-diary',v:1,salt:b64(SALT),iv:b64(iv),ct:b64(ct),at:Date.now()});
+}
+async function openRemote(o,pin){
+  const salt=ub64(o.salt);const same=SALT&&o.salt===b64(SALT)&&!pin;
+  const key=same?KEYOBJ:await deriveKey(pin||PINMEM,salt);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},key,ub64(o.ct));
+  return{db:JSON.parse(dec.decode(pt)),key,salt};
+}
+async function readRemote(tok,id){
+  const g=await gh('/gists/'+id,{},tok);const f=g.files&&g.files[SYNC_FILE];if(!f)return null;
+  let t=f.content;if(f.truncated){const r=await fetch(f.raw_url,{cache:'no-store'});t=await r.text()}
+  return JSON.parse(t);
+}
+async function findGist(tok){
+  for(let p=1;p<=10;p++){const L=await gh('/gists?per_page=100&page='+p,{},tok);const g=L.find(x=>x.files&&x.files[SYNC_FILE]);if(g)return g.id;if(L.length<100)break}
+  return null;
+}
+function pickNewest(L,R,LD,RD){
+  const out={},del={};const keys=new Set([...Object.keys(L||{}),...Object.keys(R||{}),...Object.keys(LD||{}),...Object.keys(RD||{})]);
+  for(const k of keys){const c=[];
+    if(L&&L[k])c.push([L[k],L[k].t||0]);if(R&&R[k])c.push([R[k],R[k].t||0]);
+    if(LD&&LD[k]!=null)c.push([null,LD[k]]);if(RD&&RD[k]!=null)c.push([null,RD[k]]);
+    let best=null;for(const x of c)if(!best||x[1]>best[1]||(x[1]===best[1]&&x[0]&&!best[0]))best=x;
+    if(!best)continue;if(best[0])out[k]=best[0];else del[k]=best[1]}
+  return[out,del];
+}
+function mergeDB(L,R){
+  const o=Object.assign(blank(),L);
+  if((R.impT||0)>(L.impT||0))for(const k of['months','mf','mfF','biz','funds','report','map','impT'])o[k]=R[k];
+  [o.manual,o.del]=pickNewest(L.manual,R.manual,L.del,R.del);
+  [o.manualM,o.delM]=pickNewest(L.manualM,R.manualM,L.delM,R.delM);
+  return o;
+}
+const sig=db=>JSON.stringify([db.impT||0,db.manual,db.manualM,db.del,db.delM]);
+function syncSoon(){if(!syncOn())return;clearTimeout(syncTimer);syncTimer=setTimeout(syncNow,1200)}
+async function syncNow(){
+  if(!syncOn())return;if(syncing){syncAgain=true;return}
+  syncing=true;syncSt.state='busy';showSync();
+  try{
+    const before=sig(DB);let R=null;
+    if(DB.sync.gistId){try{R=await readRemote(DB.sync.token,DB.sync.gistId)}catch(e){if(e.message!=='notfound')throw e;DB.sync.gistId=null}}
+    if(R){let got;try{got=await openRemote(R)}catch(e){syncSt.needPin=true;throw new Error('The PIN was changed on your other device. Enter that new PIN below to keep syncing.')}
+      if(got.salt&&b64(got.salt)!==b64(SALT)){SALT=got.salt;KEYOBJ=got.key}
+      DB=Object.assign(mergeDB(DB,got.db),{sync:DB.sync})}
+    const body=JSON.stringify({files:{[SYNC_FILE]:{content:await sealRemote()}}});
+    if(DB.sync.gistId)await gh('/gists/'+DB.sync.gistId,{method:'PATCH',body});
+    else{const g=await gh('/gists',{method:'POST',body:JSON.stringify({description:SYNC_DESC,public:false,files:{[SYNC_FILE]:{content:await sealRemote()}}})});DB.sync.gistId=g.id}
+    await persist(true);syncSt.state='ok';syncSt.at=Date.now();syncSt.msg='';syncSt.needPin=false;
+    if(sig(DB)!==before)render();else showSync();
+  }catch(e){syncSt.state=e.message==='offline'?'offline':'err';syncSt.msg=e.message==='offline'?'No internet. Your changes are saved on this device and will sync later.':e.message;if(syncSt.needPin&&location.hash==='#check')render();else showSync()}
+  finally{syncing=false;if(syncAgain){syncAgain=false;syncSoon()}}
+}
+async function connectSync(tok){
+  tok=tok.trim();if(!tok)throw new Error('Paste your GitHub token first.');
+  const id=await findGist(tok);
+  if(id){const R=await readRemote(tok,id);
+    if(R){let got;try{got=await openRemote(R,PINMEM)}catch(e){throw new Error('Your other device uses a different PIN. Use the same PIN on both devices: change this device’s PIN in Security, then connect again.')}
+      SALT=got.salt;KEYOBJ=got.key;DB=Object.assign(mergeDB(DB,got.db),{sync:{token:tok,gistId:id}})}
+    else DB.sync={token:tok,gistId:id};
+  }else DB.sync={token:tok,gistId:null};
+  await persist(true);await syncNow();
+}
+async function pushOnly(){if(!syncOn()||!DB.sync.gistId)return;await gh('/gists/'+DB.sync.gistId,{method:'PATCH',body:JSON.stringify({files:{[SYNC_FILE]:{content:await sealRemote()}}})})}
+async function changePin(pin){
+  if(syncOn()){await syncNow();}
+  clearTimeout(syncTimer);syncing=true;
+  try{await setPin(pin,true);if(syncOn()){try{await pushOnly();syncSt.state='ok';syncSt.at=Date.now()}catch(e){syncSt.state='err';syncSt.msg='PIN changed here, but the synced copy could not be updated yet: '+e.message}}}
+  finally{syncing=false}
+}
+async function enterNewPin(pin){
+  const R=await readRemote(DB.sync.token,DB.sync.gistId);const got=await openRemote(R,pin);
+  SALT=got.salt;KEYOBJ=got.key;PINMEM=pin;DB=Object.assign(mergeDB(DB,got.db),{sync:DB.sync});syncSt.needPin=false;await persist(true);await syncNow();render();
+}
+function showSync(){
+  const el=$('#syncDot');if(el){const t={ok:'✓ Synced',busy:'Syncing…',offline:'Offline',err:'⚠ Sync problem',off:''}[syncOn()?syncSt.state:'off'];el.textContent=t;el.className='note sync-'+syncSt.state;el.hidden=!t}
+  const box=$('#syncStatus');if(box)box.innerHTML=syncStatusHTML();
+}
+const ago=t=>{const s=Math.round((Date.now()-t)/1000);return s<60?'just now':s<3600?Math.round(s/60)+' min ago':Math.round(s/3600)+' h ago'};
+function syncStatusHTML(){
+  if(!syncOn())return'';
+  return syncSt.state==='ok'?`<span class="upc">✓ Synced ${ago(syncSt.at)}</span>`:syncSt.state==='busy'?'Syncing…':`<span class="dnc">${esc(syncSt.msg||'Not synced yet')}</span>`;
+}
+setInterval(()=>{if(!document.hidden)syncNow()},5*60e3);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncNow()});
+addEventListener('online',()=>syncNow());
+const st={year:null,q:'',group:'month',month:'all'};
+let defYear=new Date().getFullYear();
+
+/* ---------- reading .xlsx without any library ---------- */
+async function unzip(buf){
+  const dv=new DataView(buf),u8=new Uint8Array(buf),td=new TextDecoder();let p=buf.byteLength-22;
+  while(p>=0&&dv.getUint32(p,true)!==0x06054b50)p--;
+  if(p<0)throw new Error('not an .xlsx file');
+  const n=dv.getUint16(p+10,true);let o=dv.getUint32(p+16,true);const ents={};
+  for(let i=0;i<n;i++){
+    const nl=dv.getUint16(o+28,true),el=dv.getUint16(o+30,true),cl=dv.getUint16(o+32,true);
+    ents[td.decode(u8.subarray(o+46,o+46+nl))]={m:dv.getUint16(o+10,true),cs:dv.getUint32(o+20,true),lo:dv.getUint32(o+42,true)};
+    o+=46+nl+el+cl;
+  }
+  return async name=>{const f=ents[name];if(!f)return null;
+    const s0=f.lo+30+dv.getUint16(f.lo+26,true)+dv.getUint16(f.lo+28,true);const data=u8.slice(s0,s0+f.cs);
+    if(f.m===0)return td.decode(data);
+    return new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();};
+}
+async function readXlsx(buf){
+  const get=await unzip(buf);const P=s=>new DOMParser().parseFromString(s,'application/xml');
+  const wb=P(await get('xl/workbook.xml'));const rels={};const rt=await get('xl/_rels/workbook.xml.rels');
+  if(rt)for(const r of P(rt).getElementsByTagName('Relationship'))rels[r.getAttribute('Id')]=r.getAttribute('Target');
+  const ss=[];const sst=await get('xl/sharedStrings.xml');
+  if(sst)for(const si of P(sst).getElementsByTagName('si')){let t='';for(const x of si.getElementsByTagName('t')){if(/rPh$/.test(x.parentNode.nodeName))continue;t+=x.textContent}ss.push(t)}
+  const out=[];
+  for(const sh of wb.getElementsByTagName('sheet')){
+    let t=rels[sh.getAttribute('r:id')]||'';t=t.startsWith('/')?t.slice(1):'xl/'+t.replace(/^\.\//,'');
+    const x=await get(t);if(!x)continue;const rows=[];
+    for(const r of P(x).getElementsByTagName('row')){
+      const ra=r.getAttribute('r');const ri=ra?+ra-1:rows.length;const row=[];
+      for(const c of r.getElementsByTagName('c')){
+        const L=(c.getAttribute('r')||'').replace(/\d/g,'');let ci=0;for(const ch of L)ci=ci*26+ch.charCodeAt(0)-64;ci=L?ci-1:row.length;
+        const ty=c.getAttribute('t');const v=c.getElementsByTagName('v')[0];let val=v?v.textContent:'';
+        if(ty==='s')val=ss[+val]??'';else if(ty==='inlineStr')val=[...c.getElementsByTagName('t')].map(z=>z.textContent).join('');
+        else if(!ty||ty==='n'){if(val!=='')val=+val}
+        row[ci]=val;
+      }
+      rows[ri]=row;
+    }
+    out.push({name:sh.getAttribute('name'),rows:Array.from(rows,r=>r||[])});
+  }
+  return out;
+}
+function readCsv(text,name){
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){const ch=text[i];
+    if(q){if(ch==='"'){if(text[i+1]==='"'){cur+='"';i++}else q=false}else cur+=ch}
+    else if(ch==='"')q=true;else if(ch===','){row.push(cur);cur=''}else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&text[i+1]==='\n')i++;row.push(cur);rows.push(row);row=[];cur=''}else cur+=ch}
+  if(cur||row.length){row.push(cur);rows.push(row)}
+  return[{name:name.replace(/\.csv$/i,''),rows}];
+}
+
+/* ---------- understanding your sheets ---------- */
+const num=v=>typeof v==='number'?v:parseFloat(String(v??'').replace(/[₹,\s]|rs\.?/gi,''))||0;
+const MRE=/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
+const FULLDAY=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function monthIdx(c){
+  if(typeof c==='number'&&c>20000)return new Date(Math.round((c-25569)*864e5)).getUTCMonth();
+  const m=String(c??'').trim().match(MRE);return m?MON.findIndex(x=>x.toLowerCase()===m[1].toLowerCase()):-1;
+}
+function sheetMonth(name){
+  const m=String(name).toLowerCase().match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?[\s\-_'’]*(\d{2,4})?/);
+  if(!m)return null;let y=m[2]?+m[2]:defYear;if(y<100)y+=2000;
+  return{y,mo:MON.findIndex(x=>x.toLowerCase()===m[1])};
+}
+function parseDate(v,ctx){
+  if(v instanceof Date)return toISO(v.getFullYear(),v.getMonth(),v.getDate());
+  if(typeof v==='number'){
+    if(v>20000){const d=new Date(Math.round((v-25569)*864e5));return toISO(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())}
+    if(ctx&&v>=1&&v<=31)return toISO(ctx.y,ctx.mo,v|0);return null;
+  }
+  const s=String(v).trim();let m;if(!s)return null;
+  if(m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))return toISO(+m[1],m[2]-1,+m[3]);
+  if(m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/)){let y=+m[3];if(y<100)y+=2000;return toISO(y,m[2]-1,+m[1])}
+  if(m=s.match(/^(\d{1,2})(?:st|nd|rd|th)?[\s\-]*([a-z]{3})[a-z]*[\s\-,']*(\d{2,4})?/i)){
+    const mo=MON.findIndex(x=>x.toLowerCase()===m[2].toLowerCase());
+    if(mo>=0){let y=m[3]?+m[3]:ctx?ctx.y:defYear;if(y<100)y+=2000;return toISO(y,mo,+m[1])}
+  }
+  if(ctx&&(m=s.match(/^(\d{1,2})$/)))return toISO(ctx.y,ctx.mo,+m[1]);
+  return null;
+}
+const MODES={CASH:'Cash',GPAY:'GPay',GOOGLEPAY:'GPay',PHONEPE:'PhonePe',PAYTM:'Paytm',UPI:'UPI',ONLINE:'Online',CARD:'Card',BANK:'Bank'};
+const normMode=v=>{const s=String(v??'').toUpperCase().replace(/[\s.\-]/g,'');return s?MODES[s]||String(v).trim():''};
+function mapHeader(row){
+  const h={};
+  row.forEach((c,i)=>{const s=String(c??'').toLowerCase().replace(/\s+/g,' ').trim();if(!s)return;
+    if(/^total (credit|exp|daily)|^buss|^bus/.test(s))return;
+    if(/date/.test(s)){if(h.date==null)h.date=i;return}
+    if(/^day/.test(s)){if(h.day==null)h.day=i;return}
+    if(/morn/.test(s)){if(h.m==null)h.m=i;return}
+    if(/^eve|^evi|even|evin|night/.test(s)){if(h.e==null)h.e=i;return}
+    if(/mode|paid|payment|\bvia\b/.test(s)){if(h.mode==null)h.mode=i;return}
+    if(/name|product|item|particular|detail|purpose|summary/.test(s)){if(h.item==null)h.item=i;return}
+    if(/exp|spent|cost|price/.test(s)){if(h.amt==null)h.amt=i;return}
+    if(/credit|income|earn|^total$/.test(s)){if(h.c==null)h.c=i;return}
+    if(/amount|amt/.test(s)&&h.amt==null)h.amt=i;});
+  return h;
+}
+const findHdr=rows=>rows.findIndex((r,i)=>i<30&&r&&r.some(c=>/^\s*date\s*$|morn/i.test(String(c??''))));
+function parseMonthSheet(rows,ctx,ov){
+  const hi=ov&&ov.hdr!=null?ov.hdr:findHdr(rows);if(hi<0||!rows[hi])return null;
+  const h=Object.assign(mapHeader(rows[hi]),(ov&&ov.cols)||{});
+  for(const k in h)if(h[k]===-1)delete h[k];
+  const inc={},exp=[],xl={c:0,x:0,row:null},xr=[];let last=null,bad=0,swapped=0,outside=0,n=0;
+  for(const r of rows)if(r)r.forEach((c,j)=>{const s=String(c??'').trim().toLowerCase().replace(/\s+/g,' ');
+    if(s==='total credit')xl.c=num(r[j+1]);else if(/^total exp/.test(s))xl.x=num(r[j+1])});
+  const cell=(r,k)=>h[k]!=null?r[h[k]]:null;
+  for(let i=hi+1;i<rows.length;i++){const r=rows[i];if(!r)continue;
+    const it=String(cell(r,'item')??'').trim();const dv=cell(r,'date');const hasDate=dv!==''&&dv!=null;
+    const m=num(cell(r,'m')),e=num(cell(r,'e')),a=num(cell(r,'amt'));
+    if(!hasDate&&!it&&!m&&!e&&!a)continue;
+    const first=r.find(c=>c!==''&&c!=null);
+    if((typeof first==='string'&&/^(grand )?total\b|^sum\b/i.test(first.trim()))||(!hasDate&&!it)){if(!xl.row)xl.row={m,e,x:a};continue}
+    let d=null;
+    if(hasDate){d=parseDate(dv,ctx);
+      if(d&&ctx&&(+d.slice(5,7)!==ctx.mo+1||+d.slice(0,4)!==ctx.y)){
+        if(+d.slice(8,10)===ctx.mo+1&&+d.slice(0,4)===ctx.y){d=d.slice(0,4)+'-'+d.slice(8,10)+'-'+d.slice(5,7);swapped++}
+        else{const dd=+d.slice(8,10);if(dd<=new Date(ctx.y,ctx.mo+1,0).getDate())d=toISO(ctx.y,ctx.mo,dd);outside++}}
+      if(!d)bad++;else last=d}
+    const day=d||last;if(!day)continue;
+    const off=[cell(r,'c'),cell(r,'m'),cell(r,'e')].some(v=>/off/i.test(String(v??'')));
+    if(m||e){const o=inc[day]||(inc[day]={m:0,e:0});o.m=Math.max(o.m,m);o.e=Math.max(o.e,e);delete o.off}
+    else if(off&&d&&!inc[day])inc[day]={m:0,e:0,off:true};
+    if(a>0){exp.push({d:day,item:it||'Unnamed',amt:a,mode:normMode(cell(r,'mode'))});xr.push([i+1,a])}
+    if(m||e||a>0||off)n++;
+  }
+  let miss=null;const xs=exp.reduce((s,o)=>s+o.amt,0);
+  if(xl.x&&xs-xl.x>=1){let acc=0;for(let k=xr.length-1;k>=0;k--){acc+=xr[k][1];if(Math.abs(acc-(xs-xl.x))<1){miss={from:xr[k][0],n:xr.length-k,amt:acc};break}if(acc>xs-xl.x)break}}
+  return{inc,exp,h,hi,bad,swapped,outside,xl,n,miss};
+}
+function parseOverview(rows,year){
+  const out={yms:[],mf:{},mfF:{},biz:{},xl:{},funds:[]};
+  const hi=rows.findIndex(r=>r&&r.some(c=>/^\s*month\s*$/i.test(String(c??''))));
+  if(hi>=0){const H=rows[hi].map(c=>String(c??'').replace(/\s+/g,' ').trim());
+    const mc=H.findIndex(c=>/^month$/i.test(c));
+    const mfc=H.map((c,i)=>/mf\b|mutual|\bsip\b/i.test(c)?i:-1).filter(i=>i>=0);
+    const bc=H.findIndex(c=>/^bus|business|bussines/i.test(c));
+    const cc=H.findIndex(c=>/credit/i.test(c));const xc=H.findIndex(c=>/^exp/i.test(c));
+    for(let i=hi+1;i<rows.length;i++){const r=rows[i]||[];const v=r[mc];
+      if(/total/i.test(String(v??'')))break;
+      let ym=null;
+      if(typeof v==='number'&&v>20000){const d=new Date(Math.round((v-25569)*864e5));ym=d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)}
+      else{const mo=monthIdx(v);if(mo>=0)ym=year+'-'+pad(mo+1)}
+      if(!ym)continue;
+      const F={};let s=0;for(const j of mfc){const a=num(r[j]);if(a){F[H[j].replace(/\s*mf$/i,' MF').replace(/oneMF/i,'One MF').trim()]=a;s+=a}}
+      if(s){out.mf[ym]=s;out.mfF[ym]=F}
+      if(bc>=0&&num(r[bc]))out.biz[ym]=num(r[bc]);
+      out.xl[ym]={c:cc>=0?num(r[cc]):0,x:xc>=0?num(r[xc]):0};
+      out.yms.push(ym);
+    }
+  }
+  for(let i=0;i<Math.min(rows.length,40);i++){const r=rows[i]||[];
+    const ic=r.findIndex(c=>/^\s*invest\s*$/i.test(String(c??'')));if(ic<1)continue;
+    const rc=r.findIndex(c=>/^\s*roi\s*$/i.test(String(c??'')));
+    for(let k=i+1;k<Math.min(rows.length,i+15);k++){const q=rows[k]||[];const name=String(q[ic-1]??'').trim();
+      if(/total/i.test(name))break;const inv=num(q[ic]);
+      if(name&&inv)out.funds.push({name,inv,roi:rc>=0?num(q[rc]):0,val:typeof q[ic+2]==='number'?q[ic+2]:0})}
+    break;
+  }
+  return out;
+}
+let lastSheets=[];
+const FIELDS=[['date','Date'],['m','Morning'],['e','Evening (night)'],['c','Credit amount / OFFDAY'],['item','Product summary'],['amt','Expense amount'],['mode','Payment mode']];
+function ingest(sheets){
+  lastSheets=sheets;
+  if(DB.demo)DB=blank();
+  for(const s of sheets){const y=String(s.name).match(/\b(20\d\d)\b/);if(y&&!sheetMonth(s.name)){defYear=+y[1];break}}
+  const names=new Set(sheets.map(s=>s.name));
+  for(const r of DB.report.filter(r=>names.has(r.name))){
+    for(const ym of r.yms||[])delete DB.months[ym];
+    for(const ym of r.ovYms||[]){delete DB.mf[ym];delete DB.mfF[ym];delete DB.biz[ym]}}
+  const rep=DB.report.filter(r=>!names.has(r.name));
+  const owned=new Set(rep.flatMap(r=>r.yms||[]));
+  for(const s of sheets){
+    const ov=DB.map[s.name]||{};const ctx=sheetMonth(s.name);
+    const isOv=/^\s*(20\d\d)\s*$/.test(s.name)||/overview|summary|mother/i.test(s.name);
+    let type=ov.type==='mf'?'overview':ov.type||(ctx?'month':isOv?'overview':'skip');
+    if(!ov.type&&type==='skip'){const t=parseMonthSheet(s.rows,null,null);if(t&&t.h.amt!=null&&t.h.date!=null&&t.exp.length)type='month'}
+    const R={name:s.name,type,ctx,hdr:null,headers:[]};
+    if(type==='month'){const ms=parseMonthSheet(s.rows,ctx,ov);
+      if(ms&&ms.n){const yms=new Set(),fresh={};
+        for(const d in ms.inc){const ym=d.slice(0,7);yms.add(ym);(fresh[ym]||(fresh[ym]={inc:{},exp:[]})).inc[d]=ms.inc[d]}
+        for(const x of ms.exp){const ym=x.d.slice(0,7);yms.add(ym);(fresh[ym]||(fresh[ym]={inc:{},exp:[]})).exp.push(x)}
+        for(const ym in fresh){if(!owned.has(ym)){DB.months[ym]={inc:{},exp:[]};owned.add(ym)}const M=DB.months[ym];Object.assign(M.inc,fresh[ym].inc);M.exp.push(...fresh[ym].exp)}
+        const iv=Object.values(ms.inc);
+        Object.assign(R,{miss:ms.miss,hdr:ms.hi,headers:(s.rows[ms.hi]||[]).map(c=>String(c??'')),h:ms.h,bad:ms.bad,swapped:ms.swapped,outside:ms.outside,xl:ms.xl,yms:[...yms],
+          sum:{m:iv.reduce((a,o)=>a+o.m,0),e:iv.reduce((a,o)=>a+o.e,0),x:ms.exp.reduce((a,o)=>a+o.amt,0),days:iv.filter(o=>o.m||o.e).length,off:iv.filter(o=>o.off).length,ne:ms.exp.length}});
+      }else R.empty=true;
+    }else if(type==='overview'){const y=String(s.name).match(/\b(20\d\d)\b/);const o=parseOverview(s.rows,y?+y[1]:defYear);
+      Object.assign(DB.mf,o.mf);Object.assign(DB.mfF,o.mfF);Object.assign(DB.biz,o.biz);if(o.funds.length)DB.funds=o.funds;
+      Object.assign(R,{ovYms:o.yms,ovXl:o.xl,nMf:Object.keys(o.mf).length,nBiz:Object.keys(o.biz).length,nFunds:o.funds.length});
+      if(!o.yms.length&&!o.funds.length)R.empty=true;
+    }
+    rep.push(R);
+  }
+  DB.report=rep;DB.impT=Date.now();persist();
+  const mine=rep.filter(r=>names.has(r.name));
+  return{months:mine.filter(r=>r.type==='month'&&!r.empty&&r.ctx).length,ov:mine.some(r=>r.type==='overview'&&!r.empty),warn:mine.some(warnOf)};
+}
+const close=(a,b)=>Math.abs(a-b)<1;
+function excelMonth(ym){const M=DB.months[ym];if(!M)return null;const v=Object.values(M.inc);return{c:v.reduce((a,o)=>a+o.m+o.e,0),x:M.exp.reduce((a,o)=>a+o.amt,0)}}
+function warnOf(r){
+  if(r.empty)return r.type!=='skip';
+  if(r.type==='overview')return(r.ovYms||[]).some(ym=>{const a=excelMonth(ym),b=r.ovXl[ym];return a&&b&&((b.c&&!close(a.c,b.c))||(b.x&&!close(a.x,b.x)))});
+  if(r.type!=='month')return false;const x=r.xl;
+  return!!(r.bad||r.swapped||r.outside||(r.ctx&&r.h.m==null)||r.h.amt==null||(x.c&&!close(x.c,r.sum.m+r.sum.e))||(x.x&&!close(x.x,r.sum.x)));
+}
+async function handleFiles(files){
+  const box=$('#status');box.innerHTML='<div class="msg">Reading your file…</div>';
+  try{let all=[];
+    for(const f of files){
+      if(/\.xls$/i.test(f.name))throw new Error('“'+f.name+'” is the old .xls format. In Excel, use Save As → .xlsx and upload that.');
+      all=all.concat(/\.csv$/i.test(f.name)?readCsv(await f.text(),f.name):await readXlsx(await f.arrayBuffer()));
+    }
+    const r=ingest(all);st.year=null;
+    box.innerHTML='<div class="msg"><b>Read '+r.months+' month sheet'+(r.months===1?'':'s')+(r.ov?' and your yearly overview':'')+'.</b> '+(r.warn?'<span class="dnc">Some totals don’t match your sheet.</span> <a href="#check">Open Import check</a>':'<span class="upc">All totals match your Excel.</span> <a href="#check">See Import check</a>')+'</div>';
+    if(r.warn)location.hash='check';
+    render();
+  }catch(e){box.innerHTML='<div class="msg dnc">Could not read the file: '+esc(e.message)+'</div>'}
+}
+
+/* ---------- sample data ---------- */
+function demo(){
+  let s=11;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;const months={},mf={},mfF={},biz={};
+  const items=[['PETROL',110,300,.45,'Cash'],['VEGETABLE',50,180,.6,'Cash'],['FRUIT',80,300,.3,'Cash'],['FISH',100,310,.35,'Cash'],['MEAT',200,1000,.12,'Cash'],['COCONUT WATER',130,200,.1,'Cash'],['MANAS BERA',30,350,.35,'Cash'],['MOBILE RECHARGE',220,300,.04,'GPay'],['WIFI RECHARGE',475,475,.033,'GPay'],['MEDICINE',100,900,.06,'GPay']];
+  for(let mo=0;mo<11;mo++){const ym='2026-'+pad(mo+1),M={inc:{},exp:[]};const dim=new Date(2026,mo+1,0).getDate();
+    for(let d=1;d<=dim&&!(mo===10&&d>26);d++){const iso=toISO(2026,mo,d);
+      if(rnd()<.72)M.inc[iso]={m:rnd()<.85?Math.round((2000+rnd()*3000)/100)*100:0,e:rnd()<.5?Math.round((1000+rnd()*3000)/100)*100:0};else M.inc[iso]={m:0,e:0,off:true};
+      if(!M.inc[iso].off&&!M.inc[iso].m&&!M.inc[iso].e)M.inc[iso].m=3000;
+      for(const[n,a,b,p,md]of items)if(rnd()<p)M.exp.push({d:iso,item:n,amt:Math.round(a+rnd()*(b-a)),mode:md});
+    }
+    months[ym]=M;mfF[ym]={'Angel One MF':40000,'Groww MF':15000};mf[ym]=55000;biz[ym]=Math.round((25000+rnd()*20000)/10)*10;
+  }
+  DB=Object.assign(blank(),{months,mf,mfF,biz,funds:[{name:'ANGEL ONE',inv:440000,roi:.12,val:492800},{name:'GROWW',inv:165000,roi:.14,val:188100}],demo:true});
+  lastSheets=[];st.year=null;$('#status').innerHTML='';render();
+}
+
+/* ---------- numbers ---------- */
+const inP=d=>st.year==='all'||d.startsWith(st.year);
+function allDays(){
+  const D={};const g=d=>D[d]||(D[d]={m:0,e:0,off:false,exp:[]});
+  for(const ym in DB.months){const M=DB.months[ym];
+    for(const d in M.inc){const o=g(d);o.m=M.inc[d].m;o.e=M.inc[d].e;o.off=!!M.inc[d].off}
+    for(const x of M.exp)g(x.d).exp.push(x)}
+  for(const d in DB.manual){const x=DB.manual[d];D[d]={m:x.m,e:x.e,off:!!x.off,exp:x.exp.map(z=>({d,item:z.item,amt:z.amt,mode:z.mode})),app:true}}
+  return D;
+}
+function data(){
+  const D=allDays(),inc=[],exp=[];
+  for(const d in D){if(!inP(d))continue;const o=D[d];if(o.m||o.e||o.off)inc.push({d,m:o.m,e:o.e,off:o.off&&!(o.m+o.e)});exp.push(...o.exp)}
+  inc.sort((a,b)=>a.d<b.d?-1:1);exp.sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:0);
+  return{inc,exp};
+}
+const mfFOf=ym=>(DB.manualM[ym]&&DB.manualM[ym].mf)||DB.mfF[ym]||(DB.mf[ym]?{MF:DB.mf[ym]}:{});
+const mfOf=ym=>Object.values(mfFOf(ym)).reduce((a,b)=>a+b,0);
+const bizOf=ym=>DB.manualM[ym]&&DB.manualM[ym].biz!=null?DB.manualM[ym].biz:DB.biz[ym]||0;
+const hasData=()=>Object.keys(DB.months).length+Object.keys(DB.manual).length+Object.keys(DB.mf).length+Object.keys(DB.biz).length>0;
+function monthRows(){
+  const{inc,exp}=data();const M={};const g=k=>M[k]||(M[k]={ym:k,m:0,e:0,x:0,mf:0,biz:0,days:0,off:0});
+  for(const r of inc){const o=g(r.d.slice(0,7));if(r.off)o.off++;else{o.m+=r.m;o.e+=r.e;o.days++}}
+  for(const r of exp)g(r.d.slice(0,7)).x+=r.amt;
+  for(const k of new Set([...Object.keys(DB.mf),...Object.keys(DB.biz),...Object.keys(DB.manualM)]))if(inP(k)&&(mfOf(k)||bizOf(k)))g(k);
+  for(const k in M){M[k].mf=mfOf(k);M[k].biz=bizOf(k)}
+  return Object.values(M).sort((a,b)=>a.ym<b.ym?-1:1);
+}
+const norm=s=>String(s).toLowerCase().replace(/\s+/g,' ').trim();
+function itemTotals(exp){const T={};for(const x of exp){const k=norm(x.item);const o=T[k]||(T[k]={k,name:x.item,amt:0,n:0});o.amt+=x.amt;o.n++}return Object.values(T).sort((a,b)=>b.amt-a.amt)}
+function chg(cur,prev){if(!prev)return'<span class="note">—</span>';const p=(cur-prev)/prev*100;if(Math.abs(p)<.5)return'<span class="note">0%</span>';
+  return p>0?'<span class="upc">▲ '+Math.round(p)+'%</span>':'<span class="dnc">▼ '+Math.round(-p)+'%</span>'}
+const dl=d=>{const x=new Date(d+'T00:00');return x.getDate()+' '+MON[x.getMonth()]+' '+String(x.getFullYear()).slice(2)};
+const todayISO=()=>{const d=new Date();return toISO(d.getFullYear(),d.getMonth(),d.getDate())};
+
+/* ---------- chart ---------- */
+let ros=[];const navHist=[];
+const niceMax=v=>{const p=10**Math.floor(Math.log10(v));const f=v/p;return([1,1.2,1.6,2,2.4,3,4,5,6,8,10].find(x=>f<=x))*p};
+function chart(id,groups){
+  const el=document.getElementById(id);if(!el)return;const svg=el.querySelector('svg'),tip=el.querySelector('.tip');let geo=null;
+  const draw=()=>{const W=svg.clientWidth,H=svg.clientHeight;if(!W||!groups.length)return;
+    const sm=W<520,pl=sm?40:56,pr=8,pt=10,pb=26,iw=W-pl-pr,ih=H-pt-pb;
+    const max=niceMax(Math.max(1,...groups.flatMap(g=>g.bars.map(b=>b.reduce((s,x)=>s+x.v,0)))));
+    const gw=iw/groups.length,nb=Math.max(...groups.map(g=>g.bars.length));const bw=Math.max(2,Math.min(30,(gw*.74-(nb-1)*2)/nb));
+    let s='';
+    for(let k=0;k<=4;k++){const y=pt+ih-ih*k/4;s+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="var(--line)"/>`+(sm&&k%2?'':`<text x="${pl-6}" y="${y+4}" text-anchor="end" font-size="11" fill="var(--muted)">${short(max*k/4)}</text>`)}
+    const every=Math.ceil(groups.length/(sm?6:14));
+    groups.forEach((g,i)=>{const cx=pl+gw*i+gw/2;let x=cx-(nb*bw+(nb-1)*2)/2;
+      g.bars.forEach(b=>{let y0=pt+ih;const segs=b.filter(z=>z.v>0);
+        segs.forEach((z,j)=>{const h=ih*z.v/max;const top=y0-h,bot=j?y0-2:y0;if(bot-top<=0){y0=top;return}
+          const r=j===segs.length-1?Math.min(4,bw/2,bot-top):0;
+          s+=`<path d="M${x},${bot}V${top+r}Q${x},${top} ${x+r},${top}H${x+bw-r}Q${x+bw},${top} ${x+bw},${top+r}V${bot}Z" fill="${z.c}"/>`;y0=top});
+        x+=bw+2});
+      if(i%every===0)s+=`<text x="${cx}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${esc(g.label)}</text>`;
+    });
+    svg.innerHTML=s;geo={pl,gw,W};
+  };
+  const ro=new ResizeObserver(draw);ro.observe(svg);ros.push(ro);
+  svg.onpointermove=ev=>{if(!geo)return;const b=svg.getBoundingClientRect();const x=ev.clientX-b.left;const i=Math.floor((x-geo.pl)/geo.gw);const g=groups[i];
+    if(!g){tip.style.display='none';return}
+    tip.innerHTML='<b>'+esc(g.tip||g.label)+'</b><br>'+g.bars.flat().map(z=>esc(z.n)+': '+inr(z.v)).join('<br>');
+    tip.style.display='block';const tw=tip.offsetWidth;tip.style.left=Math.max(0,Math.min(x+14,geo.W-tw))+'px';tip.style.top=Math.max(0,ev.clientY-b.top-tip.offsetHeight-10)+'px'};
+  svg.onpointerleave=()=>{tip.style.display='none'};
+}
+const fig=(id,h)=>`<div class="fig" id="${id}" style="min-height:${h||300}px"><svg role="img" aria-label="Bar chart"></svg><div class="tip"></div></div>`;
+const leg=a=>'<div class="legend">'+a.map(([c,n])=>`<span><i style="background:${c}"></i>${n}</span>`).join('')+'</div>';
+
+/* ---------- views ---------- */
+function viewOverview(){
+  const rows=monthRows();const{exp}=data();
+  const T=rows.reduce((a,r)=>({m:a.m+r.m,e:a.e+r.e,b:a.b+r.biz,x:a.x+r.x,mf:a.mf+r.mf,d:a.d+r.days,o:a.o+r.off}),{m:0,e:0,b:0,x:0,mf:0,d:0,o:0});
+  const inc=T.m+T.e+T.b,left=inc-T.x-T.mf,label=st.year==='all'?'all years':st.year;
+  const top=itemTotals(exp).slice(0,10);const tmax=top[0]?.amt||1;
+  const modes={};for(const x of exp){const k=x.mode||'Not set';modes[k]=(modes[k]||0)+x.amt}
+  $('#view').innerHTML=`<section class="hero"><div><div class="lbl">Net saving in ${esc(label)}, after expenses and MF</div><div class="big num">${inr(left)}</div><div class="lbl" style="margin-top:6px">Saved before MF: ${inr(inc-T.x)}</div></div>
+  <div class="hk"><div><span>Total Credit</span><b>${inr(T.m+T.e)}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>MF invested</span><b>${inr(T.mf)}</b></div><div><span>Working days</span><b>${T.d}</b></div><div><span>Off days</span><b>${T.o}</b></div></div></section>
+  <div class="grid2">
+  <section class="card"><h2>Nett income vs expenses by month</h2>${leg([['var(--m)','Morning'],['var(--e)','Evening'],['var(--b)','Business'],['var(--x)','Expenses']])}${fig('c1')}</section>
+  <section class="card"><h2>Where the money goes</h2><p class="note" style="margin:0 0 8px">Tap an item to see its full history.</p>
+  ${top.map(t=>`<button class="hb" type="button" data-q="${esc(t.name)}"><span>${esc(t.name)}</span><span class="t"><i style="width:${(t.amt/tmax*100).toFixed(1)}%"></i></span><span class="r exc">${inr(t.amt)}</span></button>`).join('')||'<p class="note">No expenses yet.</p>'}
+  ${Object.keys(modes).length?`<p class="note" style="margin:12px 0 0">Paid by: ${Object.entries(modes).sort((a,b)=>b[1]-a[1]).map(([k,v])=>esc(k)+' '+inr(v)).join(' · ')}</p>`:''}</section></div>
+  <section class="card"><h2>Month by month</h2><div class="scroll"><table style="min-width:860px"><thead><tr><th>Month</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Business</th><th class="r">Nett income</th><th class="r">vs last month</th><th class="r">Expenses</th><th class="r">MF</th><th class="r">Net saving</th></tr></thead><tbody>
+  ${rows.map((r,i)=>{const a=r.m+r.e+r.biz,p=i?rows[i-1].m+rows[i-1].e+rows[i-1].biz:0,l=a-r.x-r.mf;return`<tr><td>${ymLabel(r.ym)}</td><td class="r">${inr(r.m)}</td><td class="r">${inr(r.e)}</td><td class="r">${inr(r.m+r.e)}</td><td class="r">${inr(r.biz)}</td><td class="r"><b>${inr(a)}</b></td><td class="r">${chg(a,p)}</td><td class="r exc">${inr(r.x)}</td><td class="r">${inr(r.mf)}</td><td class="r ${l<0?'dnc':''}">${inr(l)}</td></tr>`}).join('')}
+  <tr style="font-weight:700"><td>Total</td><td class="r">${inr(T.m)}</td><td class="r">${inr(T.e)}</td><td class="r">${inr(T.m+T.e)}</td><td class="r">${inr(T.b)}</td><td class="r">${inr(inc)}</td><td></td><td class="r exc">${inr(T.x)}</td><td class="r">${inr(T.mf)}</td><td class="r">${inr(left)}</td></tr>
+  </tbody></table></div></section>`;
+  chart('c1',rows.map(r=>({label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym),bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'},{v:r.biz,c:'var(--b)',n:'Business'}],[{v:r.x,c:'var(--x)',n:'Expenses'}]]})));
+}
+function viewInvest(){
+  const rows=monthRows().filter(r=>r.mf);const tot=rows.reduce((s,r)=>s+r.mf,0),inc=rows.reduce((s,r)=>s+r.m+r.e+r.biz,0);
+  const funds=[...new Set(rows.flatMap(r=>Object.keys(mfFOf(r.ym))))];const cols=['var(--m)','var(--e)','var(--b)','var(--x)'];
+  const H=DB.funds||[];const hI=H.reduce((s,f)=>s+f.inv,0),hV=H.reduce((s,f)=>s+(f.val||0),0);
+  let h='';
+  if(H.length)h+=`<section class="card"><h2>Your holdings</h2><div class="scroll"><table style="min-width:520px"><thead><tr><th>Fund account</th><th class="r">Invested</th><th class="r">ROI</th><th class="r">Value</th><th class="r">Gain</th></tr></thead><tbody>${H.map(f=>`<tr><td>${esc(f.name)}</td><td class="r">${inr(f.inv)}</td><td class="r">${f.roi?(f.roi*100).toFixed(2)+'%':'—'}</td><td class="r">${f.val?inr(f.val):'—'}</td><td class="r ${f.val>=f.inv?'upc':'dnc'}">${f.val?inr(f.val-f.inv):'—'}</td></tr>`).join('')}<tr style="font-weight:700"><td>Total</td><td class="r">${inr(hI)}</td><td class="r">${hI&&hV?((hV/hI-1)*100).toFixed(2)+'%':''}</td><td class="r">${hV?inr(hV):'—'}</td><td class="r">${hV?inr(hV-hI):''}</td></tr></tbody></table></div><p class="note" style="margin:8px 0 0">From the INVEST and ROI block of your yearly overview sheet.</p></section>`;
+  if(!rows.length){$('#view').innerHTML=h+`<section class="card"><h2>No monthly MF amounts yet</h2><p style="margin:0">They come from the MF columns of your yearly overview sheet (like “Angel oneMF” and “Groww MF”), or you can type them on the <a href="#add">Add entry</a> page.</p></section>`;return}
+  h=`<div class="kpis"><div class="kpi"><span>Invested in ${esc(st.year==='all'?'all years':st.year)}</span><b>${inr(tot)}</b><small>${rows.length} months</small></div>
+  <div class="kpi"><span>Average per month</span><b>${inr(tot/rows.length)}</b></div>
+  <div class="kpi"><span>Share of income</span><b>${inc?Math.round(tot/inc*100):0}%</b><small>of Nett income, same months</small></div>
+  ${funds.map(f=>`<div class="kpi"><span>${esc(f)}</span><b>${inr(rows.reduce((s,r)=>s+(mfFOf(r.ym)[f]||0),0))}</b></div>`).join('')}</div>`+h+
+  `<section class="card"><h2>MF investment by month</h2>${leg(funds.map((f,i)=>[cols[i%4],esc(f)]))}${fig('c4',260)}
+  <div class="scroll" style="margin-top:12px"><table style="min-width:520px"><thead><tr><th>Month</th>${funds.map(f=>`<th class="r">${esc(f)}</th>`).join('')}<th class="r">Total</th><th class="r">% of income</th></tr></thead><tbody>${rows.map(r=>{const F=mfFOf(r.ym),a=r.m+r.e+r.biz;return`<tr><td>${ymLabel(r.ym)}</td>${funds.map(f=>`<td class="r">${F[f]?inr(F[f]):'—'}</td>`).join('')}<td class="r"><b>${inr(r.mf)}</b></td><td class="r">${a?Math.round(r.mf/a*100)+'%':'—'}</td></tr>`}).join('')}</tbody></table></div></section>`;
+  $('#view').innerHTML=h;
+  chart('c4',rows.map(r=>{const F=mfFOf(r.ym);return{label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym),bars:[funds.map((f,i)=>({v:F[f]||0,c:cols[i%4],n:f}))]}}));
+}
+
+/* ---------- add entry ---------- */
+const xrow=(x={})=>`<div class="xrow"><input class="xi" list="items" placeholder="Product summary" aria-label="Product summary" value="${esc(x.item||'')}"><input class="xa" inputmode="decimal" placeholder="Amount ₹" aria-label="Expense amount" value="${x.amt||''}"><select class="xm" aria-label="Payment mode">${['Cash','GPay','Online','UPI','Card'].concat(x.mode&&!['Cash','GPay','Online','UPI','Card'].includes(x.mode)?[x.mode]:[]).map(m=>`<option ${m===(x.mode||st.lastMode||'Cash')?'selected':''}>${esc(m)}</option>`).join('')}</select><button type="button" class="btn xdel" aria-label="Remove this expense">×</button></div>`;
+function tsvFor(ym){
+  const days=Object.keys(DB.manual).filter(d=>d.startsWith(ym)).sort();const out=[];let sl=0;
+  for(const d of days){const x=DB.manual[d];const ds=d.slice(8)+'-'+d.slice(5,7)+'-'+d.slice(0,4);const day=FULLDAY[new Date(d+'T00:00').getDay()];
+    const credit=x.off&&!(x.m+x.e)?'OFFDAY':x.m+x.e;const ex=x.exp.length?x.exp:[null];
+    ex.forEach((z,i)=>{const f=i===0;if(f&&z)sl++;out.push([f?ds:'',f?day:'',f&&x.m?x.m:'',f&&x.e?x.e:'',f?credit:'',f?ds:'',f&&z?sl:'',z?z.item:'',z?z.amt:'',z?String(z.mode).toUpperCase():''].join('\t'))})}
+  return out.join('\n');
+}
+function viewAdd(){
+  if(!st.ed)st.ed=todayISO();const d=st.ed;const D=allDays();
+  const man=DB.manual[d],xl=D[d]&&!D[d].app?D[d]:null;
+  const cur=man?{m:man.m,e:man.e,off:man.off,exp:man.exp}:xl?{m:xl.m,e:xl.e,off:xl.off,exp:xl.exp}:{m:0,e:0,off:false,exp:[]};
+  const names=itemTotals(Object.values(D).flatMap(o=>o.exp)).map(t=>t.name);
+  const yms=[...new Set([todayISO().slice(0,7),...Object.keys(DB.months),...Object.keys(DB.mf),...Object.keys(DB.biz),...Object.keys(DB.manualM)])].sort().reverse();
+  if(!st.em||!yms.includes(st.em))st.em=todayISO().slice(0,7);
+  const fundNames=[...new Set([...Object.values(DB.mfF).flatMap(o=>Object.keys(o)),...Object.values(DB.manualM).flatMap(o=>Object.keys(o.mf||{}))])];
+  if(!fundNames.length)fundNames.push('Angel One MF','Groww MF');
+  const F=mfFOf(st.em);
+  const mine=Object.keys(DB.manual).sort().reverse();const myM=[...new Set(mine.map(x=>x.slice(0,7)))];
+  $('#view').innerHTML=`<section class="card entry"><h2>Add or edit a day</h2>
+  <div class="frow"><label>Date<input type="date" id="fd" class="in" value="${d}" max="2099-12-31"></label><div class="note" style="padding-bottom:12px"><b style="color:var(--ink)">${FULLDAY[new Date(d+'T00:00').getDay()]}</b> · ${man?'<span class="upc">added in the app</span>':xl?'from your Excel file':'new day'}</div></div>
+  ${(()=>{const t=todayISO(),ym=t.slice(0,7);const miss=[];for(let k=1;k<=+t.slice(8);k++){const dd=ym+'-'+pad(k);const o=D[dd];if(!o||!(o.m||o.e||o.off||o.exp.length))miss.push(dd)}
+    return miss.length?`<div style="margin-top:12px"><p class="note" style="margin:0 0 6px">Days in ${ymLabel(ym)} with nothing entered yet. Tap one to fill it in:</p><div class="chips">${miss.map(x=>`<button class="chip" type="button" data-ed="${x}" ${x===d?'style="border-color:var(--band);font-weight:700"':''}>${+x.slice(8)} ${MON[+x.slice(5,7)-1]}</button>`).join('')}</div></div>`:''})()}
+  ${xl&&!man?'<p class="note" style="margin:8px 0 0">This day came from your Excel file. If you save changes, the app uses your version for this day. Your Excel file is not changed.</p>':''}
+  <label class="tog"><input type="checkbox" id="foff" ${cur.off&&!(cur.m+cur.e)?'checked':''}> Off day (no credit today)</label>
+  <div class="frow"><label>Morning ₹<input id="fm" class="in" inputmode="numeric" value="${cur.m||''}" placeholder="0"></label><label>Evening (night) ₹<input id="fe" class="in" inputmode="numeric" value="${cur.e||''}" placeholder="0"></label><div class="kpi" style="flex:1 1 140px"><span>Total Credit</span><b id="fc">₹0</b></div></div>
+  <h3 style="margin:20px 0 8px;font-size:17px">Expenses</h3>
+  <datalist id="items">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
+  <div id="xrows">${(cur.exp.length?cur.exp:[{}]).map(xrow).join('')}</div>
+  <button type="button" class="btn" id="addx">+ Add another expense</button>
+  <p style="margin:14px 0 0">Expenses this day: <b id="fx" class="exc">₹0</b></p>
+  <div class="acts" style="margin-top:14px"><button class="btn pri" type="button" id="save">Save day</button>${man?'<button class="btn" type="button" id="undo">Remove my app entry for this day</button>':''}</div>
+  <p id="fmsg" style="margin:10px 0 0;min-height:1.5em"></p></section>
+  <section class="card"><h2>Monthly business amount and MF</h2><p class="note" style="margin:0 0 8px">These are monthly, like in your yearly overview sheet.</p>
+  <div class="frow"><label>Month<select id="em" class="in">${yms.map(k=>`<option value="${k}" ${k===st.em?'selected':''}>${ymLabel(k)}</option>`).join('')}</select></label><label>Business amount ₹<input id="eb" class="in" inputmode="numeric" value="${bizOf(st.em)||''}" placeholder="0"></label>
+  ${fundNames.map((f,i)=>`<label>${esc(f)} ₹<input class="in ef" data-f="${esc(f)}" inputmode="numeric" value="${F[f]||''}" placeholder="0"></label>`).join('')}</div>
+  <div class="acts" style="margin-top:12px"><button class="btn pri" type="button" id="msave">Save month</button>${DB.manualM[st.em]?'<button class="btn" type="button" id="mundo">Use the Excel values again</button>':''}</div><p id="mmsg" style="margin:10px 0 0"></p></section>
+  <section class="card"><h2>Days you added in the app</h2>
+  ${mine.length?`<div class="scroll" style="max-height:420px;overflow-y:auto"><table class="stack"><thead><tr><th>Date</th><th class="r">Total Credit</th><th class="r">Expenses</th><th></th></tr></thead><tbody>${mine.map(k=>{const x=DB.manual[k];const xs=x.exp.reduce((s,z)=>s+z.amt,0);return`<tr><td>${dl(k)} · ${WD[new Date(k+'T00:00').getDay()]}</td><td class="r">${x.off&&!(x.m+x.e)?'<span class="note">Off day</span>':inr(x.m+x.e)}</td><td class="r exc">${inr(xs)} <span class="note">(${x.exp.length})</span></td><td><button class="btn" type="button" data-ed="${k}" style="min-height:36px">Edit</button></td></tr>`}).join('')}</tbody></table></div>
+  <h3 style="margin:16px 0 6px;font-size:16px">Put them in your Excel</h3><p class="note" style="margin:0 0 8px">Copies the rows in your sheet's column order: DATE, DAY, MORNING, NIGHT, CREDIT AMOUNT, DATE2, SL NO, PRODUCT SUMMARY, EXP AMOUNT, PAYMENT MODE. In Excel, click the empty DATE cell where the day goes and paste.</p>
+  <div class="acts">${myM.map(k=>`<button class="btn" type="button" data-copy="${k}">Copy ${ymLabel(k)}</button>`).join('')}</div><textarea id="cpbox" hidden readonly style="width:100%;height:140px;margin-top:10px;font:13px monospace"></textarea>`
+  :'<p class="note" style="margin:0">Nothing added yet. Days you save above show up here and on every dashboard page straight away.</p>'}</section>`;
+  const V=$('#view'),fm=$('#fm'),fe=$('#fe'),off=$('#foff');
+  const sums=()=>{$('#fc').textContent=inr(num(fm.value)+num(fe.value));$('#fx').textContent=inr([...V.querySelectorAll('.xa')].reduce((s,i)=>s+num(i.value),0));fm.disabled=fe.disabled=off.checked};
+  V.oninput=sums;off.onchange=sums;sums();
+  $('#fd').onchange=e=>{if(e.target.value){st.ed=e.target.value;render()}};
+  $('#addx').onclick=()=>{$('#xrows').insertAdjacentHTML('beforeend',xrow());const r=V.querySelectorAll('.xi');r[r.length-1].focus()};
+  V.onclick=async e=>{const t=e.target;
+    if(t.classList.contains('xdel')){const rows=V.querySelectorAll('.xrow');if(rows.length>1)t.closest('.xrow').remove();else t.closest('.xrow').querySelectorAll('input').forEach(i=>i.value='');sums();return}
+    if(t.dataset.ed){st.ed=t.dataset.ed;render();scrollTo({top:0,behavior:'smooth'});return}
+    if(t.dataset.copy){const txt=tsvFor(t.dataset.copy);const box=$('#cpbox');try{await navigator.clipboard.writeText(txt);flash('Copied '+txt.split('\n').length+' rows for '+ymLabel(t.dataset.copy)+'. Paste them into your Excel sheet.')}catch(err){box.hidden=false;box.value=txt;box.select();flash('Your browser blocked copying. The rows are selected in the box below: copy them by hand.')}return}
+  };
+  $('#save').onclick=async()=>{const msg=$('#fmsg');const m=off.checked?0:num(fm.value),e=off.checked?0:num(fe.value);
+    const exp=[...V.querySelectorAll('.xrow')].map(r=>({item:r.querySelector('.xi').value.trim(),amt:num(r.querySelector('.xa').value),mode:r.querySelector('.xm').value})).filter(x=>x.item||x.amt);
+    const noAmt=exp.find(x=>x.item&&!x.amt);if(noAmt){msg.className='dnc';msg.textContent='Add an amount for “'+noAmt.item+'”.';return}
+    if(!m&&!e&&!off.checked&&!exp.length){msg.className='dnc';msg.textContent='Nothing to save yet: add morning, evening, an expense, or tick Off day.';return}
+    if(DB.demo){DB=blank();st.year=null}
+    if(exp.length)st.lastMode=exp[exp.length-1].mode;
+    DB.manual[d]={m,e,off:off.checked,exp:exp.map(x=>({item:x.item||'Unnamed',amt:x.amt,mode:x.mode})),t:Date.now()};if(DB.del)delete DB.del[d];
+    await persist();render();
+    const ok=$('#fmsg');ok.className='upc';ok.innerHTML='✓ Saved '+esc(dl(d))+': credit '+inr(m+e)+', expenses '+inr(exp.reduce((s,x)=>s+x.amt,0))+'. Your dashboard is updated. <a href="#overview">View dashboard</a>'+(KEYOBJ?'':' <span class="dnc">Set a PIN (box at the top) so it is kept after you close the page.</span>');};
+  const u=$('#undo');if(u)confirm2(u,'Tap again to remove',async()=>{delete DB.manual[d];(DB.del||(DB.del={}))[d]=Date.now();await persist();render()});
+  $('#em').onchange=e=>{st.em=e.target.value;render()};
+  $('#msave').onclick=async()=>{if(DB.demo){DB=blank();st.year=null}const mf={};V.querySelectorAll('.ef').forEach(i=>{const v=num(i.value);if(v)mf[i.dataset.f]=v});
+    DB.manualM[st.em]={biz:num($('#eb').value),mf,t:Date.now()};if(DB.delM)delete DB.delM[st.em];await persist();render();$('#mmsg').className='upc';$('#mmsg').textContent='✓ Saved '+ymLabel(st.em)+'. The dashboard is updated.'};
+  const mu=$('#mundo');if(mu)mu.onclick=async()=>{delete DB.manualM[st.em];(DB.delM||(DB.delM={}))[st.em]=Date.now();await persist();render()};
+}
+function empty(){
+  $('#view').innerHTML=`<section class="drop" id="drop"><h1 style="font-size:clamp(28px,4vw,40px);line-height:1.1;margin:0 0 10px;text-wrap:balance">Upload your budget workbook</h1>
+  <p style="max-width:62ch;margin:0 auto 18px">Month sheets like <b>JAN 26</b> with DATE, DAY, MORNING, NIGHT, CREDIT AMOUNT, PRODUCT SUMMARY, EXP AMOUNT and PAYMENT MODE, plus your yearly <b>2026</b> sheet for business amount and MF.</p>
+  <div class="acts" style="justify-content:center"><label class="btn pri" for="file">Choose .xlsx file</label><a class="btn" href="#add">Add today by hand</a><button class="btn" type="button" id="demo2">Try sample data</button></div>
+  <p class="note" style="margin:16px 0 0">Or drag the file here. It is read inside your browser and never uploaded anywhere.</p></section>`;
+  $('#demo2').onclick=demo;const d=$('#drop');
+  d.ondragover=e=>{e.preventDefault();d.classList.add('over')};d.ondragleave=()=>d.classList.remove('over');
+  d.ondrop=e=>{e.preventDefault();d.classList.remove('over');if(e.dataTransfer.files.length)handleFiles([...e.dataTransfer.files])};
+}
+/* ---------- periods ---------- */
+const addDays=(d,n)=>{const x=new Date(d+'T00:00');x.setDate(x.getDate()+n);return toISO(x.getFullYear(),x.getMonth(),x.getDate())};
+const mondayOf=d=>{const x=new Date(d+'T00:00');return addDays(d,-((x.getDay()+6)%7))};
+const dm=d=>+d.slice(8)+' '+MON[+d.slice(5,7)-1];
+const wkLabel=k=>dm(k)+' – '+dm(addDays(k,6));
+const segBtns=(name,opts,cur)=>`<div class="seg" role="group" aria-label="${name}">${opts.map(([v,l])=>`<button type="button" data-${name}="${v}" class="${cur===v?'on':''}">${l}</button>`).join('')}</div>`;
+const monthEnd=ym=>toISO(+ym.slice(0,4),+ym.slice(5,7)-1,new Date(+ym.slice(0,4),+ym.slice(5,7),0).getDate());
+function viewIncome(){
+  const{inc}=data();const work=inc.filter(r=>!r.off);const tot=r=>r.m+r.e;
+  const months=[...new Set(inc.map(r=>r.d.slice(0,7)))].sort();
+  if(!st.iv)st.iv='mtotal';
+  if(!st.month||st.month==='all'||!months.includes(st.month))st.month=months[months.length-1]||'';
+  const MR=monthRows().filter(r=>r.days||r.off);
+  const W={};for(const r of inc){const k=mondayOf(r.d);const o=W[k]||(W[k]={k,m:0,e:0,days:0,off:0});if(r.off)o.off++;else{o.m+=r.m;o.e+=r.e;o.days++}}
+  const WK=Object.values(W).sort((a,b)=>a.k<b.k?-1:1);
+  const sum=work.reduce((s,r)=>s+tot(r),0);const mW=MR.filter(r=>r.days),wW=WK.filter(w=>w.days);
+  const bestM=mW.reduce((a,r)=>!a||r.m+r.e>a.m+a.e?r:a,null),bestW=wW.reduce((a,w)=>!a||w.m+w.e>a.m+a.e?w:a,null);
+  const yl=st.year==='all'?'all years':st.year;
+  let h=`<div class="bar" style="padding:0;gap:10px">${segBtns('iv',[['mtotal','Monthly total'],['mavg','Monthly average'],['weekly','Weekly'],['daily','Daily']],st.iv)}
+  ${st.iv==='daily'?`<label class="note" style="display:flex;gap:8px;align-items:center">Month <select id="mon">${months.map(m=>`<option value="${m}" ${m===st.month?'selected':''}>${ymLabel(m)}</option>`).join('')}</select></label>`:''}</div>
+  <div class="kpis"><div class="kpi"><span>Total Credit, ${esc(yl)}</span><b>${inr(sum)}</b><small>${work.length} working · ${inc.length-work.length} off days</small></div>
+  <div class="kpi"><span>Average per month</span><b>${inr(mW.length?sum/mW.length:0)}</b><small>over ${mW.length} months</small></div>
+  <div class="kpi"><span>Average per week</span><b>${inr(wW.length?sum/wW.length:0)}</b><small>over ${wW.length} weeks</small></div>
+  <div class="kpi"><span>Average per working day</span><b>${inr(work.length?sum/work.length:0)}</b></div>
+  <div class="kpi"><span>Best month</span><b>${bestM?inr(bestM.m+bestM.e):'—'}</b><small>${bestM?ymLabel(bestM.ym):''}</small></div>
+  <div class="kpi"><span>Best week</span><b>${bestW?inr(bestW.m+bestW.e):'—'}</b><small>${bestW?wkLabel(bestW.k):''}</small></div></div>`;
+  const L=leg([['var(--m)','Morning'],['var(--e)','Evening']]);
+  let groups=[],table='',extra='';
+  if(st.iv==='mtotal'){
+    groups=MR.map(r=>({label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym)+' · Total Credit '+inr(r.m+r.e),bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'}]]}));
+    table=`<thead><tr><th>Month</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Working / off</th><th class="r">vs last month</th></tr></thead><tbody>${MR.map((r,i)=>`<tr><td>${ymLabel(r.ym)}</td><td class="r">${inr(r.m)}</td><td class="r">${inr(r.e)}</td><td class="r"><b>${inr(r.m+r.e)}</b></td><td class="r">${r.days} / ${r.off}</td><td class="r">${chg(r.m+r.e,i?MR[i-1].m+MR[i-1].e:0)}</td></tr>`).join('')}</tbody>`;
+  }else if(st.iv==='mavg'){
+    const av=r=>r.days?{m:r.m/r.days,e:r.e/r.days}:{m:0,e:0};
+    groups=MR.map(r=>{const a=av(r);return{label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym)+' · per working day '+inr(a.m+a.e),bars:[[{v:a.m,c:'var(--m)',n:'Morning avg'},{v:a.e,c:'var(--e)',n:'Evening avg'}]]}});
+    table=`<thead><tr><th>Month</th><th class="r">Working days</th><th class="r">Avg morning</th><th class="r">Avg evening</th><th class="r">Avg per working day</th><th class="r">vs last month</th></tr></thead><tbody>${MR.map((r,i)=>{const a=av(r),p=i?av(MR[i-1]):null;return`<tr><td>${ymLabel(r.ym)}</td><td class="r">${r.days}</td><td class="r">${inr(a.m)}</td><td class="r">${inr(a.e)}</td><td class="r"><b>${inr(a.m+a.e)}</b></td><td class="r">${chg(a.m+a.e,p?p.m+p.e:0)}</td></tr>`}).join('')}</tbody>`;
+  }else if(st.iv==='weekly'){
+    groups=WK.map(w=>({label:dm(w.k),tip:'Week '+wkLabel(w.k)+' · '+w.days+' working days',bars:[[{v:w.m,c:'var(--m)',n:'Morning'},{v:w.e,c:'var(--e)',n:'Evening'}]]}));
+    table=`<thead><tr><th>Week (Mon–Sun)</th><th class="r">Working / off</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">vs last week</th></tr></thead><tbody>${WK.map((w,i)=>`<tr><td>${wkLabel(w.k)}</td><td class="r">${w.days} / ${w.off}</td><td class="r">${inr(w.m)}</td><td class="r">${inr(w.e)}</td><td class="r"><b>${inr(w.m+w.e)}</b></td><td class="r">${chg(w.m+w.e,i?WK[i-1].m+WK[i-1].e:0)}</td></tr>`).join('')}</tbody>`;
+    const B=['1–7','8–14','15–21','22–28','29–31'];const grid=months.map(ym=>{const c=[0,0,0,0,0];for(const r of work)if(r.d.startsWith(ym))c[Math.min(4,Math.floor((+r.d.slice(8)-1)/7))]+=tot(r);return{ym,c}});
+    const gmax=Math.max(1,...grid.flatMap(g=>g.c));const avg=[0,1,2,3,4].map(i=>grid.length?grid.reduce((s,g)=>s+g.c[i],0)/grid.length:0);
+    extra=`<section class="card"><h2>Compare weeks across months</h2><p class="note" style="margin:0 0 10px">Total Credit in each week of the month. Darker blue means more income; bold is that month’s best week.</p>
+    <div class="scroll"><table style="min-width:560px"><thead><tr><th>Month</th>${B.map((b,i)=>`<th class="r">Week ${i+1}<br><span class="note">${b}</span></th>`).join('')}<th class="r">Total</th></tr></thead><tbody>${grid.map(g=>{const mx=Math.max(...g.c);return`<tr><td>${ymLabel(g.ym)}</td>${g.c.map(v=>`<td class="r heat" style="--a:${(v/gmax*.55).toFixed(2)};${v&&v===mx?'font-weight:700':''}">${v?inr(v):'—'}</td>`).join('')}<td class="r"><b>${inr(g.c.reduce((a,b)=>a+b,0))}</b></td></tr>`}).join('')}
+    <tr><td><b>Average</b></td>${avg.map(v=>`<td class="r"><b>${inr(v)}</b></td>`).join('')}<td></td></tr></tbody></table></div></section>`;
+  }else{
+    const sel=inc.filter(r=>r.d.startsWith(st.month));const ws=sel.filter(r=>!r.off);
+    groups=ws.map(r=>({label:String(+r.d.slice(8)),tip:dl(r.d)+' · '+WD[new Date(r.d+'T00:00').getDay()],bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'}]]}));
+    let prev=0;table=`<thead><tr><th>Date</th><th>Day</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">vs previous working day</th></tr></thead><tbody>${sel.map(r=>{const dd=WD[new Date(r.d+'T00:00').getDay()];if(r.off)return`<tr><td>${dl(r.d)}</td><td>${dd}</td><td class="r note">Off day</td><td></td><td></td><td></td></tr>`;const c=chg(tot(r),prev);prev=tot(r);return`<tr><td>${dl(r.d)}</td><td>${dd}</td><td class="r">${inr(r.m)}</td><td class="r">${inr(r.e)}</td><td class="r"><b>${inr(tot(r))}</b></td><td class="r">${c}</td></tr>`}).join('')}</tbody>`;
+  }
+  if((st.iv==='mtotal'||st.iv==='mavg')&&mW.length>1){
+    if(!st.ca||!mW.find(r=>r.ym===st.ca))st.ca=mW[mW.length-2].ym;if(!st.cb||!mW.find(r=>r.ym===st.cb))st.cb=mW[mW.length-1].ym;
+    const A=mW.find(r=>r.ym===st.ca),Bm=mW.find(r=>r.ym===st.cb);
+    const rows=[['Morning',A.m,Bm.m],['Evening',A.e,Bm.e],['Total Credit',A.m+A.e,Bm.m+Bm.e],['Working days',A.days,Bm.days,1],['Avg per working day',(A.m+A.e)/A.days,(Bm.m+Bm.e)/Bm.days],['Business',A.biz,Bm.biz],['Nett income',A.m+A.e+A.biz,Bm.m+Bm.e+Bm.biz]];
+    const opt=cur=>mW.map(r=>`<option value="${r.ym}" ${r.ym===cur?'selected':''}>${ymLabel(r.ym)}</option>`).join('');
+    extra=`<section class="card"><h2>Compare two months</h2><div class="frow" style="margin-top:0"><label>First month<select id="ca" class="in">${opt(st.ca)}</select></label><label>Second month<select id="cb" class="in">${opt(st.cb)}</select></label></div>
+    <div class="scroll" style="margin-top:12px"><table style="min-width:420px"><thead><tr><th></th><th class="r">${ymLabel(A.ym)}</th><th class="r">${ymLabel(Bm.ym)}</th><th class="r">Difference</th></tr></thead><tbody>${rows.map(([l,a,b,isN])=>`<tr><td>${l}</td><td class="r">${isN?a:inr(a)}</td><td class="r">${isN?b:inr(b)}</td><td class="r">${b-a===0?'<span class="note">same</span>':`<span class="${b>a?'upc':'dnc'}">${b>a?'▲ +':'▼ −'}${isN?Math.abs(b-a):inr(Math.abs(b-a)).slice(0)}</span> ${a?`<span class="note">(${Math.round((b-a)/a*100)}%)</span>`:''}`}</td></tr>`).join('')}</tbody></table></div></section>`;
+  }
+  const titles={mtotal:'Total Credit by month',mavg:'Average per working day, by month',weekly:'Total Credit by week',daily:'Each working day, '+(st.month?ymLabel(st.month):'')};
+  const Wd=[1,2,3,4,5,6,0].map(w=>{const rs=work.filter(r=>new Date(r.d+'T00:00').getDay()===w);const n=rs.length||1;return{w,n:rs.length,off:inc.filter(r=>r.off&&new Date(r.d+'T00:00').getDay()===w).length,m:rs.reduce((s,r)=>s+r.m,0)/n,e:rs.reduce((s,r)=>s+r.e,0)/n}});
+  const bw=Wd.reduce((a,b)=>b.m+b.e>a.m+a.e?b:a,Wd[0]);
+  h+=`<section class="card"><h2>${titles[st.iv]}</h2>${L}${fig('c2')}<p class="note" style="margin:8px 0 0">Business amount is not included here; it is in the Overview.</p></section>${extra}
+  <div class="grid2"><section class="card"><h2>${{mtotal:'Each month',mavg:'Each month',weekly:'Each week',daily:'Each day'}[st.iv]}, up or down</h2><div class="scroll" style="max-height:520px;overflow-y:auto"><table class="stack">${table}</table></div></section>
+  <section class="card"><h2>Average by weekday</h2><p class="note" style="margin:0 0 8px">${bw.n?'Your best day is usually '+FULLDAY[bw.w]+'.':''}</p>
+  <table><thead><tr><th>Day</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Off days</th></tr></thead><tbody>${Wd.map(w=>`<tr><td>${WD[w.w]}${w===bw&&w.n?' <span class="upc">best</span>':''}</td><td class="r">${inr(w.m)}</td><td class="r">${inr(w.e)}</td><td class="r"><b>${inr(w.m+w.e)}</b></td><td class="r">${w.off}</td></tr>`).join('')}</tbody></table></section></div>`;
+  $('#view').innerHTML=h;
+  document.querySelectorAll('[data-iv]').forEach(b=>b.onclick=()=>{st.iv=b.dataset.iv;render()});
+  const mo=$('#mon');if(mo)mo.onchange=e=>{st.month=e.target.value;render()};
+  const ca=$('#ca'),cb=$('#cb');if(ca){ca.onchange=e=>{st.ca=e.target.value;render()};cb.onchange=e=>{st.cb=e.target.value;render()}}
+  chart('c2',groups);
+}
+function viewSearch(){
+  const{exp}=data();const top=itemTotals(exp);
+  const xmonths=[...new Set(exp.map(x=>x.d.slice(0,7)))].sort();
+  if(!st.group)st.group='month';if(!st.xmon||(st.xmon!=='all'&&!xmonths.includes(st.xmon)))st.xmon=xmonths[xmonths.length-1]||'all';
+  $('#view').innerHTML=`<section class="card"><h2>Expenses</h2>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center"><input type="search" id="q" list="items" placeholder="Search: fish, petrol, Manas Bera… (empty = all expenses)" value="${esc(st.q)}" style="flex:1 1 260px" aria-label="Expense name">
+  <datalist id="items">${top.map(t=>`<option value="${esc(t.name)}">`).join('')}</datalist></div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px">${segBtns('g',[['day','Daily'],['week','Weekly'],['month','Monthly'],['quarter','Quarterly'],['year','Yearly']],st.group)}
+  <label class="note" id="xmonL" style="display:${st.group==='day'?'flex':'none'};gap:8px;align-items:center">Month <select id="xmon"><option value="all">Whole year</option>${xmonths.map(m=>`<option value="${m}" ${m===st.xmon?'selected':''}>${ymLabel(m)}</option>`).join('')}</select></label></div>
+  <p class="note" style="margin:8px 0 0">Leave the search empty to see all expenses. Separate several names with commas: “fish, meat”.</p></section><div id="res" class="stackv" style="padding:0"></div>`;
+  const q=$('#q');q.oninput=()=>{st.q=q.value;results()};
+  document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{st.group=b.dataset.g;document.querySelectorAll('[data-g]').forEach(x=>x.classList.toggle('on',x===b));$('#xmonL').style.display=st.group==='day'?'flex':'none';results()});
+  $('#xmon').onchange=e=>{st.xmon=e.target.value;results()};
+  results();
+  function results(){
+    ros.forEach(r=>r.disconnect());ros=[];
+    const terms=st.q.split(',').map(norm).filter(Boolean);const R=$('#res');const g=st.group;
+    let hit=terms.length?exp.filter(x=>{const n=norm(x.item);return terms.some(t=>n.includes(t))}):exp;
+    const scope=g==='day'&&st.xmon!=='all'?st.xmon:null;if(scope)hit=hit.filter(x=>x.d.startsWith(scope));
+    const tot=hit.reduce((s,x)=>s+x.amt,0);
+    const key=d=>g==='day'?d:g==='week'?mondayOf(d):g==='year'?d.slice(0,4):g==='quarter'?d.slice(0,4)+'-Q'+(Math.floor((+d.slice(5,7)-1)/3)+1):d.slice(0,7);
+    const lab=k=>g==='day'?dl(k)+' · '+WD[new Date(k+'T00:00').getDay()]:g==='week'?wkLabel(k):g==='month'?ymLabel(k):g==='quarter'?k.slice(5)+' '+k.slice(0,4):k;
+    const short2=k=>g==='day'?(scope?String(+k.slice(8)):dm(k)):g==='week'?dm(k):g==='month'?ymLabel(k).slice(0,3):g==='quarter'?k.slice(5):k;
+    const days=Object.keys(allDays()).filter(inP).filter(d=>!scope||d.startsWith(scope)).sort();
+    const G={};
+    if(days.length){if(g==='day'||g==='week'){const from=scope?scope+'-01':days[0];let to=scope?monthEnd(scope):days[days.length-1];if(to>todayISO()&&days[days.length-1]<=todayISO())to=todayISO();
+        for(let d=g==='week'?mondayOf(from):from;d<=to;d=addDays(d,g==='week'?7:1))G[d]=0}
+      else for(const d of days)G[key(d)]=0}
+    for(const x of hit)G[key(x.d)]=(G[key(x.d)]||0)+x.amt;
+    const ks=Object.keys(G).sort();const names=itemTotals(hit);const unit={day:'day',week:'week',month:'month',quarter:'quarter',year:'year'}[g];
+    const hiK=ks.reduce((a,k)=>!a||G[k]>G[a]?k:a,null);const nz=ks.filter(k=>G[k]>0).length;
+    const what=terms.length?esc(terms.join(', ')):'All expenses';
+    R.innerHTML=`<div class="kpis"><div class="kpi"><span>Total spent</span><b class="exc">${inr(tot)}</b><small>${what}${scope?' · '+ymLabel(scope):''}</small></div>
+    <div class="kpi"><span>Entries</span><b>${hit.length}</b><small>avg ${inr(hit.length?tot/hit.length:0)} each</small></div>
+    <div class="kpi"><span>Average per ${unit}</span><b class="exc">${inr(ks.length?tot/ks.length:0)}</b><small>over ${ks.length} ${unit}s, ${nz} with spending</small></div>
+    <div class="kpi"><span>Highest ${unit}</span><b class="exc">${hiK&&G[hiK]?inr(G[hiK]):'—'}</b><small>${hiK&&G[hiK]?esc(lab(hiK)):''}</small></div>
+    <div class="kpi"><span>Last spent</span><b>${hit[0]?esc(dm(hit[0].d)):'—'}</b><small>${hit[0]?esc(hit[0].item)+' '+inr(hit[0].amt):''}</small></div></div>
+    ${hit.length?`<section class="card"><h2>${what}, ${{day:'daily',week:'weekly',month:'monthly',quarter:'quarterly',year:'yearly'}[g]}</h2>${fig('c3',280)}
+    <div class="scroll" style="margin-top:12px;max-height:460px;overflow-y:auto"><table><thead><tr><th>${unit[0].toUpperCase()+unit.slice(1)}</th><th class="r">Spent</th><th class="r">vs previous ${unit}</th></tr></thead><tbody>${ks.slice().reverse().map(k=>{const i=ks.indexOf(k);return`<tr><td>${esc(lab(k))}</td><td class="r exc">${G[k]?inr(G[k]):'<span class="note">—</span>'}</td><td class="r">${G[k]?chg(G[k],i?G[ks[i-1]]:0).replace('upc','tmp').replace('dnc','upc').replace('tmp','dnc'):''}</td></tr>`}).join('')}</tbody></table></div><p class="note" style="margin:8px 0 0">For spending, ▲ (more spent) shows in red and ▼ in green.</p></section>
+    <div class="grid2"><section class="card"><h2>${terms.length?'Names matched':'Top items'}</h2>${names.slice(0,terms.length?100:15).map(n=>`<button class="hb" type="button" data-q="${esc(n.name)}"><span>${esc(n.name)}</span><span class="note">${n.n} ${n.n===1?'time':'times'}</span><span class="r exc">${inr(n.amt)}</span></button>`).join('')}</section>
+    <section class="card"><h2>Every entry</h2><div class="scroll" style="max-height:460px;overflow-y:auto"><table class="stack"><thead><tr><th>Date</th><th>Item</th><th>Paid by</th><th class="r">Amount</th></tr></thead><tbody>${hit.slice(0,400).map(x=>`<tr><td>${esc(x.d.split('-').reverse().join('-'))}</td><td>${esc(x.item)}</td><td>${esc(x.mode||'')}</td><td class="r exc">${inr(x.amt)}</td></tr>`).join('')}</tbody></table></div>${hit.length>400?'<p class="note">Showing the latest 400.</p>':''}</section></div>`
+    :`<section class="card"><p style="margin:0">No expense matches “${esc(st.q)}”${scope?' in '+ymLabel(scope):''}.</p></section>`}`;
+    if(hit.length)chart('c3',ks.map(k=>({label:short2(k),tip:lab(k),bars:[[{v:G[k],c:'var(--x)',n:'Spent'}]]})));
+  }
+}
+/* ---------- import check & security ---------- */
+const colName=i=>{let s='';i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=(i-m-1)/26}return s};
+function confirm2(btn,label,fn){if(!btn)return;btn.onclick=()=>{if(btn.dataset.armed){fn();return}btn.dataset.armed=1;const t=btn.textContent;btn.textContent=label;btn.classList.add('dnc');setTimeout(()=>{delete btn.dataset.armed;btn.textContent=t;btn.classList.remove('dnc')},5000)}}
+const pinOk=p=>/^\d{6,12}$/.test(p);
+function pinForm(id,btn){return`<form id="${id}" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"><input type="password" inputmode="numeric" autocomplete="new-password" name="a" placeholder="New PIN, 6+ digits" aria-label="New PIN" style="flex:1 1 160px;min-height:44px;font-size:16px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><input type="password" inputmode="numeric" autocomplete="new-password" name="b" placeholder="Repeat PIN" aria-label="Repeat PIN" style="flex:1 1 160px;min-height:44px;font-size:16px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><button class="btn pri">${btn}</button></form><p class="note" id="${id}M" style="margin:6px 0 0"></p>`}
+function bindPinForm(id,done){const f=document.getElementById(id);if(!f)return;f.onsubmit=async e=>{e.preventDefault();const a=f.a.value,b=f.b.value,m=document.getElementById(id+'M');
+  if(!pinOk(a)){m.textContent='Use 6 to 12 digits.';m.className='dnc';return}if(a!==b){m.textContent='The two PINs don’t match.';m.className='dnc';return}
+  m.textContent='Saving securely…';m.className='note';await changePin(a);done()}}
+const needPin=()=>canCrypt&&!KEYOBJ&&!DB.demo&&!noSave&&hasData();
+function pinCard(){return`<section class="card" id="pinCard" style="border:2px solid var(--band)"><h2>Protect your data with a PIN</h2><p style="margin:0">Right now nothing is saved: your data disappears when you close this page. Set a PIN to keep it on this device, encrypted.</p>${pinForm('pf','Save with PIN')}<button class="btn" type="button" id="nosave" style="margin-top:8px">Don’t save, I’ll upload each time</button></section>`}
+function bindPinCard(){bindPinForm('pf',()=>{flash('Saved and encrypted with your PIN.');render()});const n=$('#nosave');if(n)n.onclick=()=>{noSave=true;render()}}
+function reingest(){if(lastSheets.length){ingest(lastSheets);render()}}
+function syncSection(){
+  if(!canCrypt)return'';
+  let h=`<section class="card" id="syncCard"><h2>Sync with your laptop</h2>`;
+  if(DB.demo)return h+'<p class="note" style="margin:0">Sample data is never synced. Upload your file or add an entry first.</p></section>';
+  if(!KEYOBJ)return h+'<p style="margin:0">First set a PIN in <b>Security</b> below. Sync uses it to lock your data before it leaves this device.</p></section>';
+  if(DB.sync&&DB.sync.token){
+    h+=`<p style="margin:0 0 8px" id="syncStatus">${syncStatusHTML()||'Connected'}</p>
+    ${syncSt.needPin?`<form id="npf" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"><input type="password" inputmode="numeric" name="a" class="in" placeholder="PIN from your other device" aria-label="PIN from your other device" style="flex:1 1 200px;width:auto"><button class="btn pri">Use this PIN</button></form><p id="npfM" class="note" style="margin:0 0 8px"></p>`:''}
+    <p class="note" style="margin:0 0 10px">Syncs by itself when you save, when you open the app and every 5 minutes. Your data is locked with your PIN before it is sent, so your GitHub account only holds unreadable code.</p>
+    <div class="acts"><button class="btn pri" type="button" id="syncBtn">Sync now</button><button class="btn" type="button" id="unsync">Stop syncing on this device</button><button class="btn" type="button" id="delgist">Delete the synced copy</button></div>`;
+  }else{
+    h+=`<p style="margin:0 0 10px">Your phone and laptop share the same data through a private, encrypted copy kept in your GitHub account. Do this once on each device, using the <b>same PIN</b> on both.</p>
+    <ol style="margin:0 0 12px;padding-left:20px">
+    <li>Open <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Money%20Diary%20sync" target="_blank" rel="noopener">GitHub › new token</a> while signed in. Keep only <b>gist</b> ticked, choose <b>No expiration</b>, tap <b>Generate token</b> and copy it.</li>
+    <li>Paste it below and tap <b>Connect</b>.</li>
+    <li>On your laptop: open the app, set the same PIN, then paste the same token. Keep the token private, like a password.</li></ol>
+    <form id="tokf" style="display:flex;flex-wrap:wrap;gap:8px"><input type="password" name="t" class="in" autocomplete="off" placeholder="Paste GitHub token (starts with ghp_)" aria-label="GitHub token" style="flex:1 1 240px;width:auto"><button class="btn pri">Connect</button></form><p id="tokM" class="note" style="margin:6px 0 0"></p>`;
+  }
+  return h+'</section>';
+}
+function bindSync(){
+  const f=$('#tokf');if(f)f.onsubmit=async e=>{e.preventDefault();const m=$('#tokM');m.className='note';m.textContent='Connecting…';f.querySelector('button').disabled=true;
+    try{await connectSync(f.t.value);render();flash('Sync is on. This device and your other devices now share the same data.')}catch(err){delete DB.sync;m.className='dnc';m.textContent=err.message==='offline'?'No internet connection. Try again when you are online.':err.message;f.querySelector('button').disabled=false}};
+  const sb=$('#syncBtn');if(sb)sb.onclick=()=>syncNow();
+  confirm2($('#unsync'),'Tap again to stop syncing',async()=>{delete DB.sync;await persist(true);render()});
+  confirm2($('#delgist'),'Tap again: delete from GitHub',async()=>{try{await gh('/gists/'+DB.sync.gistId,{method:'DELETE'})}catch(e){if(e.message!=='notfound'){flash(e.message==='offline'?'No internet connection.':e.message,true);return}}delete DB.sync;await persist(true);render();flash('The synced copy was deleted from GitHub. Your data on this device is unchanged.')});
+  const n=$('#npf');if(n)n.onsubmit=async e=>{e.preventDefault();const m=$('#npfM');m.textContent='Checking…';try{await enterNewPin(n.a.value)}catch(err){m.className='dnc';m.textContent='That PIN did not open the synced data.'}};
+}
+function viewCheck(){
+  const can=lastSheets.length>0;const reps=DB.report;
+  const sel=(attrs,opts)=>`<select ${attrs} style="max-width:100%">${opts}</select>`;
+  const ok=(a,b)=>!b?'<span class="note">—</span>':close(a,b)?'<span class="upc">✓ matches</span>':'<span class="dnc">⚠ off by '+inr(Math.abs(a-b))+'</span>';
+  const cmp=(l,app,xl)=>`<tr><td>${l}</td><td class="r">${inr(app)}</td><td class="r">${xl?inr(xl):'—'}</td><td>${xl?ok(app,xl):'<span class="note">no total in sheet</span>'}</td></tr>`;
+  const typeName={month:'Month sheet',overview:'Yearly overview',skip:'Ignored'};
+  const card=r=>{const n=esc(r.name);let h=`<section class="card"><div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center"><h2 style="margin:0">Sheet “${n}” ${warnOf(r)?'<span class="dnc">⚠</span>':r.type!=='skip'?'<span class="upc">✓</span>':''}</h2>`;
+    h+=can?`<label class="note" style="display:flex;gap:8px;align-items:center">Read as ${sel(`data-sheet="${n}" data-act="type"`,Object.entries(typeName).map(([v,l])=>`<option value="${v}" ${r.type===v?'selected':''}>${l}</option>`).join(''))}</label>`:`<span class="note">${typeName[r.type]||''}</span>`;
+    h+='</div>';
+    if(r.type==='month'&&!r.empty){
+      h+=`<p style="margin:8px 0">Read <b>${r.sum.days}</b> working day${r.sum.days===1?'':'s'}, <b>${r.sum.off}</b> off day${r.sum.off===1?'':'s'} and <b>${r.sum.ne}</b> expense${r.sum.ne===1?'':'s'}, dated ${esc((r.yms||[]).sort().map(ymLabel).join(', '))}.</p>`;
+      const x=r.xl;
+      h+=`<div class="grid2" style="gap:12px"><div><table><thead><tr><th>App field</th><th>Your column</th></tr></thead><tbody>${FIELDS.map(([k,l])=>`<tr><td>${l}</td><td>${can?sel(`data-sheet="${n}" data-act="col" data-f="${k}" aria-label="${l} column"`,'<option value="-1">— not used —</option>'+r.headers.map((c,i)=>`<option value="${i}" ${r.h[k]===i?'selected':''}>${colName(i)}: ${esc(c.trim()||'(blank)')}</option>`).join('')):(r.h[k]!=null?colName(r.h[k])+': '+esc(r.headers[r.h[k]]||''):'<span class="dnc">not found</span>')}</td></tr>`).join('')}
+        <tr><td>Header row</td><td>${can?`<input type="number" min="1" max="60" value="${r.hdr+1}" data-sheet="${n}" data-act="hdr" aria-label="Header row number" class="in" style="width:90px">`:'row '+(r.hdr+1)}</td></tr></tbody></table></div>
+        <div><table><thead><tr><th>Total</th><th class="r">App</th><th class="r">Your sheet</th><th></th></tr></thead><tbody>${cmp('Credit (morning + night)',r.sum.m+r.sum.e,x.c||(x.row&&x.row.m+x.row.e))}${cmp('Expenses',r.sum.x,x.x||(x.row&&x.row.x))}</tbody></table>
+        ${r.miss?`<p class="msg" style="margin:10px 0 0">Your sheet’s TOTAL EXPENCE formula leaves out the last ${r.miss.n} expense row${r.miss.n>1?'s':''} (from row ${r.miss.from}, ${inr(r.miss.amt)}). The app counts them, so its total is the right one. In Excel, extend that SUM range to fix your sheet.</p>`:(r.xl.x&&r.sum.x-r.xl.x>=1?`<p class="msg" style="margin:10px 0 0">The app found ${inr(r.sum.x-r.xl.x)} more expenses than your TOTAL EXPENCE cell. Check that its SUM range covers every row.</p>`:'')}
+        <ul style="margin:10px 0 0;padding-left:18px;font-size:14px">${[r.bad&&r.bad+' date'+(r.bad>1?'s':'')+' could not be read; those rows were added to the date above them.',r.swapped&&r.swapped+' date'+(r.swapped>1?'s':'')+' looked like month/day, so '+(r.swapped>1?'they were':'it was')+' read as day/month.',r.outside&&r.outside+' date'+(r.outside>1?'s':'')+' had a different month or year, so '+(r.outside>1?'they were':'it was')+' kept in '+(r.ctx?MON[r.ctx.mo]+' '+r.ctx.y:'this sheet’s month')+'. Worth fixing in Excel.'].filter(Boolean).map(t=>`<li class="dnc">${esc(t)}</li>`).join('')}</ul></div></div>`;
+    }else if(r.type==='overview'&&!r.empty){
+      const yms=(r.ovYms||[]).filter(ym=>r.ovXl[ym]&&(r.ovXl[ym].c||r.ovXl[ym].x));
+      h+=`<p style="margin:8px 0">Read business amount for <b>${r.nBiz}</b> months, MF for <b>${r.nMf}</b> months${r.nFunds?' and <b>'+r.nFunds+'</b> fund accounts (INVEST / ROI)':''}. Below, each month in this sheet is checked against its month sheet. Where expenses are off, the overview has copied a month sheet’s TOTAL EXPENCE that misses some rows; see that month’s card below.</p>
+      <div class="scroll"><table style="min-width:520px"><thead><tr><th>Month</th><th class="r">Credit: month sheet</th><th class="r">Credit: overview</th><th></th><th class="r">Expenses: month sheet</th><th class="r">Expenses: overview</th><th></th></tr></thead><tbody>${yms.map(ym=>{const a=excelMonth(ym)||{c:0,x:0},b=r.ovXl[ym];return`<tr><td>${ymLabel(ym)}</td><td class="r">${inr(a.c)}</td><td class="r">${inr(b.c)}</td><td>${ok(a.c,b.c)}</td><td class="r">${inr(a.x)}</td><td class="r">${inr(b.x)}</td><td>${ok(a.x,b.x)}</td></tr>`}).join('')}</tbody></table></div>`;
+    }else h+=`<p class="note" style="margin:8px 0 0">${r.type==='skip'?'Not used by the app.':'Nothing could be read from this sheet as '+esc(typeName[r.type]||'')+'.'}</p>`;
+    if(can&&DB.map[r.name])h+=`<button class="btn" type="button" data-reset="${n}" style="margin-top:10px">Undo my changes for this sheet</button>`;
+    return h+'</section>'};
+  const nApp=Object.keys(DB.manual).length;
+  let h=`<section class="card"><h2>Import check</h2><p style="margin:0">Each sheet’s totals are compared with the TOTAL CREDIT and TOTAL EXPENCE figures in that sheet, and with your yearly overview. If something is off, pick the right column and everything updates.${can?'':' <b>To change columns, upload your file again:</b> the app reads your Excel file and does not keep it.'}</p>${nApp?`<p class="note" style="margin:8px 0 0">${nApp} day${nApp>1?'s':''} added on the Add entry page replace the same days from Excel.</p>`:''}</section>`;
+  h+=DB.demo?'<section class="card"><p style="margin:0">You are looking at sample data. Upload your Excel file to check it here.</p></section>':reps.length?reps.map(card).join(''):'<section class="card"><p style="margin:0">No file read yet.</p></section>';
+  h+=`<section class="card"><h2>Security</h2>
+  <ul style="margin:0 0 12px;padding-left:18px">
+  <li>Your Excel file is read on this device and is never uploaded anywhere. Only the numbers are kept, never the file itself.</li>
+  <li>The numbers are saved on this device, encrypted with your PIN (AES-256).</li>
+  <li>If you turn on sync, only an encrypted copy goes to your own GitHub account. Without your PIN it is unreadable, even to GitHub.</li>
+  <li>The app locks itself after 5 minutes away, and after 5 wrong PINs it makes you wait longer each time.</li>
+  <li>If you forget your PIN, the saved data cannot be opened by anyone, including you. Clear it and upload your Excel again.</li></ul>
+  ${!canCrypt?'<p class="dnc">This browser can’t encrypt, so nothing is saved.</p>':KEYOBJ?`<p style="margin:0"><b class="upc">✓ Saved and encrypted with your PIN.</b></p><p style="margin:12px 0 0;font-weight:600">Change PIN</p>${pinForm('cp','Change PIN')}<div class="acts" style="margin-top:12px"><button class="btn" type="button" id="lk">Lock now</button><button class="btn" type="button" id="er">Clear all data</button></div>`:DB.demo?'<p class="note" style="margin:0">Sample data is never saved.</p>':hasData()?`<p style="margin:0" class="dnc">Not saved yet: set a PIN to keep this data.</p>${pinForm('pf2','Save with PIN')}<div class="acts" style="margin-top:12px"><button class="btn" type="button" id="er">Clear all data</button></div>`:`<p style="margin:0">Set a PIN to save your data on this device and to turn on sync.</p>${pinForm('pf2','Set PIN')}`}</section>`;
+  $('#view').innerHTML=syncSection()+h;bindSync();
+  bindPinForm('cp',()=>{flash('PIN changed.');render()});bindPinForm('pf2',()=>{flash('Saved and encrypted with your PIN.');render()});
+  const lk=$('#lk');if(lk)lk.onclick=lockNow;confirm2($('#er'),'Tap again to delete all',()=>{eraseAll();flash('All data deleted from this device.')});
+  const V=$('#view');
+  V.onchange=e=>{const t=e.target;const nm=t.dataset.sheet;if(!nm||!can)return;const r=DB.report.find(x=>x.name===nm);const o=DB.map[nm]||(DB.map[nm]={});
+    if(t.dataset.act==='type'){o.type=t.value;delete o.cols;delete o.hdr}
+    if(t.dataset.act==='col'){o.cols=Object.assign({},r&&r.h,o.cols);o.cols[t.dataset.f]=+t.value;if(o.hdr==null&&r)o.hdr=r.hdr}
+    if(t.dataset.act==='hdr'){o.hdr=Math.max(0,(+t.value||1)-1);delete o.cols}
+    reingest()};
+  V.onclick=e=>{const b=e.target.closest('[data-reset]');if(b){delete DB.map[b.dataset.reset];reingest()}};
+}
+function lockView(){
+  $('#view').innerHTML=`<section class="card" style="max-width:420px;width:100%;margin:24px auto;text-align:center"><h1 style="font-size:32px;margin:0 0 6px">Locked</h1><p class="note" style="margin:0 0 14px">Enter your PIN to open your money data.</p>
+  <form id="unl"><input type="password" inputmode="numeric" autocomplete="current-password" id="up" aria-label="PIN" style="width:100%;min-height:52px;text-align:center;font-size:24px;letter-spacing:6px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><button class="btn pri" style="width:100%;margin-top:10px;justify-content:center">Unlock</button></form>
+  <p id="um" class="dnc" style="min-height:1.5em;margin:10px 0"></p><button class="btn" type="button" id="forgot">Forgot PIN</button></section>`;
+  const f=$('#unl'),m=$('#um');$('#up').focus();
+  f.onsubmit=async e=>{e.preventDefault();const left=Math.ceil((waitUntil-Date.now())/1000);if(left>0){m.textContent='Too many tries. Wait '+left+' seconds.';return}
+    const btn=f.querySelector('button');btn.disabled=true;m.textContent='';
+    try{await unlock($('#up').value);fails=0;$('#status').innerHTML='';render()}
+    catch(err){fails++;if(fails>=5)waitUntil=Date.now()+30e3*2**(fails-5);m.textContent=fails>=5?'Wrong PIN. Wait '+Math.round(30*2**(fails-5))+' seconds before trying again.':'Wrong PIN.';btn.disabled=false;$('#up').value=''}};
+  confirm2($('#forgot'),'Tap again: erase saved data',eraseAll);
+}
+function render(){
+  ros.forEach(r=>r.disconnect());ros=[];const V=$('#view');V.oninput=V.onclick=V.onchange=null;
+  const route=['overview','add','income','search','invest','check'].includes(location.hash.slice(1))?location.hash.slice(1):'overview';
+  document.querySelectorAll('nav.tabs a').forEach(a=>a.classList.toggle('on',a.dataset.r===route));
+  if(navHist[navHist.length-1]!==route)navHist.push(route);if(navHist.length>50)navHist.shift();
+  $('#backBtn').hidden=locked||navHist.length<2;
+  $('#lockBtn').hidden=!KEYOBJ;$('#clearBtn').hidden=locked||!(hasData()||stored());$('nav.tabs').hidden=locked;$('#yearbar').hidden=locked||route==='add'||!hasData();
+  $('label[for=file]').hidden=locked;$('#demoBtn').hidden=locked||(!DB.demo&&(hasData()||!!KEYOBJ||!!stored()));showSync();
+  if(locked)return lockView();
+  const yrs=[...new Set([...Object.keys(DB.months),...Object.keys(DB.manual),...Object.keys(DB.mf),...Object.keys(DB.biz),...Object.keys(DB.manualM)].map(k=>k.slice(0,4)))].sort();
+  if(!st.year||(st.year!=='all'&&!yrs.includes(st.year)))st.year=yrs[yrs.length-1]||'all';
+  $('#year').innerHTML=yrs.map(y=>`<option ${y===st.year?'selected':''}>${y}</option>`).join('')+(yrs.length>1?`<option value="all" ${st.year==='all'?'selected':''}>All years</option>`:'');
+  $('#src').textContent=DB.demo?'Showing sample data':'';
+  if(route==='check')return viewCheck();
+  if(route==='add')viewAdd();
+  else if(!hasData())return empty();
+  else({overview:viewOverview,income:viewIncome,search:viewSearch,invest:viewInvest})[route]();
+  if(needPin()){V.insertAdjacentHTML('afterbegin',pinCard());bindPinCard()}
+}
+$('#lockBtn').onclick=lockNow;
+$('#backBtn').onclick=()=>{navHist.pop();const to=navHist.pop()||'overview';location.hash=to;scrollTo({top:0})};
+confirm2($('#clearBtn'),'Tap again to delete all',()=>{eraseAll();flash('All data deleted from this device.')});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-q]');if(!b)return;st.q=b.dataset.q;if(location.hash==='#search')render();else location.hash='search'});
+$('#file').onchange=e=>{if(e.target.files.length)handleFiles([...e.target.files]);e.target.value=''};
+$('#demoBtn').onclick=demo;
+
+$('#year').onchange=e=>{st.year=e.target.value;render()};
+addEventListener('hashchange',render);
+render();
+let deferredInstall=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;$('#installBtn').hidden=false});
+$('#installBtn').onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;$('#installBtn').hidden=true};
+addEventListener('appinstalled',()=>{$('#installBtn').hidden=true;flash('Money Diary is installed. Open it from your home screen.')});
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
