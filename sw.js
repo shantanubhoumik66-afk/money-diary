@@ -1,6 +1,6 @@
 /* Money Diary service worker: makes the app installable and work offline.
    It never touches your data and never caches GitHub sync requests. */
-const V = 'money-diary-v1';
+const V = 'money-diary-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

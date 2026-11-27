@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.27.3">
-<meta name="theme-color" content="#7b3ff2">
+<meta name="app-version" content="2026.11.27.4">
+<meta name="theme-color" content="#0b0a14">
 <meta name="description" content="Your personal budget diary">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -15,7 +15,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Money Diary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* VOICE: a calm personal money ledger, plain and exact
    IDEA: the daily cash book you keep in Excel, read back as answers
@@ -84,12 +84,108 @@ input:disabled{opacity:.45}
 @media(max-width:600px){.xrow{grid-template-columns:1fr 1fr 44px}.xrow .xi{grid-column:1/-1}}
 pre,.scroll{overflow-x:auto}
 @media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--muted)}.stack td:empty{display:none}}
+/* ===== Midnight Glass theme ===== */
+:root,:root[data-theme=light],:root[data-theme=dark]{color-scheme:dark;--bg:#0b0a14;--card:rgba(255,255,255,.06);--ink:#f4f2ff;--muted:#a8a3c7;--line:rgba(255,255,255,.10);--mist:rgba(255,255,255,.07);--band:#a78bfa;--bandInk:#fff;--m:#a78bfa;--e:#22d3ee;--x:#ff7a8a;--b:#f0abfc;--u:#8b8aa5;--up:#34d399;--down:#ff7a8a;--glass:rgba(255,255,255,.06);--glassB:rgba(255,255,255,.10)}
+*{font-family:'Plus Jakarta Sans',system-ui,sans-serif!important}
+html{background:#0b0a14}
+body{background:transparent;color:var(--ink);min-height:100vh}
+body::before,body::after{content:"";position:fixed;z-index:-1;border-radius:50%;filter:blur(90px);pointer-events:none}
+body::before{width:420px;height:420px;background:#7c3aed;opacity:.32;top:-160px;left:-120px}
+body::after{width:360px;height:360px;background:#ec4899;opacity:.16;bottom:-140px;right:-140px}
+h1,h2{letter-spacing:-.02em;font-weight:800}
+.card,.kpi{background:var(--glass);border:1px solid var(--glassB);border-radius:22px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.kpi b,.hk b{font-weight:800}
+.hero{background:linear-gradient(135deg,rgba(124,58,237,.6),rgba(236,72,153,.38));border:1px solid rgba(255,255,255,.16);color:#fff;border-radius:26px}
+.hero .lbl,.hk span{color:#ece8ff}
+.hero .big{font-weight:800!important;letter-spacing:-.03em}
+.exred,.hk b.exred{display:inline-block;color:#ffd6dc;background:rgba(255,122,138,.24);border-radius:8px;padding:0 8px}
+.btn{background:var(--glass);border:1px solid rgba(255,255,255,.16);color:var(--ink);border-radius:14px}
+.btn.pri{background:linear-gradient(135deg,#7c3aed,#ec4899);border:0;color:#fff;box-shadow:0 8px 20px rgba(124,58,237,.35)}
+select,input[type=search],.in,.xrow input,.xrow select{background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.14)!important;color:var(--ink)!important;border-radius:14px!important}
+select option{background:#1a1730;color:#f4f2ff}
+input::placeholder{color:#8f89b3}
+.seg{background:var(--glass);border:1px solid var(--glassB);border-radius:14px}
+.seg button{border-radius:10px}
+.seg button.on{background:#c4b5fd;color:#0b0a14}
+.seg{max-width:100%;overflow-x:auto;scrollbar-width:none}.seg::-webkit-scrollbar{display:none}.seg button{flex:none}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.8;cursor:pointer}
+input[type=checkbox]{accent-color:#a78bfa}
+.chip{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12)}
+.msg{background:rgba(167,139,250,.14);border:1px solid rgba(167,139,250,.25);border-radius:16px}
+.lnk,a{color:#c4b5fd}
+.drop{background:var(--glass);border-color:rgba(255,255,255,.18);border-radius:26px}
+.tip{background:#f4f2ff;color:#0b0a14;border-radius:10px}
+tr.offrow{background:rgba(255,122,138,.14)}
+.hb .t,.mrow .t{background:rgba(255,255,255,.08)}
+#updBar{background:linear-gradient(135deg,rgba(124,58,237,.35),rgba(236,72,153,.25))!important}
+/* layout */
+.shell{max-width:1440px;margin:0 auto}
+.side{display:flex;flex-direction:column;gap:14px}
+.sidehead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{font-weight:800;font-size:20px;display:flex;gap:10px;align-items:center;letter-spacing:-.02em}
+.iconbtn{width:44px;height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:var(--glass);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer}
+nav.tabs{border:0}
+nav.tabs a.nv{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--muted);font-weight:700;border-radius:14px;border-bottom:0;padding:0}
+nav.tabs a.nv.on{color:#fff;background:rgba(167,139,250,.22)}
+nav.tabs a.nv:focus-visible,.menuonly:focus-visible{outline:3px solid #c4b5fd;outline-offset:2px}
+.menuonly{display:none}
+.ctop{display:flex;justify-content:flex-end}
+.ctop:has(#backBtn[hidden]){display:none}
+/* phone and small tablet */
+@media (max-width:899px){
+ .side{position:sticky;top:0;z-index:20;padding:12px max(4vw,14px);background:rgba(11,10,20,.94);border-bottom:1px solid rgba(255,255,255,.08)}
+ .content{padding:0 max(4vw,14px) 120px}
+ nav.tabs{position:fixed;left:10px;right:10px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:30;height:68px;border-radius:24px;background:rgba(28,24,48,.94);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:space-around;overflow:visible;padding:0 4px;gap:0}
+ nav.tabs a.nv{flex-direction:column;gap:2px;font-size:10.5px;width:62px;height:54px;justify-content:center}
+ nav.tabs a.nv .full{display:none}
+ nav.tabs a.sec{display:none}
+ nav.tabs a.fab{width:58px;height:58px;flex:none;border-radius:19px;margin-top:-30px;color:#fff;background:linear-gradient(135deg,#7c3aed,#ec4899);box-shadow:0 10px 24px rgba(124,58,237,.45)}
+ nav.tabs a.fab .short{display:none}
+ nav.tabs a.fab svg{width:28px;height:28px;stroke-width:2.6}
+ nav.tabs a.fab.on{outline:3px solid rgba(255,255,255,.75)}
+ .acts{display:none;position:fixed;top:66px;right:12px;z-index:40;width:min(300px,calc(100vw - 24px));flex-direction:column;align-items:stretch;gap:8px;padding:12px;border-radius:20px;background:rgba(24,21,42,.98);border:1px solid rgba(255,255,255,.14);box-shadow:0 20px 50px rgba(0,0,0,.55)}
+ body.menu-open .acts{display:flex}
+ .acts .btn{justify-content:center}
+ .menuonly{display:flex;align-items:center;gap:12px;min-height:46px;padding:0 12px;border-radius:12px;color:var(--ink);text-decoration:none;font-weight:700}
+ .menuonly.on{background:rgba(167,139,250,.22)}
+ .ctop{padding-top:12px}
+}
+/* laptop and desktop */
+@media (min-width:900px){
+ .shell{display:grid;grid-template-columns:250px minmax(0,1fr);gap:32px;padding:0 28px}
+ .side{position:sticky;top:0;height:100vh;padding:26px 0;overflow-y:auto}
+ #moreBtn{display:none}
+ nav.tabs{display:flex;flex-direction:column;gap:4px;overflow:visible}
+ nav.tabs a.nv{min-height:46px;padding:0 14px;font-size:15px}
+ nav.tabs a.nv .short{display:none}
+ nav.tabs a.fab{color:#fff;background:linear-gradient(135deg,rgba(124,58,237,.8),rgba(236,72,153,.65));margin:4px 0}
+ .acts{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
+ .acts .btn{justify-content:center}
+ .content{padding:26px 0 56px;min-width:0}
+ .hero .big{font-size:clamp(44px,4.4vw,60px)!important}
+}
 </style><script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script></head>
 <body>
-<div class="wrap">
-  <div class="top">
-    <div class="brand"><img src="icons/icon-192.png" width="34" height="34" alt="" style="border-radius:9px">Money Diary <span id="syncDot" class="note" hidden></span></div>
-    <div class="acts">
+<div class="shell">
+  <aside class="side">
+    <div class="sidehead">
+      <div class="brand"><img src="icons/icon-192.png" width="36" height="36" alt="" style="border-radius:11px">Money Diary <span id="syncDot" class="note" hidden></span></div>
+      <button class="iconbtn" type="button" id="moreBtn" aria-label="Menu" aria-expanded="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    </div>
+    <nav class="tabs" aria-label="Pages">
+      <a href="#years" data-r="years" class="nv" aria-label="Total Summary"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="full">Total Summary</span><span class="short">Summary</span></a>
+      <a href="#overview" data-r="overview" class="nv" aria-label="Overview"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span class="full">Overview</span><span class="short">Overview</span></a>
+      <a href="#add" data-r="add" class="nv fab" aria-label="Add entry"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="full">Add entry</span><span class="short">Add</span></a>
+      <a href="#income" data-r="income" class="nv" aria-label="Credit"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg><span class="full">Credit</span><span class="short">Credit</span></a>
+      <a href="#search" data-r="search" class="nv" aria-label="Debit"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l6 6 4-4 8 8M15 17h6v-6"/></svg><span class="full">Debit</span><span class="short">Debit</span></a>
+      <a href="#invest" data-r="invest" class="nv sec" aria-label="Mutual funds"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg><span class="full">Mutual funds</span><span class="short">MF</span></a>
+      <a href="#check" data-r="check" class="nv sec" aria-label="Settings &amp; sync"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span class="full">Settings &amp; sync</span><span class="short">Settings</span></a>
+      <a href="#tokens" data-r="tokens" class="nv sec" aria-label="Tokens"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2"/></svg><span class="full">Tokens</span><span class="short">Tokens</span></a>
+    </nav>
+    <div class="acts" id="acts">
+        <a href="#invest" data-r="invest" class="menuonly"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>Mutual funds</a>
+        <a href="#check" data-r="check" class="menuonly"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Settings &amp; sync</a>
+        <a href="#tokens" data-r="tokens" class="menuonly"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2"/></svg>Tokens</a>
       <label class="btn pri" for="file">Upload Excel</label>
       <input id="file" type="file" accept=".xlsx,.csv" multiple hidden>
       <button class="btn pri" id="installBtn" type="button" hidden>Install app</button>
@@ -97,25 +193,17 @@ pre,.scroll{overflow-x:auto}
       <button class="btn" id="lockBtn" type="button" hidden>Lock</button>
       <button class="btn" id="clearBtn" type="button" hidden>Clear data</button>
     </div>
+  </aside>
+  <div class="content">
+    <div class="ctop"><button class="btn" type="button" id="backBtn" hidden aria-label="Go back to the previous page">← Back</button></div>
+    <div id="updBar" class="msg" hidden style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-top:12px"><span><b>✨ A new version of Money Diary is ready.</b> <span class="note">Your data stays as it is.</span></span><button class="btn pri" type="button" id="updBtn">Update now</button></div>
+    <div class="bar" id="yearbar">
+      <label class="note" style="display:flex;gap:8px;align-items:center">Year <select id="year"></select></label>
+      <span class="note" id="src"></span>
+    </div>
+    <div id="status"></div>
+    <main id="view" class="stackv"></main>
   </div>
-  <div class="navrow">
-  <nav class="tabs" aria-label="Views">
-    <a href="#years" data-r="years">Total Summary</a>
-    <a href="#overview" data-r="overview">Overview</a>
-    <a href="#add" data-r="add">Add entry</a>
-    <a href="#income" data-r="income">Credit</a>
-    <a href="#search" data-r="search">Debit</a>
-    <a href="#invest" data-r="invest">Mutual funds</a>
-    <a href="#check" data-r="check">Settings &amp; sync</a>
-    <a href="#tokens" data-r="tokens">Tokens</a>
-  </nav><button class="btn" type="button" id="backBtn" hidden aria-label="Go back to the previous page">← Back</button></div>
-  <div id="updBar" class="msg" hidden style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-top:12px;background:light-dark(#efe8ff,#22173d)"><span><b>✨ A new version of Money Diary is ready.</b> <span class="note">Your data stays as it is.</span></span><button class="btn pri" type="button" id="updBtn">Update now</button></div>
-  <div class="bar" id="yearbar">
-    <label class="note" style="display:flex;gap:8px;align-items:center">Year <select id="year"></select></label>
-    <span class="note" id="src"></span>
-  </div>
-  <div id="status"></div>
-  <main id="view" class="stackv"></main>
 </div>
 <script>
 {
@@ -1264,10 +1352,11 @@ function lockView(){
 function render(){
   ros.forEach(r=>r.disconnect());ros=[];const V=$('#view');V.oninput=V.onclick=V.onchange=null;
   const route=['overview','years','add','income','search','invest','check','tokens'].includes(location.hash.slice(1))?location.hash.slice(1):'overview';
-  document.querySelectorAll('nav.tabs a').forEach(a=>a.classList.toggle('on',a.dataset.r===route));
+  document.querySelectorAll('nav.tabs a,.menuonly').forEach(a=>a.classList.toggle('on',a.dataset.r===route));
+  document.body.classList.remove('menu-open');$('#moreBtn').setAttribute('aria-expanded','false');
   if(navHist[navHist.length-1]!==route)navHist.push(route);if(navHist.length>50)navHist.shift();
   $('#backBtn').hidden=locked||navHist.length<2;
-  $('#lockBtn').hidden=!KEYOBJ;$('#clearBtn').hidden=locked||!(hasData()||stored());$('nav.tabs').hidden=locked;$('#yearbar').hidden=locked||route==='add'||route==='years'||!hasData();
+  $('#lockBtn').hidden=!KEYOBJ;$('#clearBtn').hidden=locked||!(hasData()||stored());$('nav.tabs').hidden=locked;$('#moreBtn').hidden=locked;$('#yearbar').hidden=locked||route==='add'||route==='years'||!hasData();
   $('label[for=file]').hidden=locked;$('#demoBtn').hidden=locked||(!DB.demo&&(hasData()||!!KEYOBJ||!!stored()));showSync();
   if(locked)return lockView();
   const yrs=[...new Set([...Object.keys(DB.months),...Object.keys(DB.manual),...Object.keys(DB.mf),...Object.keys(DB.biz),...Object.keys(DB.manualM)].map(k=>k.slice(0,4)))].sort();
@@ -1285,6 +1374,9 @@ function render(){
    if(w.length)V.insertAdjacentHTML('afterbegin',`<a class="msg dnc" href="#tokens" style="display:block;text-decoration:none"><b>⚠ ${esc(w.join(' · '))}.</b> Tap here to renew it in the Tokens tab.</a>`)}
 }
 $('#lockBtn').onclick=lockNow;
+$('#moreBtn').onclick=()=>{const o=document.body.classList.toggle('menu-open');$('#moreBtn').setAttribute('aria-expanded',String(o))};
+document.addEventListener('click',e=>{if(document.body.classList.contains('menu-open')&&!e.target.closest('#acts,#moreBtn'))document.body.classList.remove('menu-open')});
+$('#acts').addEventListener('click',e=>{if(e.target.closest('button,a'))setTimeout(()=>document.body.classList.remove('menu-open'),0)});
 $('#backBtn').onclick=()=>{navHist.pop();const to=navHist.pop()||'overview';location.hash=to;scrollTo({top:0})};
 confirm2($('#clearBtn'),'Tap again to delete all',()=>{eraseAll();flash('All data deleted from this device.')});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-q]');if(!b)return;st.q=b.dataset.q;if(location.hash==='#search')render();else location.hash='search'});
