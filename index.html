@@ -104,6 +104,7 @@ pre,.scroll{overflow-x:auto}
     <a href="#search" data-r="search">Expenses</a>
     <a href="#invest" data-r="invest">Mutual funds</a>
     <a href="#check" data-r="check">Settings &amp; sync</a>
+    <a href="#tokens" data-r="tokens">Tokens</a>
   </nav><button class="btn" type="button" id="backBtn" hidden aria-label="Go back to the previous page">← Back</button></div>
   <div class="bar" id="yearbar">
     <label class="note" style="display:flex;gap:8px;align-items:center">Year <select id="year"></select></label>
@@ -165,7 +166,7 @@ const syncOn=()=>!!(DB.sync&&DB.sync.token&&KEYOBJ&&!DB.demo);
 async function gh(path,opt={},tok){
   let r;try{r=await fetch(GH+path,{...opt,cache:'no-store',headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+(tok||DB.sync.token),'X-GitHub-Api-Version':'2022-11-28',...(opt.body?{'Content-Type':'application/json'}:{})}})}
   catch(e){throw new Error('offline')}
-  if(r.status===401||r.status===403)throw new Error('The GitHub token was not accepted. Make a new one with the “gist” box ticked.');
+  if(r.status===401||r.status===403)throw new Error('Your sync token has expired or was not accepted. Open the Tokens tab to renew it.');
   if(r.status===404)throw new Error('notfound');
   if(!r.ok)throw new Error('GitHub answered with error '+r.status+'. Try again later.');
   return r.status===204?null:r.json();
@@ -1001,7 +1002,7 @@ async function ghB(path,opt={},tok){
   let r;try{r=await fetch(GH+path,{...opt,cache:'no-store',headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+(tok||bk().token),'X-GitHub-Api-Version':'2022-11-28',...(opt.body?{'Content-Type':'application/json'}:{})}})}
   catch(e){throw new Error('No internet connection. The backup will be tried again later.')}
   if(r.status===404)return null;
-  if(r.status===401)throw new Error('The backup token was not accepted. Make a new one and connect again.');
+  if(r.status===401)throw new Error('Your backup token has expired or was not accepted. Open the Tokens tab to renew it.');
   if(r.status===403)throw new Error('The token can’t write to that repository. Give it “Contents: Read and write” for money-diary-backup.');
   if(!r.ok)throw new Error('GitHub answered with error '+r.status+'.');
   return r.status===204?{}:r.json();
@@ -1111,6 +1112,54 @@ function bindSync(){
   confirm2($('#delgist'),'Tap again: delete from GitHub',async()=>{try{await gh('/gists/'+DB.sync.gistId,{method:'DELETE'})}catch(e){if(e.message!=='notfound'){flash(e.message==='offline'?'No internet connection.':e.message,true);return}}delete DB.sync;await persist(true);render();flash('The synced copy was deleted from GitHub. Your data on this device is unchanged.')});
   const n=$('#npf');if(n)n.onsubmit=async e=>{e.preventDefault();const m=$('#npfM');m.textContent='Checking…';try{await enterNewPin(n.a.value)}catch(err){m.className='dnc';m.textContent='That PIN did not open the synced data.'}};
 }
+/* ---------- Tokens tab: renew the sync and backup tokens from inside the app ---------- */
+async function tokenExpiry(tok){
+  try{const r=await fetch(GH+'/user',{cache:'no-store',headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+tok}});
+    if(r.status===401)return{bad:true};const h=r.headers.get('github-authentication-token-expiration');
+    if(!h)return{ok:true};const d=new Date(h.replace(' ','T').replace(' ','').replace(/([+-]\d\d)(\d\d)$/,'$1:$2'));return{ok:true,at:isNaN(d)?null:d}}
+  catch(e){return{offline:true}}
+}
+const savedExp=d=>d?new Date(d+'T23:59:59'):null;
+function expLine(x,saved){
+  if(!x)return'<span class="note">Checking…</span>';
+  if(!x.at&&saved&&!x.bad&&!x.offline)x={ok:true,at:savedExp(saved)};
+  if(x.offline)return'<span class="note">Can’t check right now (no internet).</span>';
+  if(x.bad)return'<span class="dnc"><b>⚠ Expired or not working.</b> Renew it below.</span>';
+  if(!x.at)return'<span class="upc">✓ Working</span> <span class="note">· enter its expiry date below so the app can remind you</span>';
+  const days=Math.ceil((x.at-Date.now())/864e5),ds=x.at.getDate()+' '+MON[x.at.getMonth()]+' '+x.at.getFullYear();
+  return days<0?`<span class="dnc"><b>⚠ Expired on ${esc(ds)}.</b> Renew it below.</span>`:days<=14?`<span class="dnc"><b>⚠ Expires ${esc(ds)}</b> (in ${days} day${days===1?'':'s'}). Renew it soon.</span>`:`<span class="upc">✓ Working</span> · expires <b>${esc(ds)}</b> <span class="note">(${days} days left)</span>`;
+}
+function viewTokens(){
+  const sOn=!!(DB.sync&&DB.sync.token),bOn=!!bk();
+  const inp=(id,ph,btn)=>`<form id="${id}" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"><input type="password" name="t" class="in" autocomplete="off" placeholder="${ph}" aria-label="${ph}" style="flex:1 1 240px;width:auto"><button class="btn pri">${btn}</button></form><p id="${id}M" class="note" style="margin:6px 0 0"></p>`;
+  const need=!KEYOBJ?'<p class="dnc" style="margin:10px 0 0">Set a PIN in Settings & sync first.</p>':'';
+  $('#view').innerHTML=`<section class="card"><h2>Renew your tokens</h2><p style="margin:0">When a token expires, open its link below, make a new one on GitHub, copy it, and paste it here. Your data stays safe on this device the whole time. Your other device needs the new sync token too.</p></section>
+  <section class="card"><h2>Sync token <span class="note" style="font-size:14px">(starts with ghp_)</span></h2>
+  <p style="margin:0 0 6px">Keeps your phone and laptop in step.</p>
+  <p style="margin:0 0 10px" id="sExp">${sOn?expLine(null):'<span class="note">Sync is not set up on this device.</span>'}</p>
+  ${DB.sync?`<label class="note" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 0">Expiry date shown on GitHub <input type="date" class="in" id="sExpD" value="${esc((DB.sync).exp||'')}" style="width:auto"></label>`:''}
+  <ol style="margin:12px 0 0;padding-left:20px"><li><b>Renew the old one:</b> <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">GitHub › my classic tokens</a> → tap <b>Money Diary sync</b> → <b>Regenerate token</b> → pick a new expiry → copy it.</li>
+  <li>Or <b>make a brand-new one:</b> <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Money%20Diary%20sync" target="_blank" rel="noopener">GitHub › new sync token</a> (only <b>gist</b> ticked) → <b>Generate token</b> → copy it.</li>
+  <li>Paste it here and tap <b>Use new sync token</b>. Do the same on your other device.</li></ol>
+  ${need||inp('ntS','Paste new sync token (ghp_…)','Use new sync token')}</section>
+  <section class="card"><h2>Backup token <span class="note" style="font-size:14px">(starts with github_pat_)</span></h2>
+  <p style="margin:0 0 6px">Saves your BUDGETING year Excel files to your private money-diary-backup repository.</p>
+  <p style="margin:0 0 10px" id="bExp">${bOn?expLine(null):'<span class="note">Cloud backup is not set up yet.</span>'}</p>
+  ${bk()?`<label class="note" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 0">Expiry date shown on GitHub <input type="date" class="in" id="bExpD" value="${esc((bk()).exp||'')}" style="width:auto"></label>`:''}
+  <ol style="margin:12px 0 0;padding-left:20px"><li><b>Renew the old one:</b> <a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener">GitHub › my fine-grained tokens</a> → tap <b>Money Diary backup</b> → <b>Regenerate token</b> → pick a new expiry → copy it.</li>
+  <li>Or <b>make a brand-new one:</b> <a href="https://github.com/settings/personal-access-tokens/new?name=Money+Diary+backup&amp;description=Excel+backup&amp;contents=write" target="_blank" rel="noopener">GitHub › new backup token</a> → <b>Only select repositories</b> → <b>money-diary-backup</b> → <b>Generate token</b> → copy it.</li>
+  <li>Paste it here and tap <b>Use new backup token</b>. Your other device gets it through sync.</li></ol>
+  ${need||inp('ntB','Paste new backup token (github_pat_…)','Use new backup token')}</section>
+  <section class="card"><p style="margin:0" class="note">If GitHub asks to confirm it’s you, choose to get a code by email, or enter your GitHub password. Copy each new token straight away: GitHub shows it only once. After renewing, you can delete the old token on GitHub.</p></section>`;
+  if(sOn)tokenExpiry(DB.sync.token).then(x=>{const e=$('#sExp');if(e)e.innerHTML=expLine(x,DB.sync&&DB.sync.exp)});
+  if(bOn)tokenExpiry(bk().token).then(x=>{const e=$('#bExp');if(e)e.innerHTML=expLine(x,bk()&&bk().exp)});
+  const sd=$('#sExpD');if(sd)sd.onchange=async()=>{DB.sync.exp=sd.value;await persist();render()};
+  const bd=$('#bExpD');if(bd)bd.onchange=async()=>{DB.backup.exp=bd.value;DB.backup.setAt=Date.now();await persist();render()};
+  const fs=$('#ntS');if(fs)fs.onsubmit=async e=>{e.preventDefault();const m=$('#ntSM');m.className='note';m.textContent='Checking the new token…';fs.querySelector('button').disabled=true;
+    const old=DB.sync;try{await connectSync(fs.t.value);if(DB.sync)delete DB.sync.exp;await persist();flash('New sync token saved. ✓ Synced.');render()}catch(err){DB.sync=old;m.className='dnc';m.textContent=err.message==='offline'?'No internet connection. Try again when you are online.':err.message;fs.querySelector('button').disabled=false}};
+  const fb=$('#ntB');if(fb)fb.onsubmit=async e=>{e.preventDefault();const m=$('#ntBM');m.className='note';m.textContent='Checking the new token and your repository…';fb.querySelector('button').disabled=true;
+    const old=DB.backup;try{await connectBackup(fb.t.value);flash('New backup token saved. Your BUDGETING files are being updated.');render()}catch(err){DB.backup=old;m.className='dnc';m.textContent=err.message;fb.querySelector('button').disabled=false}};
+}
 function viewCheck(){
   const can=lastSheets.length>0;const reps=DB.report;
   const sel=(attrs,opts)=>`<select ${attrs} style="max-width:100%">${opts}</select>`;
@@ -1170,7 +1219,7 @@ function lockView(){
 }
 function render(){
   ros.forEach(r=>r.disconnect());ros=[];const V=$('#view');V.oninput=V.onclick=V.onchange=null;
-  const route=['overview','add','income','search','invest','check'].includes(location.hash.slice(1))?location.hash.slice(1):'overview';
+  const route=['overview','add','income','search','invest','check','tokens'].includes(location.hash.slice(1))?location.hash.slice(1):'overview';
   document.querySelectorAll('nav.tabs a').forEach(a=>a.classList.toggle('on',a.dataset.r===route));
   if(navHist[navHist.length-1]!==route)navHist.push(route);if(navHist.length>50)navHist.shift();
   $('#backBtn').hidden=locked||navHist.length<2;
@@ -1182,10 +1231,14 @@ function render(){
   $('#year').innerHTML=yrs.map(y=>`<option ${y===st.year?'selected':''}>${y}</option>`).join('')+(yrs.length>1?`<option value="all" ${st.year==='all'?'selected':''}>All years</option>`:'');
   $('#src').textContent=DB.demo?'Showing sample data':'';
   if(route==='check')return viewCheck();
+  if(route==='tokens')return viewTokens();
   if(route==='add')viewAdd();
   else if(!hasData())return empty();
   else({overview:viewOverview,income:viewIncome,search:viewSearch,invest:viewInvest})[route]();
   if(needPin()){V.insertAdjacentHTML('afterbegin',pinCard());bindPinCard()}
+  {const w=[];const chk=(o,n)=>{if(!o||!o.exp)return;const d=Math.ceil((savedExp(o.exp)-Date.now())/864e5);if(d<=14)w.push(n+(d<0?' expired on ':' expires on ')+dl(o.exp)+(d>=0?' (in '+d+' day'+(d===1?'':'s')+')':''))};
+   chk(DB.sync,'Your sync token');chk(bk(),'Your backup token');
+   if(w.length)V.insertAdjacentHTML('afterbegin',`<a class="msg dnc" href="#tokens" style="display:block;text-decoration:none"><b>⚠ ${esc(w.join(' · '))}.</b> Tap here to renew it in the Tokens tab.</a>`)}
 }
 $('#lockBtn').onclick=lockNow;
 $('#backBtn').onclick=()=>{navHist.pop();const to=navHist.pop()||'overview';location.hash=to;scrollTo({top:0})};
