@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.27.1">
+<meta name="app-version" content="2026.11.27.2">
 <meta name="theme-color" content="#7b3ff2">
 <meta name="description" content="Your personal budget diary">
 <link rel="manifest" href="manifest.webmanifest">
@@ -161,7 +161,8 @@ try{const s=localStorage.getItem(OLD);if(s){DB=Object.assign(blank(),JSON.parse(
 if(stored())locked=true;
 let hiddenAt=0;
 document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(KEYOBJ&&Date.now()-hiddenAt>5*60e3)lockNow()});
-const flash=(t,bad)=>{$('#status').innerHTML='<div class="msg'+(bad?' dnc':'')+'">'+esc(t)+'</div>'};
+const flash=(t,bad)=>{$('#status').innerHTML='<div class="msg'+(bad?' dnc':'')+'">'+esc(t)+'</div>';addClose()};
+function addClose(){const m=$('#status .msg');if(!m||m.querySelector('.mclose'))return;m.style.position='relative';m.style.paddingRight='48px';m.insertAdjacentHTML('beforeend','<button type="button" class="mclose" aria-label="Close message" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:40px;border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>');m.querySelector('.mclose').onclick=()=>{$('#status').innerHTML=''}}
 /* ---------- sync between devices: an encrypted copy in a secret GitHub gist ---------- */
 const GH='https://api.github.com',SYNC_FILE='money-diary.sync.json',SYNC_DESC='Money Diary encrypted sync (do not edit)';
 let PINMEM=null,syncing=false,syncAgain=false,syncTimer=null;
@@ -486,7 +487,7 @@ async function handleFiles(files){
     const r=ingest(all);st.year=null;
     box.innerHTML='<div class="msg"><b>Read '+r.months+' month sheet'+(r.months===1?'':'s')+(r.ov?' and your yearly overview':'')+'.</b> '+(r.warn?'<span class="dnc">Some totals don’t match your sheet.</span> <a href="#check">Open Import check</a>':'<span class="upc">All totals match your Excel.</span> <a href="#check">See Import check</a>')+'</div>';
     if(r.warn)location.hash='check';
-    render();
+    render();addClose();
   }catch(e){box.innerHTML='<div class="msg dnc">Could not read the file: '+esc(e.message)+'</div>'}
 }
 
@@ -1198,6 +1199,8 @@ function viewTokens(){
   const fb=$('#ntB');if(fb)fb.onsubmit=async e=>{e.preventDefault();const m=$('#ntBM');m.className='note';m.textContent='Checking the new token and your repository…';fb.querySelector('button').disabled=true;
     const old=DB.backup;try{await connectBackup(fb.t.value);flash('New backup token saved. Your BUDGETING files are being updated.');render()}catch(err){DB.backup=old;m.className='dnc';m.textContent=err.message;fb.querySelector('button').disabled=false}};
 }
+const impHidden=()=>{try{return localStorage.getItem('md.hideImport')==='1'}catch(e){return false}};
+function impSummary(){const r=DB.report.filter(x=>x.type!=='skip');if(!r.length)return'No file read yet.';const w=r.filter(warnOf).length;return r.length+' sheet'+(r.length===1?'':'s')+' read'+(w?', '+w+' with ⚠':', all ✓')+'.'}
 function viewCheck(){
   const can=lastSheets.length>0;const reps=DB.report;
   const sel=(attrs,opts)=>`<select ${attrs} style="max-width:100%">${opts}</select>`;
@@ -1223,8 +1226,8 @@ function viewCheck(){
     if(can&&DB.map[r.name])h+=`<button class="btn" type="button" data-reset="${n}" style="margin-top:10px">Undo my changes for this sheet</button>`;
     return h+'</section>'};
   const nApp=Object.keys(DB.manual).length;
-  let h=`<section class="card"><h2>Import check</h2><p style="margin:0">Each sheet’s totals are compared with the TOTAL CREDIT and TOTAL EXPENCE figures in that sheet, and with your yearly overview. If something is off, pick the right column and everything updates.${can?'':' <b>To change columns, upload your file again:</b> the app reads your Excel file and does not keep it.'}</p>${nApp?`<p class="note" style="margin:8px 0 0">${nApp} day${nApp>1?'s':''} added on the Add entry page replace the same days from Excel.</p>`:''}</section>`;
-  h+=DB.demo?'<section class="card"><p style="margin:0">You are looking at sample data. Upload your Excel file to check it here.</p></section>':reps.length?reps.map(card).join(''):'<section class="card"><p style="margin:0">No file read yet.</p></section>';
+  let h=`<section class="card"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><h2 style="margin:0">Import check</h2><button class="btn" type="button" id="impTog">${impHidden()?'Show import details':'Hide import details'}</button></div>${impHidden()?`<p style="margin:8px 0 0" class="note">${impSummary()} Details are hidden.</p>`:`<p style="margin:0">Each sheet’s totals are compared with the TOTAL CREDIT and TOTAL EXPENCE figures in that sheet, and with your yearly overview. If something is off, pick the right column and everything updates.${can?'':' <b>To change columns, upload your file again:</b> the app reads your Excel file and does not keep it.'}</p>${nApp?`<p class="note" style="margin:8px 0 0">${nApp} day${nApp>1?'s':''} added on the Add entry page replace the same days from Excel.</p>`:''}`}</section>`;
+  if(!impHidden())h+=DB.demo?'<section class="card"><p style="margin:0">You are looking at sample data. Upload your Excel file to check it here.</p></section>':reps.length?reps.map(card).join(''):'<section class="card"><p style="margin:0">No file read yet.</p></section>';
   h+=`<section class="card"><h2>Security</h2>
   <ul style="margin:0 0 12px;padding-left:18px">
   <li>Your Excel file is read on this device and is never uploaded anywhere. Only the numbers are kept, never the file itself.</li>
@@ -1236,6 +1239,7 @@ function viewCheck(){
   h+=`<section class="card"><h2>App version</h2><p style="margin:0 0 10px">You are using version <b>${esc(APP_VERSION||'—')}</b>.</p><div class="acts"><button class="btn" type="button" id="chkUpd">Check for updates</button></div><p class="note" id="chkUpdM" style="margin:8px 0 0"></p></section>`;
   $('#view').innerHTML=syncSection()+backupSection()+h;bindSync();bindBackup();
   {const c=$('#chkUpd');if(c)c.onclick=async()=>{const m=$('#chkUpdM');m.className='note';m.textContent='Checking…';const v=await checkUpdate();m.textContent=!v?'Couldn’t check right now (no internet?).':v!==APP_VERSION?'A new version ('+v+') is ready: tap “Update now” at the top.':'You have the latest version.'}}
+  {const t=$('#impTog');if(t)t.onclick=()=>{try{localStorage.setItem('md.hideImport',impHidden()?'0':'1')}catch(e){}render()}}
   bindPinForm('cp',()=>{flash('PIN changed.');render()});bindPinForm('pf2',()=>{flash('Saved and encrypted with your PIN.');render()});
   const lk=$('#lk');if(lk)lk.onclick=lockNow;confirm2($('#er'),'Tap again to delete all',()=>{eraseAll();flash('All data deleted from this device.')});
   const V=$('#view');
