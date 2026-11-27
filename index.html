@@ -99,6 +99,7 @@ pre,.scroll{overflow-x:auto}
   <div class="navrow">
   <nav class="tabs" aria-label="Views">
     <a href="#overview" data-r="overview">Overview</a>
+    <a href="#years" data-r="years">All years</a>
     <a href="#add" data-r="add">Add entry</a>
     <a href="#income" data-r="income">Income</a>
     <a href="#search" data-r="search">Expenses</a>
@@ -575,6 +576,38 @@ const leg=a=>'<div class="legend">'+a.map(([c,n])=>`<span><i style="background:$
 
 /* ---------- views ---------- */
 const mE=(r,k)=>(r.u||0)&&!r.m&&!r.e?'<span class="note">—</span>':inr(r[k]);
+/* ---------- All years: lifetime totals and year-by-year comparison (ignores the Year menu) ---------- */
+function viewYears(){
+  const keep=st.year;st.year='all';const MR=monthRows();const{exp}=data();st.year=keep;
+  const Y={};for(const r of MR){const y=r.ym.slice(0,4);const o=Y[y]||(Y[y]={y,c:0,b:0,x:0,mf:0,days:0,off:0,months:0});o.c+=r.m+r.e+(r.u||0);o.b+=r.biz;o.x+=r.x;o.mf+=r.mf;o.days+=r.days;o.off+=r.off;if(r.m+r.e+(r.u||0)+r.biz+r.x)o.months++}
+  const YS=Object.values(Y).sort((a,b)=>a.y<b.y?-1:1);
+  const T=YS.reduce((a,o)=>({c:a.c+o.c,b:a.b+o.b,x:a.x+o.x,mf:a.mf+o.mf,days:a.days+o.days,off:a.off+o.off,months:a.months+o.months}),{c:0,b:0,x:0,mf:0,days:0,off:0,months:0});
+  const inc=T.c+T.b,saved=inc-T.x,net=saved-T.mf;
+  const bm=MR.reduce((a,r)=>!a||r.m+r.e+(r.u||0)+r.biz>a.m+a.e+(a.u||0)+a.biz?r:a,null);
+  const by=YS.reduce((a,o)=>!a||o.c+o.b-o.x-o.mf>a.c+a.b-a.x-a.mf?o:a,null);
+  const top=itemTotals(exp).slice(0,10),tmax=top[0]?top[0].amt:1;
+  const modes={};for(const x of exp){const k=modeOf(x);modes[k]=(modes[k]||0)+x.amt}
+  const span=YS.length?(YS.length===1?YS[0].y:YS[0].y+'–'+YS[YS.length-1].y):'';
+  const pct=(a,b)=>b?Math.round(a/b*100)+'%':'—';
+  $('#view').innerHTML=`<section class="hero"><div><div class="lbl">Net saving, all years ${esc(span)}, after expenses and MF</div><div class="big num">${inr(net)}</div><div class="lbl" style="margin-top:6px">Saved before MF: ${inr(saved)} · you kept ${pct(saved,inc)} of everything you earned</div></div>
+  <div class="hk"><div><span>Total Credit</span><b>${inr(T.c)}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>MF invested</span><b>${inr(T.mf)}</b></div><div><span>Working / off days</span><b>${T.days} / ${T.off}</b></div></div></section>
+  <div class="kpis"><div class="kpi"><span>Years recorded</span><b>${YS.length}</b><small>${T.months} months with data</small></div>
+  <div class="kpi"><span>Average Nett income per month</span><b>${inr(T.months?inc/T.months:0)}</b></div>
+  <div class="kpi"><span>Average expenses per month</span><b class="exc">${inr(T.months?T.x/T.months:0)}</b></div>
+  <div class="kpi"><span>Average per working day</span><b>${inr(T.days?T.c/T.days:0)}</b><small>Total Credit only</small></div>
+  <div class="kpi"><span>Best month ever</span><b>${bm?inr(bm.m+bm.e+(bm.u||0)+bm.biz):'—'}</b><small>${bm?esc(ymLabel(bm.ym))+' · Nett income':''}</small></div>
+  <div class="kpi"><span>Best year for saving</span><b>${by?esc(by.y):'—'}</b><small>${by?'Net saving '+inr(by.c+by.b-by.x-by.mf):''}</small></div></div>
+  <section class="card"><h2>Year by year</h2>${leg([['var(--m)','Total Credit'],['var(--b)','Business'],['var(--x)','Expenses'],['var(--e)','MF invested']])}${fig('cy',280)}
+  <div class="scroll" style="margin-top:12px"><table style="min-width:900px"><thead><tr><th>Year</th><th class="r">Total Credit</th><th class="r">Business</th><th class="r">Nett income</th><th class="r">vs last year</th><th class="r">Expenses</th><th class="r">vs last year</th><th class="r">MF</th><th class="r">Net saving</th><th class="r">Kept</th></tr></thead><tbody>
+  ${YS.map((o,i)=>{const p=YS[i-1],n=o.c+o.b;return`<tr><td><button class="lnk" type="button" data-yr="${o.y}">${o.y} ›</button><div class="note">${o.months} month${o.months===1?'':'s'} · ${o.days} working day${o.days===1?'':'s'}</div></td><td class="r">${inr(o.c)}</td><td class="r">${inr(o.b)}</td><td class="r"><b>${inr(n)}</b></td><td class="r">${o.y>=curYear()?'<span class="note">in progress</span>':p?chg(n,p.c+p.b):'<span class="note">—</span>'}</td><td class="r exc">${inr(o.x)}</td><td class="r">${o.y>=curYear()?'<span class="note">in progress</span>':p?chg(o.x,p.x).replace('upc','tmp').replace('dnc','upc').replace('tmp','dnc'):'<span class="note">—</span>'}</td><td class="r">${inr(o.mf)}</td><td class="r ${n-o.x-o.mf<0?'dnc':''}"><b>${inr(n-o.x-o.mf)}</b></td><td class="r">${pct(n-o.x,n)}</td></tr>`}).join('')}
+  <tr style="font-weight:700"><td>All years</td><td class="r">${inr(T.c)}</td><td class="r">${inr(T.b)}</td><td class="r">${inr(inc)}</td><td></td><td class="r exc">${inr(T.x)}</td><td></td><td class="r">${inr(T.mf)}</td><td class="r">${inr(net)}</td><td class="r">${pct(saved,inc)}</td></tr></tbody></table></div>
+  <p class="note" style="margin:8px 0 0">“Kept” is the share of Nett income left after expenses (before MF). Tap a year to open its Overview. A year that has only part of its months will look smaller until it is complete.</p></section>
+  <div class="grid2"><section class="card"><h2>Where the money went, all years</h2>
+  ${top.map(t=>`<button class="hb" type="button" data-q="${esc(t.name)}"><span>${esc(t.name)}</span><span class="t"><i style="width:${(t.amt/tmax*100).toFixed(1)}%"></i></span><span class="r exc">${inr(t.amt)}</span></button>`).join('')||'<p class="note">No expenses yet.</p>'}</section>
+  <section class="card"><h2>Cash vs GPay, all years</h2>${Object.entries(modes).sort((a,b)=>b[1]-a[1]).map(([m,v])=>`<div class="mrow"><span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${modeCol(m)};margin-right:6px"></i><b>${esc(m)}</b></span><span class="r"><b class="exc">${inr(v)}</b> <span class="note">${pct(v,T.x)}</span></span><span class="t"><i style="width:${(v/(T.x||1)*100).toFixed(1)}%;background:${modeCol(m)}"></i></span></div>`).join('')||'<p class="note">No expenses yet.</p>'}</section></div>`;
+  document.querySelectorAll('[data-yr]').forEach(b=>b.onclick=()=>{st.year=b.dataset.yr;location.hash='overview'});
+  chart('cy',YS.map(o=>({go:()=>{st.year=o.y;location.hash='overview'},label:o.y,tip:o.y+' · tap to open',bars:[[{v:o.c,c:'var(--m)',n:'Total Credit'},{v:o.b,c:'var(--b)',n:'Business'}],[{v:o.x,c:'var(--x)',n:'Expenses'}],[{v:o.mf,c:'var(--e)',n:'MF invested'}]]})));
+}
 function viewOverview(){
   const rows=monthRows();const{exp}=data();
   const T=rows.reduce((a,r)=>({m:a.m+r.m,e:a.e+r.e,u:a.u+(r.u||0),b:a.b+r.biz,x:a.x+r.x,mf:a.mf+r.mf,d:a.d+r.days,o:a.o+r.off}),{m:0,e:0,u:0,b:0,x:0,mf:0,d:0,o:0});
@@ -1221,11 +1254,11 @@ function lockView(){
 }
 function render(){
   ros.forEach(r=>r.disconnect());ros=[];const V=$('#view');V.oninput=V.onclick=V.onchange=null;
-  const route=['overview','add','income','search','invest','check','tokens'].includes(location.hash.slice(1))?location.hash.slice(1):'overview';
+  const route=['overview','years','add','income','search','invest','check','tokens'].includes(location.hash.slice(1))?location.hash.slice(1):'overview';
   document.querySelectorAll('nav.tabs a').forEach(a=>a.classList.toggle('on',a.dataset.r===route));
   if(navHist[navHist.length-1]!==route)navHist.push(route);if(navHist.length>50)navHist.shift();
   $('#backBtn').hidden=locked||navHist.length<2;
-  $('#lockBtn').hidden=!KEYOBJ;$('#clearBtn').hidden=locked||!(hasData()||stored());$('nav.tabs').hidden=locked;$('#yearbar').hidden=locked||route==='add'||!hasData();
+  $('#lockBtn').hidden=!KEYOBJ;$('#clearBtn').hidden=locked||!(hasData()||stored());$('nav.tabs').hidden=locked;$('#yearbar').hidden=locked||route==='add'||route==='years'||!hasData();
   $('label[for=file]').hidden=locked;$('#demoBtn').hidden=locked||(!DB.demo&&(hasData()||!!KEYOBJ||!!stored()));showSync();
   if(locked)return lockView();
   const yrs=[...new Set([...Object.keys(DB.months),...Object.keys(DB.manual),...Object.keys(DB.mf),...Object.keys(DB.biz),...Object.keys(DB.manualM)].map(k=>k.slice(0,4)))].sort();
@@ -1236,7 +1269,7 @@ function render(){
   if(route==='tokens')return viewTokens();
   if(route==='add')viewAdd();
   else if(!hasData())return empty();
-  else({overview:viewOverview,income:viewIncome,search:viewSearch,invest:viewInvest})[route]();
+  else({overview:viewOverview,years:viewYears,income:viewIncome,search:viewSearch,invest:viewInvest})[route]();
   if(needPin()){V.insertAdjacentHTML('afterbegin',pinCard());bindPinCard()}
   {const w=[];const chk=(o,n)=>{if(!o||!o.exp)return;const d=Math.ceil((savedExp(o.exp)-Date.now())/864e5);if(d<=14)w.push(n+(d<0?' expired on ':' expires on ')+dl(o.exp)+(d>=0?' (in '+d+' day'+(d===1?'':'s')+')':''))};
    chk(DB.sync,'Your sync token');chk(bk(),'Your backup token');
