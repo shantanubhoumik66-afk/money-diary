@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.27.7">
+<meta name="app-version" content="2026.11.27.8">
 <meta name="theme-color" content="#0b0a14">
 <meta name="description" content="Your personal budget diary">
 <link rel="manifest" href="manifest.webmanifest">
@@ -132,7 +132,7 @@ nav.tabs a.nv:focus-visible,.menuonly:focus-visible{outline:3px solid #c4b5fd;ou
 .backbtn{display:flex;align-items:center;gap:12px;width:100%;min-height:46px;border:0;background:none;box-shadow:none;color:var(--muted);font-weight:700;font-size:15px;text-align:left;border-radius:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .backbtn[hidden]{display:none!important}
 .backbtn:hover{color:var(--ink)}
-.backbtn:active,.backbtn:focus-visible{color:#fff;background:linear-gradient(135deg,#7c3aed,#ec4899);outline:none}
+.backbtn:active,.backbtn:focus-visible{color:#0b0a14;background:#39ff14;box-shadow:0 0 18px rgba(57,255,20,.55);outline:none}
 .ctop{display:flex;justify-content:flex-end}
 .ctop:has(#backBtn[hidden]){display:none}
 /* phone and small tablet */
@@ -1384,7 +1384,7 @@ $('#lockBtn').onclick=lockNow;
 $('#moreBtn').onclick=()=>{const o=document.body.classList.toggle('menu-open');$('#moreBtn').setAttribute('aria-expanded',String(o))};
 document.addEventListener('click',e=>{if(document.body.classList.contains('menu-open')&&!e.target.closest('#acts,#moreBtn'))document.body.classList.remove('menu-open')});
 $('#acts').addEventListener('click',e=>{if(e.target.closest('button,a'))setTimeout(()=>document.body.classList.remove('menu-open'),0)});
-$('#backBtn').onclick=()=>{const bb=$('#backBtn');bb.style.background='linear-gradient(135deg,#7c3aed,#ec4899)';bb.style.color='#fff';setTimeout(()=>{bb.style.background='';bb.style.color=''},250);navHist.pop();const to=navHist.pop()||'overview';location.hash=to;scrollTo({top:0})};
+$('#backBtn').onclick=()=>{const bb=$('#backBtn');bb.style.background='#39ff14';bb.style.color='#0b0a14';bb.style.boxShadow='0 0 18px rgba(57,255,20,.55)';setTimeout(()=>{bb.style.background='';bb.style.color='';bb.style.boxShadow=''},300);navHist.pop();const to=navHist.pop()||'overview';location.hash=to;scrollTo({top:0})};
 confirm2($('#clearBtn'),'Tap again to delete all',()=>{eraseAll();flash('All data deleted from this device.')});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-q]');if(!b)return;st.q=b.dataset.q;if(location.hash==='#search')render();else location.hash='search'});
 $('#file').onchange=e=>{if(e.target.files.length)handleFiles([...e.target.files]);e.target.value=''};
