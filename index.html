@@ -141,7 +141,7 @@ async function persist(noSync){
   const iv=crypto.getRandomValues(new Uint8Array(12));
   const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},KEYOBJ,enc.encode(JSON.stringify(DB))));
   try{localStorage.setItem(KEY,JSON.stringify({v:2,salt:b64(SALT),iv:b64(iv),ct:b64(ct)}))}catch(e){flash('Could not save: this browser’s storage is full.',true)}
-  if(!noSync)syncSoon();
+  if(!noSync){syncSoon();backupSoon()}
 }
 async function setPin(pin,noSync){SALT=crypto.getRandomValues(new Uint8Array(16));KEYOBJ=await deriveKey(pin,SALT);PINMEM=pin;noSave=false;await persist(noSync)}
 async function unlock(pin){
@@ -966,10 +966,11 @@ function listSheet(D){
   rows[r][4].v=Object.values(D).reduce((s2,o)=>s2+o.exp.reduce((a,z)=>a+z.amt,0),0);
   return sheetXml(rows,[12.5,7,10,32,13,15],3,`A3:F${r}`);
 }
-function buildWorkbook(){
-  const D=allDays();
+function dataYears(){const D=allDays();return[...new Set([...Object.keys(D).map(k=>k.slice(0,4)),...Object.keys(DB.mf).map(k=>k.slice(0,4)),...Object.keys(DB.biz).map(k=>k.slice(0,4)),...Object.keys(DB.manualM).map(k=>k.slice(0,4))])].sort()}
+function buildWorkbook(year){
+  const all=allDays(),D={};for(const d in all)if(!year||d.startsWith(year))D[d]=all[d];
   const yms=[...new Set(Object.keys(D).map(d=>d.slice(0,7)))].sort();
-  const years=[...new Set([...yms.map(k=>k.slice(0,4)),...Object.keys(DB.mf).map(k=>k.slice(0,4)),...Object.keys(DB.biz).map(k=>k.slice(0,4)),...Object.keys(DB.manualM).map(k=>k.slice(0,4))])].sort();
+  const years=year?[year]:dataYears();
   const sheets=[];
   for(const y of years)sheets.push({name:y,xml:yearSheet(y,D)});
   for(const ym of yms)sheets.push({name:ymLabel(ym).toUpperCase(),xml:monthSheet(ym,D)});
@@ -984,20 +985,18 @@ function buildWorkbook(){
     ...sheets.map((s2,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,data:s2.xml}))];
   return zipBlob(files);
 }
-const backupName=d=>'Money-Diary-'+(d||todayISO())+'.xlsx';
-function downloadBackup(){
-  const blob=buildWorkbook();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=backupName();
-  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
-  return blob;
-}
-async function shareBackup(){
-  const f=new File([buildWorkbook()],backupName(),{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'Money Diary backup'});return true}catch(e){if(e.name==='AbortError')return true}}
+const backupName=y=>'BUDGETING '+y+'.xlsx';
+const curYear=()=>todayISO().slice(0,4);
+function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
+function downloadBackup(y){saveBlob(buildWorkbook(y),backupName(y))}
+async function shareBackup(y){
+  const f=new File([buildWorkbook(y)],backupName(y),{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:backupName(y)});return true}catch(e){if(e.name==='AbortError')return true}}
   return false;
 }
-
-/* ---------- daily cloud backup into a PRIVATE GitHub repository ---------- */
+/* ---------- cloud backup: one Excel file per year in a PRIVATE GitHub repository, kept up to date ---------- */
 const bk=()=>DB.backup&&DB.backup.token?DB.backup:null;
+const fpath=p=>p.split('/').map(encodeURIComponent).join('/');
 async function ghB(path,opt={},tok){
   let r;try{r=await fetch(GH+path,{...opt,cache:'no-store',headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+(tok||bk().token),'X-GitHub-Api-Version':'2022-11-28',...(opt.body?{'Content-Type':'application/json'}:{})}})}
   catch(e){throw new Error('No internet connection. The backup will be tried again later.')}
@@ -1008,70 +1007,82 @@ async function ghB(path,opt={},tok){
   return r.status===204?{}:r.json();
 }
 async function putFile(path,b64data,msg){
-  const cur=await ghB(`/repos/${bk().owner}/${bk().repo}/contents/${path}`);
-  return ghB(`/repos/${bk().owner}/${bk().repo}/contents/${path}`,{method:'PUT',body:JSON.stringify({message:msg,content:b64data,...(cur&&cur.sha?{sha:cur.sha}:{})})});
+  const url=`/repos/${bk().owner}/${bk().repo}/contents/${fpath(path)}`;const cur=await ghB(url);
+  return ghB(url,{method:'PUT',body:JSON.stringify({message:msg,content:b64data,...(cur&&cur.sha?{sha:cur.sha}:{})})});
 }
-let backingUp=false;
+/* a fingerprint of one year's data, so a file is only re-uploaded when that year changed */
+function yearSig(y){
+  const all=allDays(),o={};for(const d of Object.keys(all).sort())if(d.startsWith(y))o[d]=all[d];
+  const pick=src=>Object.fromEntries(Object.entries(src||{}).filter(([k])=>k.startsWith(y)));
+  return crc32(enc.encode(JSON.stringify([o,pick(DB.mf),pick(DB.mfF),pick(DB.biz),pick(DB.manualM),DB.funds||[]]))).toString(16);
+}
+let backingUp=false,backupTimer=null;
+function backupSoon(){if(!bk()||!KEYOBJ||DB.demo)return;clearTimeout(backupTimer);backupTimer=setTimeout(()=>runBackup(),60e3)}
 async function runBackup(manual){
   if(!bk()||!KEYOBJ||DB.demo||!hasData()||backingUp)return;
-  if(!manual&&bk().last===todayISO())return;
   backingUp=true;const box=$('#bkStatus');if(box)box.innerHTML='Backing up…';
   try{
-    const data=b64(new Uint8Array(await buildWorkbook().arrayBuffer()));const t=todayISO();
-    await putFile(`backups/${t.slice(0,4)}/${backupName(t)}`,data,'Daily backup '+t);
-    await putFile('Money-Diary-latest.xlsx',data,'Latest backup '+t);
-    DB.backup.last=t;DB.backup.lastAt=Date.now();DB.backup.err='';await persist(true);
+    const b=DB.backup;b.sigs=b.sigs||{};b.at=b.at||{};let n=0;
+    for(const y of dataYears()){const sig=yearSig(y);
+      if(!manual&&b.sigs[y]===sig)continue;
+      const data=b64(new Uint8Array(await buildWorkbook(y).arrayBuffer()));
+      await putFile(backupName(y),data,'Update '+backupName(y)+' ('+todayISO()+')');
+      b.sigs[y]=sig;b.at[y]=Date.now();n++}
+    b.last=todayISO();b.lastAt=Date.now();b.err='';await persist(true);
   }catch(e){DB.backup.err=e.message}
-  finally{backingUp=false;const b=$('#bkStatus');if(b)b.innerHTML=bkStatusHTML()}
+  finally{backingUp=false;const x=$('#bkStatus');if(x)x.innerHTML=bkStatusHTML()}
 }
 function bkStatusHTML(){const b=bk();if(!b)return'';
-  return b.err?`<span class="dnc">⚠ ${esc(b.err)}</span>`:b.last?`<span class="upc">✓ Last backup ${b.last===todayISO()?'today':esc(dl(b.last))}${b.lastAt?' at '+new Date(b.lastAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):''}</span>`:'Waiting for the first backup…'}
+  if(b.err)return`<span class="dnc">⚠ ${esc(b.err)}</span>`;
+  const ys=Object.keys(b.at||{}).sort().reverse();if(!ys.length)return'Waiting for the first backup…';
+  return ys.map(y=>{const t=new Date(b.at[y]);const day=toISO(t.getFullYear(),t.getMonth(),t.getDate());return`<span class="upc">✓ ${esc(backupName(y))}</span> <span class="note">updated ${day===todayISO()?'today':esc(dl(day))} at ${t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>`}).join('<br>')}
 async function connectBackup(tok){
   tok=tok.trim();if(!tok)throw new Error('Paste the backup token first.');
   const me=await ghB('/user',{},tok);if(!me||!me.login)throw new Error('The token was not accepted.');
   const repo=await ghB(`/repos/${me.login}/money-diary-backup`,{},tok);
   if(!repo)throw new Error('Couldn’t find a repository named money-diary-backup that this token can use. Create it (step 1) and give the token access to it.');
   if(!repo.private)throw new Error('money-diary-backup is public, so anyone could see your money data. Make it private first (Settings › Danger zone › Change visibility).');
-  DB.backup={token:tok,owner:me.login,repo:'money-diary-backup',last:'',err:'',setAt:Date.now()};
+  DB.backup={token:tok,owner:me.login,repo:'money-diary-backup',sigs:{},at:{},err:'',setAt:Date.now()};
   await persist(true);await runBackup(true);
 }
 async function restoreLatest(){
-  const f=await ghB(`/repos/${bk().owner}/${bk().repo}/contents/Money-Diary-latest.xlsx`);if(!f)throw new Error('No backup found yet.');
-  let bytes;
-  if(f.content){bytes=ub64(f.content.replace(/\s/g,''))}
-  else{const blob=await ghB(`/repos/${bk().owner}/${bk().repo}/git/blobs/${f.sha}`);bytes=ub64(blob.content.replace(/\s/g,''))}
-  const r=ingest(await readXlsx(bytes.buffer));return r;
+  const list=await ghB(`/repos/${bk().owner}/${bk().repo}/contents/`);
+  const files=(list||[]).filter(f=>/^BUDGETING \d{4}\.xlsx$/i.test(f.name)).sort((a,b)=>a.name<b.name?-1:1);
+  if(!files.length)throw new Error('No BUDGETING year files found in your backup repository yet.');
+  let sheets=[];
+  for(const f of files){const blob=await ghB(`/repos/${bk().owner}/${bk().repo}/git/blobs/${f.sha}`);sheets=sheets.concat(await readXlsx(ub64(blob.content.replace(/\s/g,'')).buffer))}
+  const r=ingest(sheets);r.files=files.map(f=>f.name);return r;
 }
 function backupSection(){
+  const ys=dataYears().slice().reverse();
   let h=`<section class="card" id="bkCard"><h2>Excel backup</h2>
-  <p style="margin:0 0 10px">A proper Excel file in your own layout: a sheet for each month (DATE, DAY, MORNING, NIGHT, CREDIT AMOUNT, PRODUCT SUMMARY, EXP AMOUNT, PAYMENT MODE), your yearly overview with business and MF, and a list of every expense. You can upload it back into the app to restore everything.</p>
-  <div class="acts"><button class="btn pri" type="button" id="dlx" ${hasData()?'':'disabled'}>Download Excel now</button>${navigator.canShare?`<button class="btn" type="button" id="shx" ${hasData()?'':'disabled'}>Save to Google Drive…</button>`:''}</div>
-  <h3 style="margin:18px 0 6px;font-size:17px">Daily backup to the cloud</h3>`;
+  <p style="margin:0 0 10px">One Excel file per year, in your own layout: <b>BUDGETING 2026.xlsx</b>, then <b>BUDGETING 2027.xlsx</b>, and so on. Each has the year’s overview with business and MF, a sheet for every month (DATE, DAY, MORNING, NIGHT, CREDIT AMOUNT, PRODUCT SUMMARY, EXP AMOUNT, PAYMENT MODE), and a list of every expense. You can upload any of them back into the app.</p>
+  ${ys.length?`<div class="acts">${ys.map((y,i)=>`<button class="btn ${i===0?'pri':''}" type="button" data-dly="${y}">Download BUDGETING ${y}</button>`).join('')}${navigator.canShare?`<button class="btn" type="button" data-shy="${ys[0]}">Save BUDGETING ${ys[0]} to Google Drive…</button>`:''}</div>`:'<p class="note" style="margin:0">Nothing to back up yet.</p>'}
+  <h3 style="margin:18px 0 6px;font-size:17px">Automatic backup to the cloud</h3>`;
   if(!canCrypt||!KEYOBJ)return h+`<p style="margin:0">First set a PIN in <b>Security</b> below.</p></section>`;
   if(bk()){
-    h+=`<p style="margin:0 0 8px" id="bkStatus">${bkStatusHTML()}</p>
-    <p class="note" style="margin:0 0 10px">Every day, the first time you open the app, a fresh Excel file is saved to your private repository <b>${esc(bk().owner)}/money-diary-backup</b>: one file per day in the <b>backups</b> folder, and <b>Money-Diary-latest.xlsx</b> always holds the newest one.</p>
-    <div class="acts"><a class="btn" href="https://github.com/${esc(bk().owner)}/money-diary-backup" target="_blank" rel="noopener">Open my backups on GitHub</a><button class="btn" type="button" id="bkNow">Back up now</button><button class="btn" type="button" id="bkRestore">Restore from latest backup</button><button class="btn" type="button" id="bkOff">Turn off daily backup</button></div><p class="note" id="bkMsg" style="margin:8px 0 0"></p>`;
+    h+=`<p style="margin:0 0 8px;line-height:1.7" id="bkStatus">${bkStatusHTML()}</p>
+    <p class="note" style="margin:0 0 10px">Your yearly files live in your private repository <b>${esc(bk().owner)}/money-diary-backup</b>. The current year’s file is updated each day you open the app and a minute or two after you save changes, so it always shows the year so far. A new year gets its own file automatically.</p>
+    <div class="acts"><a class="btn" href="https://github.com/${esc(bk().owner)}/money-diary-backup" target="_blank" rel="noopener">Open my backups on GitHub</a><button class="btn" type="button" id="bkNow">Back up now</button><button class="btn" type="button" id="bkRestore">Restore from cloud backup</button><button class="btn" type="button" id="bkOff">Turn off cloud backup</button></div><p class="note" id="bkMsg" style="margin:8px 0 0"></p>`;
   }else{
-    h+=`<p style="margin:0 0 10px">Saves a new Excel file every day into a <b>private</b> GitHub repository that only you can open. Set it up once; your other device picks it up through sync.</p>
+    h+=`<p style="margin:0 0 10px">Keeps your yearly Excel files in a <b>private</b> GitHub repository that only you can open, always up to date. Set it up once; your other device picks it up through sync.</p>
     <ol style="margin:0 0 12px;padding-left:20px">
-    <li>Create the private repository: <a href="https://github.com/new?name=money-diary-backup&amp;visibility=private&amp;description=Money+Diary+daily+Excel+backups" target="_blank" rel="noopener">GitHub › new repository</a>. Check the name is <b>money-diary-backup</b> and <b>Private</b> is selected, then tap <b>Create repository</b>.</li>
-    <li>Make a backup token: <a href="https://github.com/settings/personal-access-tokens/new?name=Money+Diary+backup&amp;description=Daily+Excel+backup&amp;contents=write" target="_blank" rel="noopener">GitHub › new fine-grained token</a>. Set <b>Expiration</b> to the longest choice, under <b>Repository access</b> choose <b>Only select repositories</b> and pick <b>money-diary-backup</b>. <b>Contents: Read and write</b> is already chosen. Tap <b>Generate token</b> and copy it.</li>
+    <li>Create the private repository: <a href="https://github.com/new?name=money-diary-backup&amp;visibility=private&amp;description=Money+Diary+Excel+backups" target="_blank" rel="noopener">GitHub › new repository</a>. Check the name is <b>money-diary-backup</b> and <b>Private</b> is selected, then tap <b>Create repository</b>.</li>
+    <li>Make a backup token: <a href="https://github.com/settings/personal-access-tokens/new?name=Money+Diary+backup&amp;description=Excel+backup&amp;contents=write" target="_blank" rel="noopener">GitHub › new fine-grained token</a>. Set <b>Expiration</b> to the longest choice, under <b>Repository access</b> choose <b>Only select repositories</b> and pick <b>money-diary-backup</b>. <b>Contents: Read and write</b> is already chosen. Tap <b>Generate token</b> and copy it.</li>
     <li>Paste it here and tap <b>Turn on</b>.</li></ol>
     <form id="bkf" style="display:flex;flex-wrap:wrap;gap:8px"><input type="password" name="t" class="in" autocomplete="off" placeholder="Paste backup token (starts with github_pat_)" aria-label="Backup token" style="flex:1 1 240px;width:auto"><button class="btn pri">Turn on</button></form><p id="bkM" class="note" style="margin:6px 0 0"></p>`;
   }
   return h+'</section>';
 }
 function bindBackup(){
-  const d=$('#dlx');if(d)d.onclick=()=>{downloadBackup();flash('Excel backup downloaded: '+backupName()+'. Find it in your Downloads folder.')};
-  const s2=$('#shx');if(s2)s2.onclick=async()=>{if(!await shareBackup()){downloadBackup();flash('Sharing isn’t available here, so the file was downloaded instead.')}};
+  document.querySelectorAll('[data-dly]').forEach(b=>b.onclick=()=>{downloadBackup(b.dataset.dly);flash(backupName(b.dataset.dly)+' downloaded. Find it in your Downloads folder.')});
+  document.querySelectorAll('[data-shy]').forEach(b=>b.onclick=async()=>{if(!await shareBackup(b.dataset.shy)){downloadBackup(b.dataset.shy);flash('Sharing isn’t available here, so the file was downloaded instead.')}});
   const f=$('#bkf');if(f)f.onsubmit=async e=>{e.preventDefault();const m=$('#bkM');m.className='note';m.textContent='Checking your repository…';f.querySelector('button').disabled=true;
-    try{await connectBackup(f.t.value);render();flash('Daily backup is on. Your first Excel backup is saved in GitHub.')}catch(err){delete DB.backup;m.className='dnc';m.textContent=err.message;f.querySelector('button').disabled=false}};
+    try{await connectBackup(f.t.value);render();flash('Cloud backup is on. Your BUDGETING Excel files are saved in GitHub.')}catch(err){delete DB.backup;m.className='dnc';m.textContent=err.message;f.querySelector('button').disabled=false}};
   const n=$('#bkNow');if(n)n.onclick=()=>runBackup(true);
   confirm2($('#bkOff'),'Tap again to turn off',async()=>{delete DB.backup;DB.backupOff=Date.now();await persist();render()});
-  confirm2($('#bkRestore'),'Tap again: restore from GitHub',async()=>{const m=$('#bkMsg');m.textContent='Restoring…';try{const r=await restoreLatest();st.year=null;render();flash('Restored from your latest backup: '+r.months+' month sheets.')}catch(e){m.className='dnc';m.textContent=e.message}});
+  confirm2($('#bkRestore'),'Tap again: restore from cloud',async()=>{const m=$('#bkMsg');m.textContent='Restoring…';try{const r=await restoreLatest();st.year=null;render();flash('Restored from '+r.files.join(', ')+'.')}catch(e){m.className='dnc';m.textContent=e.message}});
 }
-
 function syncSection(){
   if(!canCrypt)return'';
   let h=`<section class="card" id="syncCard"><h2>Sync with your laptop</h2>`;
