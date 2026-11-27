@@ -499,12 +499,14 @@ function demo(){
 
 /* ---------- numbers ---------- */
 const inP=d=>st.year==='all'||d.startsWith(st.year);
+/* empty payment mode counts as Cash, Online counts as GPay */
+const fixMode=m=>!m||!String(m).trim()?'Cash':/^online$/i.test(String(m).trim())?'GPay':m;
 function allDays(){
   const D={};const g=d=>D[d]||(D[d]={m:0,e:0,off:false,exp:[]});
   for(const ym in DB.months){const M=DB.months[ym];
     for(const d in M.inc){const o=g(d);o.m=M.inc[d].m;o.e=M.inc[d].e;o.off=!!M.inc[d].off}
-    for(const x of M.exp)g(x.d).exp.push(x)}
-  for(const d in DB.manual){const x=DB.manual[d];D[d]={m:x.m,e:x.e,off:!!x.off,exp:x.exp.map(z=>({d,item:z.item,amt:z.amt,mode:z.mode})),app:true}}
+    for(const x of M.exp)g(x.d).exp.push(x.mode&&!/^online$/i.test(x.mode)?x:Object.assign({},x,{mode:fixMode(x.mode)}))}
+  for(const d in DB.manual){const x=DB.manual[d];D[d]={m:x.m,e:x.e,off:!!x.off,exp:x.exp.map(z=>({d,item:z.item,amt:z.amt,mode:fixMode(z.mode)})),app:true}}
   return D;
 }
 function data(){
@@ -604,7 +606,7 @@ function viewInvest(){
 }
 
 /* ---------- add entry ---------- */
-const xrow=(x={})=>`<div class="xrow"><input class="xi" list="items" placeholder="Product summary" aria-label="Product summary" value="${esc(x.item||'')}"><input class="xa" inputmode="decimal" placeholder="Amount ₹" aria-label="Expense amount" value="${x.amt||''}"><select class="xm" aria-label="Payment mode">${['Cash','GPay','Online','UPI','Card'].concat(x.mode&&!['Cash','GPay','Online','UPI','Card'].includes(x.mode)?[x.mode]:[]).map(m=>`<option ${m===(x.mode||st.lastMode||'Cash')?'selected':''}>${esc(m)}</option>`).join('')}</select><button type="button" class="btn xdel" aria-label="Remove this expense">×</button></div>`;
+const xrow=(x={})=>`<div class="xrow"><input class="xi" list="items" placeholder="Product summary" aria-label="Product summary" value="${esc(x.item||'')}"><input class="xa" inputmode="decimal" placeholder="Amount ₹" aria-label="Expense amount" value="${x.amt||''}"><select class="xm" aria-label="Payment mode">${['Cash','GPay','UPI','Card'].concat(x.mode&&!['Cash','GPay','UPI','Card'].includes(fixMode(x.mode))?[x.mode]:[]).map(m=>`<option ${m===fixMode(x.mode||st.lastMode||'Cash')?'selected':''}>${esc(m)}</option>`).join('')}</select><button type="button" class="btn xdel" aria-label="Remove this expense">×</button></div>`;
 function tsvFor(ym){
   const days=Object.keys(DB.manual).filter(d=>d.startsWith(ym)).sort();const out=[];let sl=0;
   for(const d of days){const x=DB.manual[d];const ds=d.slice(8)+'-'+d.slice(5,7)+'-'+d.slice(0,4);const day=FULLDAY[new Date(d+'T00:00').getDay()];
