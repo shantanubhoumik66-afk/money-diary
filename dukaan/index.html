@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.17">
+<meta name="app-version" content="2026.11.28.18">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -70,7 +70,7 @@ table.t{width:100%;border-collapse:collapse;font-size:13.5px}table.t th,table.t 
 .inv table{width:100%;border-collapse:collapse;margin:8px 0}.inv th,.inv td{border-bottom:1px solid #ccc;padding:5px 4px;text-align:left;vertical-align:top}.inv th{font-size:11px;text-transform:uppercase}.inv .r{text-align:right}
 .inv .sum{margin-left:auto;width:min(280px,100%);display:grid;grid-template-columns:1fr auto;gap:3px 12px}.inv .sum .g{font-weight:800;font-size:16px;border-top:2px solid #000;padding-top:4px}
 .inv .ft{text-align:center;margin-top:12px;font-size:12px}
-.inv.th{width:300px;max-width:100%;margin:auto;font-size:12px;padding:10px}.inv.th .hd{flex-direction:column;text-align:center;border-bottom:1px dashed #000}.inv.th .idate{text-align:left}.inv .idate{margin-top:4px}.inv.th table th,.inv.th table td{border-bottom:1px dashed #bbb;padding:3px 2px}.inv.th .sum{width:100%}
+.inv.th{width:300px;max-width:100%;margin:auto;font-size:12px;padding:10px}.inv.th .hd{flex-direction:column;text-align:center;border-bottom:1px dashed #000}.inv.th .idate{text-align:left}.inv .idate{margin-top:4px}.inv .hd>div:last-child>b{display:inline-block;margin-top:10px}.inv.th .hd>div:last-child>b{margin-top:12px}.inv.th table th,.inv.th table td{border-bottom:1px dashed #bbb;padding:3px 2px}.inv.th .sum{width:100%}
 #print{display:none}
 @media print{body>*:not(#print){display:none!important}#print{display:block}#print .inv{border:0;padding:0}}
 /* lock */
@@ -529,15 +529,17 @@ const prnSave=o=>{try{localStorage.setItem('myshop.printer',JSON.stringify(Objec
 const asc=t=>String(t??'').replace(/₹/g,'Rs.').replace(/[×]/g,'x').replace(/[−–—]/g,'-').replace(/[“”]/g,'"').replace(/[‘’]/g,"'").normalize('NFKD').replace(/[^\x20-\x7e\n]/g,'');
 /* pharmacy symbol (snake around a staff), drawn here */
 const ROD=(c='currentColor')=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 64" width="40" height="64" fill="none" stroke="${c}" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4v57" stroke-width="4.2"/><path d="M28 58c-16-1.5-16-8-8-10 11-2.6 11-8.4 0-11-11-2.6-11-8.4 0-11 11-2.6 11-8.4 0-11-8-1.9-8-6.8-1.5-8.6" stroke-width="4"/><ellipse cx="21.8" cy="12.2" rx="4.6" ry="3.4" fill="${c}" stroke="none"/><path d="M26.2 11.4l4-1.8M26.2 12.8l4 1.4" stroke-width="1.4"/></svg>`;
-const rodOn=()=>PS().rod&&isPh();
+const rodOn=()=>!!PS().rod;
 const rodInline=()=>ROD().replace('width="40" height="64"','style="height:1.3em;width:auto;vertical-align:-0.25em;margin:0 .3em" aria-hidden="true"');
 /* the 3-inch printer prints this header line as a picture: symbol, shop name, symbol */
+function drawRod(cx,x,y,h){const k=h/64;cx.save();cx.translate(x,y);cx.scale(k,k);cx.strokeStyle='#000';cx.fillStyle='#000';cx.lineCap='round';cx.lineJoin='round';
+  cx.lineWidth=4.2;cx.stroke(new Path2D('M20 4v57'));cx.lineWidth=4;cx.stroke(new Path2D('M28 58c-16-1.5-16-8-8-10 11-2.6 11-8.4 0-11-11-2.6-11-8.4 0-11 11-2.6 11-8.4 0-11-8-1.9-8-6.8-1.5-8.6'));
+  cx.beginPath();cx.ellipse(21.8,12.2,4.6,3.4,0,0,Math.PI*2);cx.fill();cx.lineWidth=1.4;cx.stroke(new Path2D('M26.2 11.4l4-1.8M26.2 12.8l4 1.4'));cx.restore()}
 async function headerRaster(name,cols){try{const W=Math.max(8,Math.round(cols*12/8)*8),H=64;const cv=document.createElement('canvas');cv.width=W;cv.height=H;const cx=cv.getContext('2d');
-    cx.fillStyle='#fff';cx.fillRect(0,0,W,H);const img=new Image();img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(ROD('#000'));await img.decode();
-    const iw=36,ih=58,gap=10;let fs=44;cx.fillStyle='#000';cx.textBaseline='middle';
+    cx.fillStyle='#fff';cx.fillRect(0,0,W,H);const ih=58,iw=ih*40/64,gap=10;let fs=44;cx.fillStyle='#000';cx.textBaseline='middle';
     do{cx.font=`bold ${fs}px Arial, Helvetica, sans-serif`;fs-=2}while(cx.measureText(name).width>W-2*iw-4*gap&&fs>16);
     const tw=Math.min(cx.measureText(name).width,W-2*iw-4*gap),tot=iw*2+gap*2+tw,x0=Math.max(0,(W-tot)/2);
-    cx.drawImage(img,x0,(H-ih)/2,iw,ih);cx.fillText(name,x0+iw+gap,H/2+2,tw);cx.drawImage(img,x0+iw+gap*2+tw,(H-ih)/2,iw,ih);
+    drawRod(cx,x0,(H-ih)/2,ih);cx.fillStyle='#000';cx.fillText(name,x0+iw+gap,H/2+2,tw);drawRod(cx,x0+iw+gap*2+tw,(H-ih)/2,ih);
     const px=cx.getImageData(0,0,W,H).data,xb=W/8,out=[29,118,48,0,xb&255,xb>>8,H&255,H>>8];
     for(let y=0;y<H;y++)for(let bx=0;bx<xb;bx++){let v=0;for(let k=0;k<8;k++){const i=(y*W+bx*8+k)*4;if(px[i]*0.3+px[i+1]*0.59+px[i+2]*0.11<150)v|=128>>k}out.push(v)}
     return out}catch(e){return null}}
@@ -551,7 +553,7 @@ async function escpos(b){const hdr=rodOn()?await headerRaster(S0name(),prnCfg().
   E(27,64);E(27,116,0);                            // reset, plain code page
   E(27,97,1);if(hdr){E(...hdr);NL()}else{E(27,69,1);E(29,33,0x11);center(S.name||'My Shop');E(29,33,0);E(27,69,0)}
   if(P.addr&&S.addr)center(S.addr);if(P.phone&&S.phone)center('Ph: '+S.phone);if(P.dl&&ph&&S.dl)center('DL No: '+S.dl);
-  E(27,69,1);center('SALE INVOICE');E(27,69,0);E(27,97,0);
+  E(27,74,30);E(27,69,1);center('SALE INVOICE');E(27,69,0);E(27,97,0);
   if(P.invno)lr('No: '+b.no,'');lr(P.cust&&b.cust?'To: '+b.cust.name+(P.custPhone&&b.cust.phone?'  '+b.cust.phone:''):'','Date: '+dl(b.date));
   line();const q=6,m=9,a=10,n=W-q-m-a;T('Item'.padEnd(n)+'Qty'.padStart(q)+'MRP'.padStart(m)+'Amount'.padStart(a));NL();line();
   for(const l of b.lines){const nm=wrap(l.name,n-1);const nums=String(l.qty).padStart(q)+r2(l.rate).toFixed(2).padStart(m)+r2(l.qty*l.rate).toFixed(2).padStart(a);
