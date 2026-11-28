@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.19">
+<meta name="app-version" content="2026.11.28.20">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -259,7 +259,7 @@ setInterval(()=>{if(DB&&!document.hidden)syncNow()},5*60e3);
 document.addEventListener('visibilitychange',()=>{if(DB&&!document.hidden)syncNow()});
 
 /* date with one-day back / forward buttons; any past or future year */
-const dateBox=(id,v)=>`<span class="dbox"><button type="button" class="dstep" data-dstep="-1" data-for="${id}" aria-label="One day earlier">◀</button><input class="in" id="${id}" type="date" value="${esc(v||today())}" min="1990-01-01" max="9999-12-31"><button type="button" class="dstep" data-dstep="1" data-for="${id}" aria-label="One day later">▶</button><button type="button" class="chip" data-dtoday="${id}">Today</button></span>`;
+const dateBox=(id,v)=>`<input class="in" id="${id}" type="date" value="${esc(v||today())}" min="1990-01-01" max="9999-12-31">`;
 document.addEventListener('click',e=>{const b=e.target.closest('[data-dstep],[data-dtoday]');if(!b)return;const inp=document.getElementById(b.dataset.for||b.dataset.dtoday);if(!inp)return;
   let v=today();if(b.dataset.dstep){const[y,m,d]=(inp.value||today()).split('-').map(Number);const dt=new Date(y,m-1,d+ +b.dataset.dstep);v=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate())}
   inp.value=v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}))});
