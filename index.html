@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.42">
+<meta name="app-version" content="2026.11.28.43">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -48,6 +48,8 @@ select,input[type=search]{min-height:44px;font:16px Inter,sans-serif;padding:0 1
 .hero .hk>div b{font-size:clamp(17px,4.6vw,22px)}
 .hero .hk>div>span{display:block;margin-bottom:4px}.hero .hk>div>b.exred,.hero .hk>div>b.svgrn,.hero .hk>div>b.mfhl{display:inline-block;width:auto}
 .hero.ovhero{align-items:start}
+.ovhero .hk{gap:8px}.ovhero .hk>div{padding:8px 10px;border-radius:12px}.ovhero .hk>div>span{font-size:11.5px;margin-bottom:2px}.ovhero .hk>div b{font-size:clamp(15px,4vw,18px)}
+.ovhero .ask{padding:10px 12px}
 .ovr{display:flex;flex-direction:column;gap:12px;min-width:0}
 .ask{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.24);border-radius:14px;padding:12px 14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
 .askh{font-weight:800;font-size:15px;margin-bottom:8px}
@@ -988,7 +990,7 @@ async function shopAnswer(q){const D=await shopData();
   const fix=h=>String(h).replace(/href="#/g,'href="dukaan/#');const ago=Date.now()-(D.at||0);
   return{head:fix(a.head),lines:a.lines.map(fix).concat(ago>36e5?[`<span style="opacity:.7">Shop data as of ${esc(new Date(D.at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}))}. Open My Shop to refresh.</span>`]:[])}}
 const SHEX2=['Sales this month','Which day highest sales this month?','Top 5 selling medicines this year','Who owes me most?','Cash received today','Online received this month','Expiring medicines','Low stock items','Compare sales Oct vs Nov','Party payments this month','Top customers this year'];
-function shopAskHTML(){return`<div class="ask" style="margin-top:10px"><div class="askh">🏪 Ask about My Shop</div><form id="askF2" autocomplete="off"><input class="in" id="askQ2" placeholder="e.g. Which day had the highest sales?" aria-label="Your question about My Shop"><button class="btn pri" type="submit">Ask</button></form>
+function shopAskHTML(){return`<div class="ask"><div class="askh">🏪 Ask about My Shop</div><form id="askF2" autocomplete="off"><input class="in" id="askQ2" placeholder="e.g. Which day had the highest sales?" aria-label="Your question about My Shop"><button class="btn pri" type="submit">Ask</button></form>
   <div class="askchips">${SHEX2.map(x=>`<button type="button" class="chip" data-ask2="${esc(x)}">${esc(x)}</button>`).join('')}</div><div id="askA2" class="askA" aria-live="polite"></div><p class="askl" style="opacity:.7;margin-top:6px">Tap an underlined invoice, day, customer or medicine to open it in My Shop.</p></div>`}
 function bindShopAsk(){const f=$('#askF2');if(!f)return;const go=async q=>{const el=$('#askA2');if(!q.trim()){el.innerHTML='<p class="askl">Type a question first.</p>';return}el.innerHTML='<p class="askl">Looking in My Shop…</p>';
     let a;try{a=await shopAnswer(q)}catch(e){a={head:'Could not read My Shop just now.',lines:['Please try again.']}}
@@ -1001,8 +1003,7 @@ function viewOverview(){
   const inc=T.m+T.e+(T.u||0)+T.b,left=inc-T.x-T.mf,label=st.year==='all'?'all years':st.year;
   const top=itemTotals(exp).slice(0,10);const tmax=top[0]?.amt||1;
   const modes={};for(const x of exp){const k=x.mode||'Not set';modes[k]=(modes[k]||0)+x.amt}
-  $('#view').innerHTML=`<section class="hero ovhero"><div class="ovl"><div class="ovnet"><span>Net saving in ${esc(label)}, after expenses and MF</span><b>${inr(left)}</b></div><div id="ovCharts">${ovCharts()}</div></div>
-  <div class="ovr"><div class="hk"><div><span>Total Credit</span><b>${inr(T.m+T.e+(T.u||0))}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>Saved before MF</span><b class="svgrn">${inr(inc-T.x)}</b></div><div><span>MF invested</span><b class="mfhl">${inr(T.mf)}</b></div><div><span>Working days</span><b>${T.d}</b></div><div><span>Off days</span><b>${T.o}</b></div></div>${askHTML()}${shopAskHTML()}</div></section>
+  $('#view').innerHTML=`<section class="hero ovhero"><div class="ovr">${askHTML()}${shopAskHTML()}<div class="hk"><div><span>Total Credit</span><b>${inr(T.m+T.e+(T.u||0))}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>Saved before MF</span><b class="svgrn">${inr(inc-T.x)}</b></div><div><span>MF invested</span><b class="mfhl">${inr(T.mf)}</b></div><div><span>Working days</span><b>${T.d}</b></div><div><span>Off days</span><b>${T.o}</b></div></div></div><div class="ovl"><div class="ovnet"><span>Net saving in ${esc(label)}, after expenses and MF</span><b>${inr(left)}</b></div><div id="ovCharts">${ovCharts()}</div></div></section>
   <div class="grid2">
   <section class="card"><h2>Nett income vs expenses by month</h2>${leg([['var(--m)','Morning'],['var(--e)','Evening'],...(T.u?[['var(--u)','Total only (no split)']]:[]),['var(--b)','Business'],['var(--x)','Expenses']])}${fig('c1')}</section>
   <section class="card"><h2>Where the money goes</h2><p class="note" style="margin:0 0 8px">Tap an item to see its full history.</p>
