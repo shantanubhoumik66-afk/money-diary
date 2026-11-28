@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.43">
+<meta name="app-version" content="2026.11.28.44">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -989,7 +989,7 @@ async function shopAnswer(q){const D=await shopData();
   if(SHOP.at!==D.at){w.askLoad(D.db);SHOP.at=D.at}const a=w.askQ(q);if(!a)return null;
   const fix=h=>String(h).replace(/href="#/g,'href="dukaan/#');const ago=Date.now()-(D.at||0);
   return{head:fix(a.head),lines:a.lines.map(fix).concat(ago>36e5?[`<span style="opacity:.7">Shop data as of ${esc(new Date(D.at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}))}. Open My Shop to refresh.</span>`]:[])}}
-const SHEX2=['Sales this month','Which day highest sales this month?','Top 5 selling medicines this year','Who owes me most?','Cash received today','Online received this month','Expiring medicines','Low stock items','Compare sales Oct vs Nov','Party payments this month','Top customers this year'];
+const SHEX2=['Sales this month','Which day highest sales this month?','Top 5 selling medicines this year','Who owes me most?','Cash received today','Online received this month','Expiring medicines','Low stock items','Top MRP products in stock','Total stock value','Compare sales Oct vs Nov','Party payments this month','Top customers this year'];
 function shopAskHTML(){return`<div class="ask"><div class="askh">🏪 Ask about My Shop</div><form id="askF2" autocomplete="off"><input class="in" id="askQ2" placeholder="e.g. Which day had the highest sales?" aria-label="Your question about My Shop"><button class="btn pri" type="submit">Ask</button></form>
   <div class="askchips">${SHEX2.map(x=>`<button type="button" class="chip" data-ask2="${esc(x)}">${esc(x)}</button>`).join('')}</div><div id="askA2" class="askA" aria-live="polite"></div><p class="askl" style="opacity:.7;margin-top:6px">Tap an underlined invoice, day, customer or medicine to open it in My Shop.</p></div>`}
 function bindShopAsk(){const f=$('#askF2');if(!f)return;const go=async q=>{const el=$('#askA2');if(!q.trim()){el.innerHTML='<p class="askl">Type a question first.</p>';return}el.innerHTML='<p class="askl">Looking in My Shop…</p>';

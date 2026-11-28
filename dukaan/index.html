@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.42">
+<meta name="app-version" content="2026.11.28.44">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -502,6 +502,21 @@ function shAnswer(raw){const q=' '+raw.toLowerCase().replace(/[’']/g,"'").repl
   // low / out of stock
   if(has(/\b(low stock|running low|out of stock|finished|no stock|zero stock)\b/)){const out=has(/\b(out of stock|finished|no stock|zero stock)\b/);const L=out?DB.items.filter(i=>qtyOf(i)<=0):alerts().low;
     return{head:`${L.length} item${L.length===1?'':'s'} ${out?'out of stock':'low on stock'}. ${sGo('stock',out?'out':'low','See them in Stock')}`,lines:L.slice(0,8).map(i=>`${iLink(i)}: ${qtyOf(i)} left`)}}
+  // MRP / price, stock value, biggest quantity
+  const N=(()=>{const m=q.match(/\b(?:top|first|bottom|last)\s+(\d{1,2})\b|\b(\d{1,2})\s+(?:items?|products?|medicines?)\b/);return m?Math.min(+(m[1]||m[2]),30):10})();
+  const onlyIn=has(/\b(in stock|available|have)\b/);const pool=()=>DB.items.filter(i=>!onlyIn||qtyOf(i)>0);
+  const row=(i,k)=>`${k}. ${sGo('item',i.id,esc(i.name))}: MRP <b>${inr(i.price)}</b> · ${qtyOf(i)} in stock`;
+  if(has(/\b(mrp|price|prices|rate|costliest|expensive|cheapest|cheap)\b/)&&!has(/\b(sold|sale|sales|sell|selling)\b/)){
+    if(its.length)return{head:`${esc(its[0].name)}: ${its.length>1?`${its.length} MRPs`:'MRP <b>'+inr(its[0].price)+'</b>'}.`,lines:its.length>1?its.sort((a,b)=>num(b.price)-num(a.price)).map(i=>`${sGo('item',i.id,'MRP '+inr(i.price))}: ${qtyOf(i)} in stock`):[`${sGo('item',its[0].id,'Open item')} · ${qtyOf(its[0])} in stock`]};
+    const low=has(/\b(cheapest|cheap|lowest|least|min|minimum|bottom)\b/);const L=pool().filter(i=>num(i.price)>0).sort((a,b)=>low?num(a.price)-num(b.price):num(b.price)-num(a.price)).slice(0,N);
+    if(!L.length)return{head:'No products with an MRP yet.',lines:[]};
+    return{head:`${low?'Lowest':'Highest'} MRP product${onlyIn?' in stock':''}: ${sGo('item',L[0].id,esc(L[0].name))}, MRP <b>${inr(L[0].price)}</b> · ${qtyOf(L[0])} in stock.`,lines:L.slice(1).map((i,k)=>row(i,k+2))}}
+  if(has(/\b(stock value|value of stock|stock worth|worth of stock|value)\b/)&&!has(/\b(sold|sale|sales)\b/)){const V=i=>Math.max(0,qtyOf(i))*num(i.price);
+    if(its.length){const v=its.reduce((s,i)=>s+V(i),0);return{head:`${esc(its[0].name)} stock value: <b>${inr(v)}</b>.`,lines:its.map(i=>`${sGo('item',i.id,'MRP '+inr(i.price))}: ${qtyOf(i)} × ${inr(i.price)} = ${inr(V(i))}`)}}
+    const L=DB.items.filter(i=>V(i)>0).sort((a,b)=>V(b)-V(a));const tot=L.reduce((s,i)=>s+V(i),0);
+    return{head:`Total stock value (MRP × quantity): <b>${inr(tot)}</b> in ${L.length} product${L.length===1?'':'s'}. ${sGo('stock','instock','See in Stock')}`,lines:L.slice(0,N).map((i,k)=>`${k+1}. ${sGo('item',i.id,esc(i.name))}: ${inr(V(i))} · ${qtyOf(i)} × MRP ${inr(i.price)}`)}}
+  if(has(/\b(most|highest|biggest|max|maximum|least|lowest)\s+(stock|quantity|qty)\b/)){const low=has(/\b(least|lowest)\b/);const L=DB.items.filter(i=>qtyOf(i)>0).sort((a,b)=>low?qtyOf(a)-qtyOf(b):qtyOf(b)-qtyOf(a)).slice(0,N);
+    if(!L.length)return{head:'Nothing in stock.',lines:[]};return{head:`${low?'Least':'Most'} stock: ${sGo('item',L[0].id,esc(L[0].name))}, <b>${qtyOf(L[0])}</b> (MRP ${inr(L[0].price)}).`,lines:L.slice(1).map((i,k)=>`${k+2}. ${sGo('item',i.id,esc(i.name))}: ${qtyOf(i)} · MRP ${inr(i.price)}`)}}
   // stock of an item
   if(its.length&&has(/\b(stock|left|available|have|qty|quantity|how many)\b/)&&!has(/\b(sold|sale|sales|sell)\b/)){const tot=its.reduce((s,i)=>s+qtyOf(i),0);
     return{head:`${esc(its[0].name)}: <b>${tot}</b> in stock.`,lines:its.map(i=>`${sGo('item',i.id,'MRP '+inr(i.price))}: ${qtyOf(i)} left · value ${inr(qtyOf(i)*num(i.price))}`)}}
@@ -947,7 +962,7 @@ function viewStock(sub){if(sub==='import')return viewImport();if(['all','instock
   const draw=()=>{const q=st.q.trim().toLowerCase();const L=DB.items.filter(i=>(!q||i.name.toLowerCase().includes(q)||(i.salt||'').toLowerCase().includes(q))&&(st.filter==='all'||(st.filter==='instock'&&qtyOf(i)>0)||(st.filter==='low'&&loS.has(i.id))||(st.filter==='soon'&&soS.has(i.id))||(st.filter==='ex'&&exS.has(i.id))||(st.filter==='out'&&qtyOf(i)<=0))).sort((a,b)=>a.name.localeCompare(b.name)||num(a.price)-num(b.price));
     {let val=0,units=0;for(const i of L){const qn=qtyOf(i);if(qn>0){val+=qn*num(i.price);units+=qn}}const part=!!q||st.filter!=='all';
      $('#stVal').innerHTML=`<span>Total stock value (MRP × quantity)${part?' · shown items':''}</span><b>${inr(val)}</b><small style="color:#d5fbf4">${L.length} product${L.length===1?'':'s'} · ${r2(units).toLocaleString('en-IN')} units in stock</small>`}
-    $('#sl').innerHTML=L.length?`<div class="list">${L.map(i=>{const s=qtyOf(i);const near=ph?goodBatches(i)[0]:null;return`<a class="li" href="#item/${i.id}"><span class="t"><b>${esc(i.name)}</b><small>${[i.salt,i.rack?'Rack '+i.rack:'',ph&&near&&near.exp?'Next exp '+expL(near.exp):''].filter(Boolean).map(esc).join(' · ')||esc(i.unit||'')}</small></span><span class="a">${inr(i.price)}<br><span class="pill ${s<=0?'p-red':loS.has(i.id)?'p-amb':'p-gry'}">${s} ${esc(i.unit||'')}</span>${exS.has(i.id)?' <span class="pill p-red">Expired</span>':soS.has(i.id)?' <span class="pill p-amb">Exp soon</span>':''}</span></a>`}).join('')}</div>`
+    $('#sl').innerHTML=L.length?`<div class="list">${L.map(i=>{const s=qtyOf(i);const near=ph?goodBatches(i)[0]:null;return`<a class="li" href="#item/${i.id}"><span class="t"><b>${esc(i.name)}</b><small>${[i.salt,i.rack?'Rack '+i.rack:'',ph&&near&&near.exp?'Next exp '+expL(near.exp):''].filter(Boolean).map(esc).join(' · ')||esc(i.unit||'')}</small></span><span class="a"><small style="opacity:.7;font-weight:600">MRP</small> ${inr(i.price)}<br><span class="pill ${s<=0?'p-red':loS.has(i.id)?'p-amb':'p-gry'}">Qty ${s} ${esc(i.unit||'')}</span>${exS.has(i.id)?' <span class="pill p-red">Expired</span>':soS.has(i.id)?' <span class="pill p-amb">Exp soon</span>':''}</span></a>`}).join('')}</div>`
      :`<p class="empty">${DB.items.length?'No items match.':'No items yet. Tap <b>+ Add item</b>, or <b>⇪ Import</b> your stock list from a CSV or Excel file.'}</p>`};
   $('#impF').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)impFile(f)};
   $('#sq').oninput=e=>{st.q=e.target.value;draw()};$$('[data-f]').forEach(b=>b.onclick=()=>{st.filter=b.dataset.f;viewStock()});draw()}
