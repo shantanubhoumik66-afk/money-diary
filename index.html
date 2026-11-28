@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.1">
+<meta name="app-version" content="2026.11.28.2">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -336,8 +336,9 @@ async function openRemote(o,pin){
   const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},key,ub64(o.ct));
   return{db:JSON.parse(dec.decode(pt)),key,salt};
 }
+let lastLink=null;
 async function readRemote(tok,id){
-  const g=await gh('/gists/'+id,{},tok);const f=g.files&&g.files[SYNC_FILE];if(!f)return null;
+  const g=await gh('/gists/'+id,{},tok);lastLink=g.files&&g.files['dukaan-link.json']||null;const f=g.files&&g.files[SYNC_FILE];if(!f)return null;
   let t=f.content;if(f.truncated){const r=await fetch(f.raw_url,{cache:'no-store'});t=await r.text()}
   return JSON.parse(t);
 }
@@ -361,9 +362,16 @@ function mergeDB(L,R){
   [o.manualM,o.delM]=pickNewest(L.manualM,R.manualM,L.delM,R.delM);
   {const c=[[L.backup,L.backup?L.backup.setAt||0:-1],[R.backup,R.backup?R.backup.setAt||0:-1],[null,L.backupOff||0],[null,R.backupOff||0]];let best=null;for(const x of c)if(x[1]>=0&&(!best||x[1]>best[1]||(x[1]===best[1]&&x[0]&&(!best[0]||(x[0].lastAt||0)>(best[0].lastAt||0)))))best=x;
    o.backupOff=Math.max(L.backupOff||0,R.backupOff||0);if(best&&best[0])o.backup=best[0];else delete o.backup}
+  if(L.link||R.link)o.link=(R.link&&(!L.link||(R.link.t||0)>(L.link.t||0)))?R.link:L.link;
+  if(L.dk||R.dk)o.dk=(R.dk&&(!L.dk||(R.dk.at||0)>(L.dk.at||0)))?R.dk:L.dk;
   return o;
 }
-const sig=db=>JSON.stringify([db.impT||0,db.manual,db.manualM,db.del,db.delM]);
+const sig=db=>JSON.stringify([db.impT||0,db.manual,db.manualM,db.del,db.delM,db.dk&&db.dk.at]);
+/* Dukaan Bill link: its monthly nett becomes the Business amount here */
+async function applyLink(){try{const k=localStorage.getItem('dukaan.link');if(k&&(!DB.link||DB.link.key!==k))DB.link={key:k,t:Date.now()}}catch(e){}
+  if(!DB.link||!lastLink)return;try{let t=lastLink.content;if(lastLink.truncated)t=await (await fetch(lastLink.raw_url,{cache:'no-store'})).text();const o=JSON.parse(t);
+    const key=await crypto.subtle.importKey('raw',ub64(DB.link.key),'AES-GCM',false,['decrypt']);const d=JSON.parse(dec.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},key,ub64(o.ct))));
+    if(!DB.dk||(d.at||0)>(DB.dk.at||0))DB.dk={m:d.m,at:d.at,shop:d.shop||''}}catch(e){}}
 function syncSoon(){if(!syncOn())return;clearTimeout(syncTimer);syncTimer=setTimeout(syncNow,1200)}
 async function syncNow(){
   if(!syncOn())return;if(syncing){syncAgain=true;return}
@@ -374,6 +382,7 @@ async function syncNow(){
     if(R){let got;try{got=await openRemote(R)}catch(e){syncSt.needPin=true;throw new Error('The PIN was changed on your other device. Enter that new PIN below to keep syncing.')}
       if(got.salt&&b64(got.salt)!==b64(SALT)){SALT=got.salt;KEYOBJ=got.key}
       DB=Object.assign(mergeDB(DB,got.db),{sync:DB.sync})}
+    await applyLink();
     const body=JSON.stringify({files:{[SYNC_FILE]:{content:await sealRemote()}}});
     if(DB.sync.gistId)await gh('/gists/'+DB.sync.gistId,{method:'PATCH',body});
     else{const g=await gh('/gists',{method:'POST',body:JSON.stringify({description:SYNC_DESC,public:false,files:{[SYNC_FILE]:{content:await sealRemote()}}})});DB.sync.gistId=g.id}
@@ -675,13 +684,14 @@ function data(){
 }
 const mfFOf=ym=>(DB.manualM[ym]&&DB.manualM[ym].mf)||DB.mfF[ym]||(DB.mf[ym]?{MF:DB.mf[ym]}:{});
 const mfOf=ym=>Object.values(mfFOf(ym)).reduce((a,b)=>a+b,0);
-const bizOf=ym=>DB.manualM[ym]&&DB.manualM[ym].biz!=null?DB.manualM[ym].biz:DB.biz[ym]||0;
-const hasData=()=>Object.keys(DB.months).length+Object.keys(DB.manual).length+Object.keys(DB.mf).length+Object.keys(DB.biz).length>0;
+const dkOf=ym=>DB.dk&&DB.dk.m&&DB.dk.m[ym]?DB.dk.m[ym]:null;
+const bizOf=ym=>dkOf(ym)?dkOf(ym).nett:DB.manualM[ym]&&DB.manualM[ym].biz!=null?DB.manualM[ym].biz:DB.biz[ym]||0;
+const hasData=()=>Object.keys(DB.months).length+Object.keys(DB.manual).length+Object.keys(DB.mf).length+Object.keys(DB.biz).length+Object.keys((DB.dk&&DB.dk.m)||{}).length>0;
 function monthRows(){
   const{inc,exp}=data();const M={};const g=k=>M[k]||(M[k]={ym:k,m:0,e:0,u:0,x:0,mf:0,biz:0,days:0,off:0});
   for(const r of inc){const o=g(r.d.slice(0,7));if(r.off)o.off++;else{o.m+=r.m;o.e+=r.e;o.u+=r.u||0;o.days++}}
   for(const r of exp)g(r.d.slice(0,7)).x+=r.amt;
-  for(const k of new Set([...Object.keys(DB.mf),...Object.keys(DB.biz),...Object.keys(DB.manualM)]))if(inP(k)&&(mfOf(k)||bizOf(k)))g(k);
+  for(const k of new Set([...Object.keys(DB.mf),...Object.keys(DB.biz),...Object.keys(DB.manualM),...Object.keys((DB.dk&&DB.dk.m)||{})]))if(inP(k)&&(mfOf(k)||bizOf(k)))g(k);
   for(const k in M){M[k].mf=mfOf(k);M[k].biz=bizOf(k)}
   return Object.values(M).sort((a,b)=>a.ym<b.ym?-1:1);
 }
@@ -810,7 +820,7 @@ function viewAdd(){
   const man=DB.manual[d],xl=D[d]&&!D[d].app?D[d]:null;
   const cur=man?{m:man.m,e:man.e,u:man.u||0,off:man.off,exp:man.exp}:xl?{m:xl.m,e:xl.e,u:xl.u||0,off:xl.off,exp:xl.exp}:{m:0,e:0,u:0,off:false,exp:[]};
   const names=itemTotals(Object.values(D).flatMap(o=>o.exp)).map(t=>t.name);
-  const yms=[...new Set([todayISO().slice(0,7),...Object.keys(DB.months),...Object.keys(DB.mf),...Object.keys(DB.biz),...Object.keys(DB.manualM)])].sort().reverse();
+  const yms=[...new Set([todayISO().slice(0,7),...Object.keys(DB.months),...Object.keys(DB.mf),...Object.keys(DB.biz),...Object.keys(DB.manualM),...Object.keys((DB.dk&&DB.dk.m)||{})])].sort().reverse();
   if(!st.em||!yms.includes(st.em))st.em=todayISO().slice(0,7);
   const fundNames=[...new Set([...Object.values(DB.mfF).flatMap(o=>Object.keys(o)),...Object.values(DB.manualM).flatMap(o=>Object.keys(o.mf||{}))])];
   if(!fundNames.length)fundNames.push('Angel One MF','Groww MF');
@@ -831,8 +841,8 @@ function viewAdd(){
   <p style="margin:14px 0 0">Expenses this day: <b id="fx" class="exc">₹0</b></p>
   <div class="acts" style="margin-top:14px"><button class="btn pri" type="button" id="save">Save day</button>${man?'<button class="btn" type="button" id="undo">Remove my app entry for this day</button>':''}</div>
   <p id="fmsg" style="margin:10px 0 0;min-height:1.5em"></p></section>
-  <section class="card"><h2>Monthly business amount and MF</h2><p class="note" style="margin:0 0 8px">These are monthly, like in your yearly overview sheet.</p>
-  <div class="frow"><label>Month<select id="em" class="in">${yms.map(k=>`<option value="${k}" ${k===st.em?'selected':''}>${ymLabel(k)}</option>`).join('')}</select></label><label>Business amount ₹<input id="eb" class="in" inputmode="numeric" value="${bizOf(st.em)||''}" placeholder="0"></label>
+  <section class="card"><h2>Monthly business amount and MF</h2><p class="note" style="margin:0 0 8px">These are monthly, like in your yearly overview sheet.</p>${dkOf(st.em)?`<p class="msg" style="margin:0 0 10px">Business amount for ${ymLabel(st.em)} comes from <b>Dukaan Bill</b> automatically: sales ${inr(dkOf(st.em).sales)} − party payments ${inr(dkOf(st.em).party)} − due pending ${inr(dkOf(st.em).due)} = <b>${inr(dkOf(st.em).nett)}</b>.</p>`:''}
+  <div class="frow"><label>Month<select id="em" class="in">${yms.map(k=>`<option value="${k}" ${k===st.em?'selected':''}>${ymLabel(k)}</option>`).join('')}</select></label><label>Business amount ₹<input id="eb" class="in" inputmode="numeric" value="${bizOf(st.em)||''}" placeholder="0" ${dkOf(st.em)?'disabled title="Comes from Dukaan Bill"':''}></label>
   ${fundNames.map((f,i)=>`<label>${esc(f)} ₹<input class="in ef" data-f="${esc(f)}" inputmode="numeric" value="${F[f]||''}" placeholder="0"></label>`).join('')}</div>
   <div class="acts" style="margin-top:12px"><button class="btn pri" type="button" id="msave">Save month</button>${DB.manualM[st.em]?'<button class="btn" type="button" id="mundo">Use the Excel values again</button>':''}</div><p id="mmsg" style="margin:10px 0 0"></p></section>
   <section class="card"><h2>Days you added in the app</h2>
@@ -1152,7 +1162,7 @@ function listSheet(D){
   rows[r][4].v=Object.values(D).reduce((s2,o)=>s2+o.exp.reduce((a,z)=>a+z.amt,0),0);
   return sheetXml(rows,[12.5,7,10,32,13,15],3,`A3:F${r}`);
 }
-function dataYears(){const D=allDays();return[...new Set([...Object.keys(D).map(k=>k.slice(0,4)),...Object.keys(DB.mf).map(k=>k.slice(0,4)),...Object.keys(DB.biz).map(k=>k.slice(0,4)),...Object.keys(DB.manualM).map(k=>k.slice(0,4))])].sort()}
+function dataYears(){const D=allDays();return[...new Set([...Object.keys(D).map(k=>k.slice(0,4)),...Object.keys(DB.mf).map(k=>k.slice(0,4)),...Object.keys(DB.biz).map(k=>k.slice(0,4)),...Object.keys((DB.dk&&DB.dk.m)||{}).map(k=>k.slice(0,4)),...Object.keys(DB.manualM).map(k=>k.slice(0,4))])].sort()}
 function buildWorkbook(year){
   const all=allDays(),D={};for(const d in all)if(!year||d.startsWith(year))D[d]=all[d];
   const yms=[...new Set(Object.keys(D).map(d=>d.slice(0,7)))].sort();
@@ -1419,7 +1429,7 @@ function render(){
   $('#lockBtn').hidden=!KEYOBJ;$('#clearBtn').hidden=locked||!(hasData()||stored());$('nav.tabs').hidden=locked;$('#moreBtn').hidden=locked;$('#yearbar').hidden=locked||route==='add'||route==='years'||!hasData();
   $('label[for=file]').hidden=locked;$('#demoBtn').hidden=locked||(!DB.demo&&(hasData()||!!KEYOBJ||!!stored()));showSync();
   if(locked)return lockView();
-  const yrs=[...new Set([...Object.keys(DB.months),...Object.keys(DB.manual),...Object.keys(DB.mf),...Object.keys(DB.biz),...Object.keys(DB.manualM)].map(k=>k.slice(0,4)))].sort();
+  const yrs=[...new Set([...Object.keys(DB.months),...Object.keys(DB.manual),...Object.keys(DB.mf),...Object.keys(DB.biz),...Object.keys(DB.manualM),...Object.keys((DB.dk&&DB.dk.m)||{})].map(k=>k.slice(0,4)))].sort();
   if(!st.year||(st.year!=='all'&&!yrs.includes(st.year)))st.year=yrs[yrs.length-1]||'all';
   $('#year').innerHTML=yrs.map(y=>`<option ${y===st.year?'selected':''}>${y}</option>`).join('')+(yrs.length>1?`<option value="all" ${st.year==='all'?'selected':''}>All years</option>`:'');
   $('#src').textContent=DB.demo?'Showing sample data':'';

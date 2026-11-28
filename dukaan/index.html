@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<meta name="app-version" content="2026.11.28.2">
+<title>Dukaan Bill</title>
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f6f5;--card:#fff;--ink:#10201d;--muted:#5d6f6b;--line:#e2e9e7;--mist:#eef4f2;--acc:#0f766e;--acc2:#14b8a6;--accInk:#fff;--soft:#d9f2ee;--red:#c62839;--redBg:#fde8ea;--amber:#a15c00;--amberBg:#fff1d6;--green:#067647;--greenBg:#dcf5e7;--r:18px;color-scheme:light}
+[hidden]{display:none!important}
+*{box-sizing:border-box;font-family:'Manrope',system-ui,sans-serif}
+html,body{margin:0;background:var(--bg);color:var(--ink);-webkit-text-size-adjust:100%}
+body{min-height:100vh;font-size:15px;line-height:1.45}
+h1,h2,h3{margin:0;letter-spacing:-.02em}h2{font-size:19px;font-weight:800}h3{font-size:16px;font-weight:800}
+a{color:var(--acc)}
+button,input,select,textarea{font:inherit;color:inherit}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:#fff;font-weight:700;cursor:pointer;text-decoration:none;color:var(--ink)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:var(--accInk)}
+.btn.red{color:var(--red);border-color:#f3c3c9}.btn.sm{min-height:36px;padding:0 12px;font-size:13.5px;border-radius:10px}
+.btn:disabled{opacity:.5}
+.in,select.in,textarea.in{width:100%;min-height:44px;padding:8px 12px;border:1px solid #cfdcd8;border-radius:12px;background:#fff}
+.in:focus,.btn:focus-visible,a:focus-visible{outline:3px solid rgba(15,118,110,.35);outline-offset:1px}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:700;color:var(--muted)}
+.grid{display:grid;gap:12px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.sp{flex:1}
+.note{color:var(--muted);font-size:13.5px}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:800}
+.p-red{background:var(--redBg);color:var(--red)}.p-amb{background:var(--amberBg);color:var(--amber)}.p-grn{background:var(--greenBg);color:var(--green)}.p-gry{background:var(--mist);color:var(--muted)}
+.red{color:var(--red)}.grn{color:var(--green)}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.kpi span{display:block;font-size:12.5px;font-weight:700;color:var(--muted)}.kpi b{display:block;font-size:22px;font-weight:800;margin-top:2px}
+.hero{background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;border:0}.hero span{color:#d5fbf4}
+.list{display:flex;flex-direction:column}
+.li{display:flex;gap:10px;align-items:center;padding:12px 2px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left}
+.li:last-child{border-bottom:0}.li .t{flex:1;min-width:0}.li .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.li .t small{color:var(--muted);font-size:12.5px}
+.li .a{text-align:right;font-weight:800;white-space:nowrap}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;min-height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:#fff;font-weight:700;font-size:13.5px;cursor:pointer}
+.chip{color:var(--ink)}.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.msg{padding:10px 12px;border-radius:12px;background:var(--soft);font-weight:600;font-size:14px}.msg.err{background:var(--redBg);color:var(--red)}
+.empty{text-align:center;padding:26px 10px;color:var(--muted)}
+/* bill lines */
+.bl{border:1px solid var(--line);border-radius:14px;padding:10px;display:grid;gap:8px}
+.bl .top{display:flex;gap:8px;align-items:flex-start}.bl .top b{flex:1}
+.bl .nums{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.bl .nums label{font-size:11.5px;font-weight:700;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.bl .nums .in{min-height:40px;padding:6px 8px}
+.x{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:800;color:var(--red);flex:none}
+.res{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:6px;max-height:300px;overflow-y:auto}
+.res button{display:flex;justify-content:space-between;gap:10px;padding:11px 12px;border:0;border-bottom:1px solid var(--line);background:#fff;text-align:left;cursor:pointer}
+.res button:hover{background:var(--mist)}.res small{color:var(--muted)}
+.tot{display:grid;grid-template-columns:1fr auto;gap:4px 14px;font-size:14px}.tot .big{font-size:20px;font-weight:800}
+table.t{width:100%;border-collapse:collapse;font-size:13.5px}table.t th,table.t td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left}table.t th{font-size:12px;color:var(--muted)}table.t .r{text-align:right}
+/* invoice */
+.inv{background:#fff;color:#000;border:1px solid var(--line);border-radius:12px;padding:16px;font-size:13px}
+.inv h1{font-size:20px}.inv .hd{display:flex;justify-content:space-between;gap:12px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:8px}
+.inv .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}.inv .tw table{min-width:560px}.inv.th .tw table{min-width:0}@media print{.inv .tw table{min-width:0}}
+.inv table{width:100%;border-collapse:collapse;margin:8px 0}.inv th,.inv td{border-bottom:1px solid #ccc;padding:5px 4px;text-align:left;vertical-align:top}.inv th{font-size:11px;text-transform:uppercase}.inv .r{text-align:right}
+.inv .sum{margin-left:auto;width:min(280px,100%);display:grid;grid-template-columns:1fr auto;gap:3px 12px}.inv .sum .g{font-weight:800;font-size:16px;border-top:2px solid #000;padding-top:4px}
+.inv .ft{text-align:center;margin-top:12px;font-size:12px}
+.inv.th{width:300px;max-width:100%;margin:auto;font-size:12px;padding:10px}.inv.th .hd{flex-direction:column;text-align:center;border-bottom:1px dashed #000}.inv.th table th,.inv.th table td{border-bottom:1px dashed #bbb;padding:3px 2px}.inv.th .sum{width:100%}
+#print{display:none}
+@media print{body>*:not(#print){display:none!important}#print{display:block}#print .inv{border:0;padding:0}}
+/* lock */
+.lock{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.lock .card{width:min(420px,100%);padding:24px}
+.logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#0f766e,#14b8a6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:24px}
+/* layout */
+.top{display:flex;align-items:center;gap:10px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}.brand .logo{width:36px;height:36px;border-radius:11px;font-size:17px}
+nav.nav a{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--muted);font-weight:700;border-radius:12px}
+nav.nav a.on{background:var(--acc);color:#fff}
+nav.nav svg{width:22px;height:22px;flex:none}
+@media (max-width:899px){
+ header.side{position:sticky;top:0;z-index:20;background:rgba(243,246,245,.96);padding:10px 14px;border-bottom:1px solid var(--line)}
+ header.side .top{justify-content:space-between}
+ main{padding:14px 14px 110px}
+ nav.nav{position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:30;height:66px;background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:0 10px 30px rgba(16,32,29,.12);display:flex;justify-content:space-around;align-items:center}
+ nav.nav a{flex-direction:column;gap:2px;font-size:10.5px;width:64px;height:54px;justify-content:center}
+ nav.nav a.fab{width:56px;height:56px;flex:none;margin-top:-28px;border-radius:18px;background:var(--acc);color:#fff;box-shadow:0 10px 22px rgba(15,118,110,.4)}
+ nav.nav a.fab span{display:none}nav.nav a.fab svg{width:28px;height:28px}
+ nav.nav a.dsk{display:none}
+ .hide-m{display:none!important}
+}
+@media (min-width:900px){
+ .shell{display:grid;grid-template-columns:240px minmax(0,1fr);gap:28px;max-width:1280px;margin:0 auto;padding:0 24px}
+ header.side{position:sticky;top:0;height:100vh;padding:24px 0;display:flex;flex-direction:column;gap:18px}
+ nav.nav{display:flex;flex-direction:column;gap:4px}nav.nav a{min-height:46px;padding:0 14px}
+ main{padding:24px 0 48px;min-width:0}
+ .kpis{grid-template-columns:repeat(4,1fr)}
+ .two{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px;align-items:start}
+ .hide-d{display:none!important}
+}
+@media (max-width:420px){.g3{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div id="updBar" class="msg" hidden style="position:fixed;left:12px;right:12px;top:12px;z-index:60;display:flex;gap:10px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.15)"><span class="sp">A new version of Dukaan Bill is ready.</span><button class="btn pri sm" id="updBtn">Update now</button></div>
+<div id="app"></div>
+<div id="print"></div>
+<script>
+'use strict';
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>{const n=parseFloat(String(v??'').replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0};
+const r2=x=>Math.round(x*100)/100;
+const inr=x=>(x<0?'-':'')+'₹'+Math.abs(r2(x)).toLocaleString('en-IN',{maximumFractionDigits:2});
+const pad=n=>String(n).padStart(2,'0');
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const dl=s=>{if(!s)return'';const[y,m,d]=s.split('-');return d+'/'+m+'/'+y.slice(2)};
+const expL=s=>s?s.slice(5,7)+'/'+s.slice(2,4):'';
+const monthsLeft=e=>{if(!e)return 999;const t=new Date();return(+e.slice(0,4)*12+ +e.slice(5,7))-(t.getFullYear()*12+t.getMonth()+1)};
+const phoneWA=p=>{let d=String(p||'').replace(/\D/g,'');if(d.length===10)d='91'+d;return d};
+const ICON={home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',plus:'<path d="M12 5v14M5 12h14"/>',bills:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',stock:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/>',parties:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2 .7 3.2 2.4 3.6 5.2"/>',set:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 9 4.6V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'};
+const ic=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
+
+/* ---------- encrypted storage (AES-256-GCM, key from your PIN with PBKDF2) ---------- */
+const STORE='dukaan.enc.v1',te=new TextEncoder(),td=new TextDecoder();
+let DB=null,KEYOBJ=null,SALT=null,PIN=null;
+const b64=u=>{let s='';for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s)};
+const ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function deriveKey(pin,salt){const base=await crypto.subtle.importKey('raw',te.encode(pin),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:600000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+async function sealWith(key,salt,obj){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,te.encode(JSON.stringify(obj))));return JSON.stringify({app:'dukaan-bill',v:1,salt:b64(salt),iv:b64(iv),ct:b64(ct)})}
+async function openWith(pin,txt){const o=JSON.parse(txt);if(o.app!=='dukaan-bill')throw new Error('not ours');const k=await deriveKey(pin,ub64(o.salt));const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},k,ub64(o.ct));return{db:JSON.parse(td.decode(pt)),key:k,salt:ub64(o.salt)}}
+async function persist(noSync){STK=null;localStorage.setItem(STORE,await sealWith(KEYOBJ,SALT,DB));if(!noSync)syncSoon()}
+async function setPin(pin,noSync){SALT=crypto.getRandomValues(new Uint8Array(16));KEYOBJ=await deriveKey(pin,SALT);PIN=pin;await persist(noSync)}
+const newLink=()=>({key:b64(crypto.getRandomValues(new Uint8Array(32))),t:Date.now()});
+const blank=()=>({v:2,shop:{name:'',addr:'',phone:'',gstin:'',mode:'pharmacy',prefix:'INV-',taxIncl:true,upi:'',footer:'Thank you! Please visit again.',dl:'',t:0},items:[],bills:[],custs:[],pays:[],sups:[],spays:[],ins:[],del:{},seq:1,link:newLink()});
+function upgrade(db){const now=Date.now();
+  for(const k of['items','bills','custs','pays','sups','spays','ins'])db[k]=db[k]||[];if(!db.shop.linkFrom)db.shop.linkFrom=nextYM();db.del=db.del||{};if(!db.link)db.link=newLink();
+  if((db.v||1)<2){const sold={};for(const b of db.bills)for(const l of b.lines){const k=l.itemId+'|'+l.batchId;sold[k]=(sold[k]||0)+l.qty}
+    for(const it of db.items){it.t=it.t||now;for(const bt of it.batches){const q=r2((+bt.qty||0)+(sold[it.id+'|'+bt.id]||0));if(q)db.ins.push({id:uid(),item:it.id,batch:bt.id,qty:q,date:today(),note:'Opening stock',t:now});delete bt.qty}}
+    for(const x of[...db.custs,...db.pays,...db.bills])x.t=x.t||now;db.shop.t=db.shop.t||now;db.v=2}
+  return db}
+/* stock is counted from stock entries minus bills, so two devices never overwrite each other's numbers */
+let STK=null;
+function stk(){if(STK)return STK;const m={};for(const x of DB.ins){const k=x.item+'|'+x.batch;m[k]=(m[k]||0)+x.qty}for(const b of DB.bills)for(const l of b.lines){const k=l.itemId+'|'+l.batchId;m[k]=(m[k]||0)-l.qty}for(const k in m)m[k]=r2(m[k]);return STK=m}
+const qB=(it,b)=>stk()[it.id+'|'+b.id]||0;
+/* monthly nett: sales - (party payments + customer due still unpaid). Customer payments clear their oldest bills first. */
+function nettByMonth(){const M={};const g=ym=>M[ym]||(M[ym]={sales:0,party:0,due:0,nett:0});
+  for(const b of DB.bills)g(b.date.slice(0,7)).sales+=b.total;
+  for(const p of DB.spays)g(p.date.slice(0,7)).party+=p.amt;
+  const byC={};for(const b of DB.bills){const o=b.total-b.paid;if(o<=0.005)continue;if(b.cust)(byC[b.cust.id]||(byC[b.cust.id]=[])).push([b,o]);else g(b.date.slice(0,7)).due+=o}
+  for(const cid in byC){let pool=DB.pays.filter(p=>p.cust===cid).reduce((s,p)=>s+p.amt,0);
+    for(const[b,o]of byC[cid].sort((x,y)=>x[0].date.localeCompare(y[0].date)||x[0].n-y[0].n)){const use=Math.min(pool,o);pool-=use;if(o-use>0.005)g(b.date.slice(0,7)).due+=o-use}}
+  for(const k in M){const x=M[k];x.sales=r2(x.sales);x.party=r2(x.party);x.due=r2(x.due);x.nett=r2(x.sales-x.party-x.due)}return M}
+const nextYM=()=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+1);return d.getFullYear()+'-'+pad(d.getMonth()+1)};
+const ymL=ym=>new Date(ym+'-01T00:00').toLocaleDateString('en-IN',{month:'short',year:'numeric'});
+
+
+/* ---------- sync phone and laptop (secret GitHub gist, same one Money Diary uses) ---------- */
+const GH='https://api.github.com',SF='dukaan-bill.sync.json',LF='dukaan-link.json',MDF='money-diary.sync.json';
+const syncSt={state:'off',msg:'',at:0,needPin:false};let syncing=false,syncAgain=false,syncTimer=null;
+const syncOn=()=>!!(DB&&DB.sync&&DB.sync.token&&KEYOBJ);
+async function gh(path,opt={},tok){let r;
+  try{r=await fetch(GH+path,{...opt,cache:'no-store',headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+(tok||DB.sync.token),'X-GitHub-Api-Version':'2022-11-28',...(opt.body?{'Content-Type':'application/json'}:{})}})}catch(e){throw new Error('offline')}
+  if(r.status===401||r.status===403)throw new Error('The GitHub token was not accepted or has expired. Paste a new one below.');
+  if(r.status===404)throw new Error('notfound');if(!r.ok)throw new Error('GitHub answered with error '+r.status+'. Try again later.');return r.status===204?null:r.json()}
+const shareable=db=>{const o=Object.assign({},db);delete o.sync;return o};
+async function fileText(f){if(!f)return null;if(f.truncated){const r=await fetch(f.raw_url,{cache:'no-store'});return r.text()}return f.content}
+async function readRemote(tok,id){const g=await gh('/gists/'+id,{},tok);return fileText(g.files&&g.files[SF])}
+async function findGist(tok){let md=null;for(let p=1;p<=10;p++){const L=await gh('/gists?per_page=100&page='+p,{},tok);
+  const g=L.find(x=>x.files&&x.files[SF]);if(g)return g.id;if(!md){const m=L.find(x=>x.files&&x.files[MDF]);if(m)md=m.id}if(L.length<100)break}return md}
+async function openRemote(txt,pin){const o=JSON.parse(txt);const same=SALT&&o.salt===b64(SALT)&&!pin;const key=same?KEYOBJ:await deriveKey(pin||PIN,ub64(o.salt));
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},key,ub64(o.ct));return{db:JSON.parse(td.decode(pt)),key,salt:ub64(o.salt)}}
+const COLS=['items','bills','custs','pays','sups','spays','ins'];
+function mergeDB(L,R){L=upgrade(L);R=upgrade(R);const o=Object.assign(blank(),L);o.del={...R.del};for(const k in L.del)o.del[k]=Math.max(L.del[k],o.del[k]||0);
+  for(const c of COLS){const m=new Map();for(const x of[...L[c],...R[c]]){const y=m.get(x.id);if(!y||(x.t||0)>(y.t||0))m.set(x.id,x)}o[c]=[...m.values()].filter(x=>!(o.del[x.id]>=(x.t||0)))}
+  o.shop=(R.shop.t||0)>(L.shop.t||0)?R.shop:L.shop;o.link=(R.link.t||0)<(L.link.t||0)?R.link:L.link;
+  o.seq=Math.max(L.seq||1,R.seq||1,...o.bills.map(b=>b.n+1));
+  // two devices billing at the same moment can pick the same number: the later bill gets the next free number
+  {const used=new Set();let nx=o.seq;for(const b of[...o.bills].sort((x,y)=>(x.t||0)-(y.t||0)||String(x.id).localeCompare(String(y.id)))){if(used.has(b.n)){b.n=nx++;b.no=(o.shop.prefix||'')+b.n;b.renum=1}used.add(b.n)}o.seq=nx}
+  // the same customer typed on two devices becomes one account
+  const seen={};for(const c of[...o.custs].sort((a,b)=>(a.t||0)-(b.t||0))){const k=c.name.trim().toLowerCase();const f=seen[k];
+    if(f&&(!c.phone||!f.phone||c.phone===f.phone)){for(const b of o.bills)if(b.cust&&b.cust.id===c.id)b.cust.id=f.id;for(const p of o.pays)if(p.cust===c.id)p.cust=f.id;if(!f.phone&&c.phone)f.phone=c.phone;o.custs=o.custs.filter(x=>x!==c)}else seen[k]=c}
+  return o}
+async function linkFile(){const key=await crypto.subtle.importKey('raw',ub64(DB.link.key),'AES-GCM',false,['encrypt']);const iv=crypto.getRandomValues(new Uint8Array(12));const at=Date.now();
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,te.encode(JSON.stringify({m:Object.fromEntries(Object.entries(nettByMonth()).filter(([k])=>k>=(DB.shop.linkFrom||'0000'))),from:DB.shop.linkFrom,at,shop:DB.shop.name}))));return JSON.stringify({app:'dukaan-link',v:1,iv:b64(iv),ct:b64(ct),at})}
+const sig=db=>JSON.stringify(COLS.map(c=>db[c].length))+JSON.stringify(db.shop)+Object.keys(db.del).length+db.items.map(i=>i.t).join();
+function syncSoon(){if(!syncOn())return;clearTimeout(syncTimer);syncTimer=setTimeout(syncNow,1500)}
+async function syncNow(){if(!syncOn())return;if(syncing){syncAgain=true;return}syncing=true;syncSt.state='busy';showSync();
+  try{const before=sig(DB);let R=null;
+    if(DB.sync.gistId){try{R=await readRemote(DB.sync.token,DB.sync.gistId)}catch(e){if(e.message!=='notfound')throw e;DB.sync.gistId=null}}
+    if(R){let got;try{got=await openRemote(R)}catch(e){syncSt.needPin=true;throw new Error('The PIN was changed on your other device. Enter that new PIN in Settings to keep syncing.')}
+      if(b64(got.salt)!==b64(SALT)){SALT=got.salt;KEYOBJ=got.key}DB=Object.assign(mergeDB(DB,got.db),{sync:DB.sync});STK=null}
+    const files={[SF]:{content:await sealWith(KEYOBJ,SALT,shareable(DB))},[LF]:{content:await linkFile()}};
+    if(DB.sync.gistId)await gh('/gists/'+DB.sync.gistId,{method:'PATCH',body:JSON.stringify({files})});
+    else{const g=await gh('/gists',{method:'POST',body:JSON.stringify({description:'Dukaan Bill encrypted sync (do not edit)',public:false,files})});DB.sync.gistId=g.id}
+    await persist(true);try{localStorage.setItem('dukaan.link',DB.link.key)}catch(e){}
+    syncSt.state='ok';syncSt.at=Date.now();syncSt.msg='';syncSt.needPin=false;if(sig(DB)!==before&&!/^#(new|item)/.test(location.hash))render();else showSync()}
+  catch(e){syncSt.state=e.message==='offline'?'offline':'err';syncSt.msg=e.message==='offline'?'No internet. Your work is saved on this device and will sync later.':e.message;showSync();if(syncSt.needPin&&location.hash==='#settings')render()}
+  finally{syncing=false;if(syncAgain){syncAgain=false;syncSoon()}}}
+async function connectSync(tok){tok=tok.trim();if(!tok)throw new Error('Paste your GitHub token first.');
+  const id=await findGist(tok);DB.sync={token:tok,gistId:id};
+  if(id){const R=await readRemote(tok,id);if(R){let got;try{got=await openRemote(R,PIN)}catch(e){DB.sync=null;throw new Error('Your other device uses a different PIN. Use the same PIN on both devices, then connect again.')}
+    SALT=got.salt;KEYOBJ=got.key;DB=Object.assign(mergeDB(DB,got.db),{sync:{token:tok,gistId:id}});STK=null}}
+  await persist(true);await syncNow()}
+async function enterNewPin(pin){const R=await readRemote(DB.sync.token,DB.sync.gistId);const got=await openRemote(R,pin);SALT=got.salt;KEYOBJ=got.key;PIN=pin;DB=Object.assign(mergeDB(DB,got.db),{sync:DB.sync});STK=null;syncSt.needPin=false;await persist(true);await syncNow();render()}
+const ago=t=>{const x=Math.round((Date.now()-t)/1000);return x<60?'just now':x<3600?Math.round(x/60)+' min ago':Math.round(x/3600)+' h ago'};
+function showSync(){const el=$('#syncDot');if(!el)return;const t=syncOn()?{ok:'✓ Synced',busy:'Syncing…',offline:'Offline',err:'⚠ Sync problem',off:''}[syncSt.state]:'';el.textContent=t;el.hidden=!t;el.className='pill '+(syncSt.state==='ok'?'p-grn':syncSt.state==='err'?'p-red':'p-gry');
+  const box=$('#syncStatus');if(box)box.innerHTML=!syncOn()?'':syncSt.state==='ok'?`<span class="grn">✓ Synced ${ago(syncSt.at)}</span>`:syncSt.state==='busy'?'Syncing…':`<span class="red">${esc(syncSt.msg||'Not synced yet')}</span>`}
+setInterval(()=>{if(DB&&!document.hidden)syncNow()},5*60e3);
+document.addEventListener('visibilitychange',()=>{if(DB&&!document.hidden)syncNow()});
+
+/* ---------- state ---------- */
+const st={draft:null,q:'',filter:'all',bq:'',bf:'month',pq:''};
+const newDraft=()=>({date:today(),cust:{name:'',phone:''},lines:[],paid:'',mode:'Cash'});
+const isPh=()=>DB.shop.mode==='pharmacy';
+const itemById=id=>DB.items.find(i=>i.id===id);
+const custById=id=>DB.custs.find(c=>c.id===id);
+const supById=id=>DB.sups.find(c=>c.id===id);
+const gone=(arr,id)=>{DB[arr]=DB[arr].filter(x=>x.id!==id);DB.del[id]=Date.now()};
+const qtyOf=it=>r2(it.batches.reduce((s,b)=>s+qB(it,b),0));
+function goodBatches(it){return it.batches.filter(b=>qB(it,b)>0).sort((a,b)=>(monthsLeft(a.exp)<0)-(monthsLeft(b.exp)<0)||String(a.exp||'9999').localeCompare(String(b.exp||'9999')))}
+function lineCalc(l){const g=+l.gst||0,gross=(+l.qty||0)*(+l.rate||0),d=gross*(+l.disc||0)/100;let amt=gross-d,taxable,tax;
+  if(DB.shop.taxIncl){taxable=amt/(1+g/100);tax=amt-taxable}else{taxable=amt;tax=amt*g/100;amt=taxable+tax}return{gross,d,taxable,tax,amt}}
+function billCalc(lines){const t={taxable:0,tax:0,amt:0,disc:0,byRate:{}};for(const l of lines){const c=lineCalc(l);t.taxable+=c.taxable;t.tax+=c.tax;t.amt+=c.amt;t.disc+=c.d;
+  const k=+l.gst||0;const r=t.byRate[k]||(t.byRate[k]={taxable:0,tax:0});r.taxable+=c.taxable;r.tax+=c.tax}t.total=Math.round(t.amt);t.round=t.total-t.amt;return t}
+function dueOf(cid){let d=0;for(const b of DB.bills)if(b.cust&&b.cust.id===cid)d+=b.total-b.paid;for(const p of DB.pays)if(p.cust===cid)d-=p.amt;return r2(d)}
+function flash(t,err){const m=$('#flash');if(!m)return;m.className='msg'+(err?' err':'');m.innerHTML=t;m.hidden=false;clearTimeout(flash.t);flash.t=setTimeout(()=>{m.hidden=true},6000)}
+
+/* ---------- lock / setup ---------- */
+const FAIL='dukaan.fail';
+function failInfo(){try{return JSON.parse(localStorage.getItem(FAIL))||{n:0,until:0}}catch(e){return{n:0,until:0}}}
+function viewLock(){const has=!!localStorage.getItem(STORE);
+  $('#app').innerHTML=`<div class="lock"><form class="card stack" id="lf" autocomplete="off">
+   <div class="row"><div class="logo">₹</div><div><h2>Dukaan Bill</h2><div class="note">${has?'Enter your PIN to open your shop data.':'Set up your shop. Your data stays on this device, locked with your PIN.'}</div></div></div>
+   ${has?'':`<label class="f">Shop name<input class="in" id="sn" required placeholder="e.g. Maa Tara Medical"></label>
+   <label class="f">Type of shop<select class="in" id="sm"><option value="pharmacy">Pharmacy / medical store (batch + expiry)</option><option value="general">General shop</option></select></label>`}
+   <label class="f">${has?'PIN':'Choose a PIN (4 to 12 digits)'}<input class="in" id="p1" type="password" inputmode="numeric" pattern="[0-9]{4,12}" required autofocus></label>
+   ${has?'':'<label class="f">Type the PIN again<input class="in" id="p2" type="password" inputmode="numeric" required></label>'}
+   <button class="btn pri" id="lgo">${has?'Unlock':'Create my shop'}</button><p id="lm" class="note" style="margin:0;min-height:1.4em"></p>
+   ${has?'':'<p class="note" style="margin:0">Remember this PIN. Nobody, including the app maker, can recover data without it. Keep a backup file from Settings.</p>'}</form></div>`;
+  $('#lf').onsubmit=async e=>{e.preventDefault();const p1=$('#p1').value.trim(),lm=$('#lm');
+    if(!/^\d{4,12}$/.test(p1)){lm.textContent='The PIN must be 4 to 12 digits.';return}
+    if(!has){if(p1!==$('#p2').value.trim()){lm.textContent='The two PINs do not match.';return}
+      $('#lgo').disabled=true;lm.textContent='Setting up…';DB=upgrade(blank());DB.shop.name=$('#sn').value.trim();DB.shop.mode=$('#sm').value;await setPin(p1);location.hash='#settings';boot();return}
+    const f=failInfo();if(f.until>Date.now()){lm.textContent='Too many wrong PINs. Try again in '+Math.ceil((f.until-Date.now())/1000)+' seconds.';return}
+    $('#lgo').disabled=true;lm.textContent='Unlocking…';
+    try{const o=await openWith(p1,localStorage.getItem(STORE));DB=upgrade(o.db);KEYOBJ=o.key;SALT=o.salt;PIN=p1;localStorage.removeItem(FAIL);boot()}
+    catch(err){f.n++;if(f.n>=5)f.until=Date.now()+30000*2**(f.n-5);localStorage.setItem(FAIL,JSON.stringify(f));$('#lgo').disabled=false;lm.textContent='Wrong PIN.'+(f.n>=5?' Locked for a while.':'')}};
+}
+let idleT;function idle(){clearTimeout(idleT);idleT=setTimeout(lockNow,10*60*1000)}
+function lockNow(){clearTimeout(syncTimer);DB=null;KEYOBJ=null;PIN=null;st.draft=null;viewLock()}
+['click','keydown','touchstart'].forEach(ev=>addEventListener(ev,()=>{if(DB)idle()},{passive:true}));
+
+/* ---------- shell ---------- */
+const NAV=[['home','Home','home'],['bills','Bills','bills'],['new','New bill','plus','fab'],['stock','Stock','stock'],['parties','Parties','parties'],['settings','Settings','set','dsk']];
+function boot(){
+  $('#app').innerHTML=`<div class="shell"><header class="side"><div class="top"><div class="brand"><div class="logo">₹</div><span id="shopName"></span><span id="syncDot" class="pill" hidden></span></div>
+   <a class="btn sm hide-d" href="#settings" aria-label="Settings">${ic('set').replace('<svg','<svg width="20" height="20"')}</a></div>
+   <nav class="nav" aria-label="Pages">${NAV.map(([r,t,i,c])=>`<a href="#${r}" data-r="${r}" class="${c||''}">${ic(i)}<span>${t}</span></a>`).join('')}</nav>
+   <button class="btn hide-m" id="lockB" style="margin-top:auto">${ic('lock').replace('<svg','<svg width="18" height="18"')} Lock</button></header>
+   <main><div id="flash" class="msg" hidden style="margin-bottom:12px"></div><div id="view" class="stack"></div></main></div>`;
+  $('#lockB').onclick=lockNow;idle();render();try{localStorage.setItem('dukaan.link',DB.link.key)}catch(e){}syncNow();
+}
+addEventListener('hashchange',()=>{if(DB)render()});
+function route(){const h=location.hash.slice(1)||'home';const[r,a]=h.split('/');return{r,a}}
+function render(){const{r,a}=route();$('#shopName').textContent=DB.shop.name||'Dukaan Bill';
+  const nr=r==='inv'?'bills':r==='party'||r==='sup'?'parties':r==='item'?'stock':r;$$('nav.nav a').forEach(x=>x.classList.toggle('on',x.dataset.r===nr));
+  ({home:viewHome,new:viewNew,bills:viewBills,inv:()=>viewInv(a),stock:viewStock,item:()=>viewItem(a),parties:()=>viewParties(a),party:()=>viewParty(a),sup:()=>viewSup(a),settings:viewSettings}[r]||viewHome)();scrollTo(0,0)}
+
+/* ---------- home ---------- */
+function alerts(){const ex=[],soon=[],low=[];
+  for(const it of DB.items){for(const b of it.batches){if(!(qB(it,b)>0)||!b.exp)continue;const m=monthsLeft(b.exp);if(m<0)ex.push([it,b]);else if(m<=3)soon.push([it,b])}
+    if(it.low&&qtyOf(it)<=it.low)low.push(it)}
+  soon.sort((x,y)=>x[1].exp.localeCompare(y[1].exp));return{ex,soon,low}}
+function viewHome(){const t=today(),ym=t.slice(0,7);let sT=0,cashT=0,nT=0;
+  for(const b of DB.bills){if(b.date===t){sT+=b.total;nT++;cashT+=b.paid}}
+  for(const p of DB.pays)if(p.date===t)cashT+=p.amt;
+  const udh=DB.custs.reduce((s,c)=>s+Math.max(0,dueOf(c.id)),0);const A=alerts();
+  const NM=nettByMonth(),months=Object.keys(NM).sort().reverse().slice(0,12);
+  const recent=[...DB.bills].sort((a,b)=>b.n-a.n).slice(0,6);
+  $('#view').innerHTML=`<div class="kpis"><div class="kpi hero"><span>Today's sales · ${nT} bill${nT===1?'':'s'}</span><b>${inr(sT)}</b></div>
+   <div class="kpi"><span>Money received today</span><b class="grn">${inr(cashT)}</b></div><div class="kpi"><span>This month's nett</span><b>${inr((NM[ym]||{nett:0}).nett)}</b></div>
+   <div class="kpi"><a href="#parties" style="text-decoration:none;color:inherit"><span>Udhaar to collect</span><b class="red">${inr(udh)}</b></a></div></div>
+   <a class="btn pri" href="#new" style="min-height:52px;font-size:16px">${ic('plus').replace('<svg','<svg width="22" height="22"')} New bill</a>
+   <section class="card stack"><div class="row"><h2 class="sp">Nett amount by month</h2><a href="#parties/sup">Pay a party</a></div>
+    <p class="note" style="margin:0">Nett = sales − (party payments + customer due still unpaid). When a customer pays, their oldest bills are cleared first and that month's nett goes up. ${DB.sync&&DB.sync.token?'From '+ymL(DB.shop.linkFrom)+', this nett goes to Money Diary as your Business amount.':'Turn on sync in Settings to send this nett to Money Diary as your Business amount.'}</p>
+    ${months.length?`<div style="overflow-x:auto"><table class="t"><thead><tr><th>Month</th><th class="r">Sales</th><th class="r">Party paid</th><th class="r">Due pending</th><th class="r">Nett</th></tr></thead><tbody>${months.map(k=>{const x=NM[k];return`<tr><td>${ymL(k)}</td><td class="r">${inr(x.sales)}</td><td class="r">${x.party?'−'+inr(x.party):'₹0'}</td><td class="r">${x.due?`<span class="red">−${inr(x.due)}</span>`:'₹0'}</td><td class="r"><b>${inr(x.nett)}</b></td></tr>`}).join('')}</tbody></table></div>`:'<p class="empty">Nett shows here once you make bills or pay a party.</p>'}</section>
+   <div class="two"><section class="card"><div class="row"><h2 class="sp">Alerts</h2></div>
+    ${!A.ex.length&&!A.soon.length&&!A.low.length?`<p class="empty">${DB.items.length?'All good. No expired, expiring or low stock items.':'Add your items in <a href="#stock">Stock</a> to see expiry and low stock alerts here.'}</p>`:''}
+    ${A.ex.length?`<h3 style="margin-top:10px" class="red">Expired · ${A.ex.length}</h3><div class="list">${A.ex.map(([it,b])=>`<a class="li" href="#item/${it.id}"><span class="t"><b>${esc(it.name)}</b><small>Batch ${esc(b.b||'-')} · ${qB(it,b)} left</small></span><span class="pill p-red">Exp ${expL(b.exp)}</span></a>`).join('')}</div>`:''}
+    ${A.soon.length?`<h3 style="margin-top:10px">Expiring within 3 months · ${A.soon.length}</h3><div class="list">${A.soon.slice(0,12).map(([it,b])=>`<a class="li" href="#item/${it.id}"><span class="t"><b>${esc(it.name)}</b><small>Batch ${esc(b.b||'-')} · ${qB(it,b)} left</small></span><span class="pill p-amb">Exp ${expL(b.exp)}</span></a>`).join('')}</div>`:''}
+    ${A.low.length?`<h3 style="margin-top:10px">Low stock · ${A.low.length}</h3><div class="list">${A.low.map(it=>`<a class="li" href="#item/${it.id}"><span class="t"><b>${esc(it.name)}</b><small>Alert at ${it.low}</small></span><span class="pill p-amb">${qtyOf(it)} left</span></a>`).join('')}</div>`:''}
+   </section><section class="card"><div class="row"><h2 class="sp">Recent bills</h2><a href="#bills">All bills</a></div>
+    ${recent.length?`<div class="list">${recent.map(billLi).join('')}</div>`:'<p class="empty">No bills yet. Tap New bill to make your first one.</p>'}</section></div>`}
+function billLi(b){const bal=b.total-b.paid;return`<a class="li" href="#inv/${b.id}"><span class="t"><b>${esc(b.no)} · ${esc(b.cust?.name||'Walk-in customer')}</b><small>${dl(b.date)} · ${b.lines.length} item${b.lines.length===1?'':'s'} · ${esc(b.mode)}</small></span><span class="a">${inr(b.total)}${bal>0.5?`<br><span class="pill p-red">Due ${inr(bal)}</span>`:''}</span></a>`}
+
+/* ---------- new bill ---------- */
+function viewNew(){if(!st.draft)st.draft=newDraft();const D=st.draft,ph=isPh();
+  $('#view').innerHTML=`<div class="two"><section class="card stack"><div class="row"><h2 class="sp">New bill</h2><span class="note">No. ${esc(DB.shop.prefix+DB.seq)}</span></div>
+   <div class="grid g2"><label class="f">Customer name<input class="in" id="cn" list="custL" value="${esc(D.cust.name)}" placeholder="Walk-in customer"></label>
+   <label class="f">Mobile<input class="in" id="cp" inputmode="tel" value="${esc(D.cust.phone)}" placeholder="10 digit number"></label></div>
+   <datalist id="custL">${DB.custs.map(c=>`<option value="${esc(c.name)}">${esc(c.phone||'')}</option>`).join('')}</datalist>
+   <div><label class="f">Add item<input class="in" id="iq" type="search" placeholder="${ph?'Search medicine or salt name':'Search item name'}" autocomplete="off"></label><div id="ires"></div></div>
+   <div id="lines" class="stack"></div></section>
+   <section class="card stack" id="payBox"></section></div>`;
+  const cn=$('#cn'),cp=$('#cp');
+  cn.oninput=()=>{D.cust.name=cn.value;const c=DB.custs.find(x=>x.name.toLowerCase()===cn.value.trim().toLowerCase());if(c&&!cp.value){cp.value=c.phone||'';D.cust.phone=cp.value}drawPay()};
+  cp.oninput=()=>{D.cust.phone=cp.value};
+  const iq=$('#iq');iq.oninput=()=>drawRes(iq.value);iq.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const f=$('#ires button');if(f)f.click()}};
+  drawLines();drawPay();
+}
+function searchItems(q){q=q.trim().toLowerCase();if(!q)return[];return DB.items.filter(i=>i.name.toLowerCase().includes(q)||(i.salt||'').toLowerCase().includes(q)).sort((a,b)=>a.name.toLowerCase().indexOf(q)-b.name.toLowerCase().indexOf(q)||a.name.localeCompare(b.name)).slice(0,12)}
+function drawRes(q){const R=searchItems(q),el=$('#ires');
+  if(!q.trim()){el.innerHTML='';return}
+  el.innerHTML=`<div class="res">${R.map(i=>{const s=qtyOf(i);return`<button type="button" data-add="${i.id}"><span><b>${esc(i.name)}</b>${i.salt?`<br><small>${esc(i.salt)}</small>`:''}</span><span style="text-align:right">${inr(i.price)}<br><small class="${s>0?'':'red'}">${s>0?s+' in stock':'Out of stock'}</small></span></button>`}).join('')}
+   <button type="button" data-newitem="1"><span><b>+ Add “${esc(q.trim())}” as a new item</b></span></button></div>`;
+  el.onclick=e=>{const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.add){addLine(itemById(b.dataset.add));$('#iq').value='';el.innerHTML='';$('#iq').focus()}
+    if(b.dataset.newitem){st.newName=q.trim();location.hash='#item/new'}}}
+function addLine(it){const D=st.draft;const ex=D.lines.find(l=>l.itemId===it.id);
+  if(ex&&!isPh()){ex.qty=(+ex.qty||0)+1;drawLines();drawPay();return}
+  const gb=goodBatches(it)[0]||it.batches[0];
+  D.lines.push({itemId:it.id,name:it.name,hsn:it.hsn||'',batchId:gb?gb.id:'',batch:gb?gb.b||'':'',exp:gb?gb.exp||'':'',qty:1,rate:it.price,disc:0,gst:it.gst||0,unit:it.unit||''});drawLines();drawPay()}
+function drawLines(){const D=st.draft,ph=isPh(),el=$('#lines');
+  if(!D.lines.length){el.innerHTML='<p class="empty" style="padding:12px">Search above and tap an item to add it to the bill.</p>';return}
+  el.innerHTML=D.lines.map((l,i)=>{const it=itemById(l.itemId);const c=lineCalc(l);const bt=it?it.batches:[];const b=bt.find(x=>x.id===l.batchId);const left=b?qB(it,b):it?qtyOf(it):0;const warn=l.qty>left;const m=monthsLeft(l.exp);
+   return`<div class="bl" data-i="${i}"><div class="top"><b>${esc(l.name)}</b><span style="font-weight:800">${inr(c.amt)}</span><button type="button" class="x" data-del="${i}" aria-label="Remove ${esc(l.name)}">✕</button></div>
+   ${ph&&bt.length?`<select class="in" data-k="batchId" style="min-height:38px">${bt.map(x=>`<option value="${x.id}" ${x.id===l.batchId?'selected':''}>Batch ${esc(x.b||'-')} · Exp ${expL(x.exp)||'-'} · ${qB(it,x)} left${monthsLeft(x.exp)<0?' · EXPIRED':''}</option>`).join('')}</select>`:''}
+   <div class="nums"><label>Qty<input class="in" data-k="qty" inputmode="decimal" value="${l.qty}"></label><label>Rate ₹<input class="in" data-k="rate" inputmode="decimal" value="${l.rate}"></label>
+   <label>Disc %<input class="in" data-k="disc" inputmode="decimal" value="${l.disc||''}" placeholder="0"></label><label>GST %<select class="in" data-k="gst">${[0,5,12,18,28].map(g=>`<option ${g==l.gst?'selected':''}>${g}</option>`).join('')}</select></label></div>
+   ${warn?`<span class="pill p-amb">Only ${left} in stock</span>`:''}${ph&&l.exp&&m<0?' <span class="pill p-red">This batch is expired</span>':''}</div>`}).join('');
+  el.oninput=el.onchange=e=>{const k=e.target.dataset.k;if(!k)return;if(e.type==='change'&&e.target.tagName!=='SELECT')return;const i=+e.target.closest('.bl').dataset.i,l=D.lines[i];
+    if(k==='batchId'){const it=itemById(l.itemId),b=it.batches.find(x=>x.id===e.target.value);l.batchId=b.id;l.batch=b.b||'';l.exp=b.exp||'';drawLines();drawPay();return}
+    l[k]=k==='gst'?+e.target.value:e.target.value;const c=lineCalc({...l,qty:num(l.qty),rate:num(l.rate),disc:num(l.disc)});e.target.closest('.bl').querySelector('.top span').textContent=inr(c.amt);drawPay()};
+  el.onclick=e=>{const d=e.target.dataset.del;if(d!==undefined){D.lines.splice(+d,1);drawLines();drawPay()}}}
+function cleanLines(){return st.draft.lines.map(l=>({...l,qty:num(l.qty),rate:num(l.rate),disc:num(l.disc)})).filter(l=>l.qty>0)}
+function drawPay(){const D=st.draft,L=cleanLines(),t=billCalc(L),el=$('#payBox');if(!el)return;
+  const paid=D.paid===''?t.total:num(D.paid);const bal=t.total-paid;
+  el.innerHTML=`<h2>Payment</h2><div class="tot"><span>Items</span><span>${L.length}</span>${t.disc?`<span>Discount</span><span>-${inr(t.disc)}</span>`:''}
+   <span>Taxable value</span><span>${inr(t.taxable)}</span><span>CGST</span><span>${inr(t.tax/2)}</span><span>SGST</span><span>${inr(t.tax/2)}</span>
+   ${Math.abs(t.round)>=0.005?`<span>Round off</span><span>${t.round>0?'+':''}${r2(t.round)}</span>`:''}<span class="big">Total</span><span class="big">${inr(t.total)}</span></div>
+   <div class="chips" role="group" aria-label="Payment mode">${['Cash','UPI','Card','Udhaar'].map(m=>`<button type="button" class="chip ${D.mode===m?'on':''}" data-mode="${m}">${m}</button>`).join('')}</div>
+   <label class="f">Amount received ₹<input class="in" id="pd" inputmode="decimal" value="${D.paid===''?'':esc(D.paid)}" placeholder="${t.total}"></label>
+   <p style="margin:0" id="balL">${bal>0.5?`<span class="pill p-red">Udhaar ${inr(bal)}</span> will be added to ${esc(D.cust.name||'the customer')}'s account`:bal<-0.5?`Return change: <b>${inr(-bal)}</b>`:'<span class="pill p-grn">Fully paid</span>'}</p>
+   <label class="f">Bill date<input class="in" id="bd" type="date" value="${D.date}"></label>
+   <button class="btn pri" id="saveB" style="min-height:50px;font-size:16px" ${L.length?'':'disabled'}>Save bill</button><p id="bm" class="note" style="margin:0"></p>`;
+  el.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{D.mode=b.dataset.mode;if(D.mode==='Udhaar')D.paid='0';else if(D.paid==='0')D.paid='';drawPay()});
+  const pd=$('#pd');pd.oninput=()=>{D.paid=pd.value;const p=pd.value===''?t.total:num(pd.value),b=t.total-p;$('#balL').innerHTML=b>0.5?`<span class="pill p-red">Udhaar ${inr(b)}</span> will be added to ${esc(D.cust.name||'the customer')}'s account`:b<-0.5?`Return change: <b>${inr(-b)}</b>`:'<span class="pill p-grn">Fully paid</span>'};
+  $('#bd').onchange=e=>{D.date=e.target.value||today()};
+  $('#saveB').onclick=saveBill}
+async function saveBill(){const D=st.draft,L=cleanLines(),t=billCalc(L),bm=$('#bm');if(!L.length)return;
+  let paid=D.paid===''?t.total:num(D.paid);paid=Math.min(paid,t.total);const name=D.cust.name.trim(),phone=D.cust.phone.trim();
+  if(t.total-paid>0.5&&!name){bm.className='red';bm.textContent='Type the customer name to keep udhaar on their account.';$('#cn').focus();return}
+  let cust=null;if(name){cust=DB.custs.find(c=>c.name.toLowerCase()===name.toLowerCase()&&(!phone||!c.phone||c.phone===phone));
+    if(!cust){cust={id:uid(),name,phone,addr:'',t:Date.now()};DB.custs.push(cust)}else if(phone&&!cust.phone){cust.phone=phone;cust.t=Date.now()}}
+  for(const l of L){const it=itemById(l.itemId);if(!it)continue;if(!it.batches.find(x=>x.id===l.batchId)){const b={id:uid(),b:'',exp:''};it.batches.push(b);it.t=Date.now();l.batchId=b.id}}
+  const bill={id:uid(),n:DB.seq,no:DB.shop.prefix+DB.seq,date:D.date||today(),cust:cust?{id:cust.id,name:cust.name,phone:cust.phone}:null,lines:L,total:t.total,paid:r2(paid),mode:t.total-paid>0.5&&paid<=0?'Udhaar':D.mode,t:Date.now()};
+  DB.bills.push(bill);DB.seq++;await persist();st.draft=null;location.hash='#inv/'+bill.id;setTimeout(()=>flash('✓ Bill '+esc(bill.no)+' saved. Stock is updated.'),50)}
+
+/* ---------- invoice ---------- */
+function invHTML(b,thermal){const S=DB.shop,t=billCalc(b.lines),ph=isPh();const bal=b.total-b.paid;
+  const rates=Object.entries(t.byRate).filter(([g])=>+g>0);
+  return`<div class="inv ${thermal?'th':''}"><div class="hd"><div><h1>${esc(S.name||'My Shop')}</h1><div>${esc(S.addr)}</div>${S.phone?`<div>Ph: ${esc(S.phone)}</div>`:''}${S.gstin?`<div>GSTIN: ${esc(S.gstin)}</div>`:''}${ph&&S.dl?`<div>DL No: ${esc(S.dl)}</div>`:''}</div>
+   <div ${thermal?'':'style="text-align:right"'}><b>${S.gstin?'TAX INVOICE':'BILL'}</b><div>No: ${esc(b.no)}</div><div>Date: ${dl(b.date)}</div>${b.cust?`<div>To: ${esc(b.cust.name)}${b.cust.phone?' · '+esc(b.cust.phone):''}</div>`:''}</div></div>
+   <div class="tw"><table><thead><tr>${thermal?'<th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amt</th>':`<th>#</th><th>Item</th>${ph?'<th>Batch</th><th>Exp</th>':''}<th>HSN</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Disc</th><th class="r">GST</th><th class="r">Amount</th>`}</tr></thead><tbody>
+   ${b.lines.map((l,i)=>{const c=lineCalc(l);return thermal?`<tr><td>${esc(l.name)}${ph&&l.batch?`<br><small>B:${esc(l.batch)} E:${expL(l.exp)}</small>`:''}</td><td class="r">${l.qty}</td><td class="r">${r2(l.rate)}</td><td class="r">${r2(c.amt).toFixed(2)}</td></tr>`
+     :`<tr><td>${i+1}</td><td>${esc(l.name)}</td>${ph?`<td>${esc(l.batch||'')}</td><td>${expL(l.exp)}</td>`:''}<td>${esc(l.hsn||'')}</td><td class="r">${l.qty}</td><td class="r">${r2(l.rate).toFixed(2)}</td><td class="r">${l.disc?l.disc+'%':''}</td><td class="r">${l.gst}%</td><td class="r">${r2(c.amt).toFixed(2)}</td></tr>`}).join('')}</tbody></table></div>
+   <div class="sum">${t.disc?`<span>Discount</span><span>-${r2(t.disc).toFixed(2)}</span>`:''}<span>Taxable value</span><span>${r2(t.taxable).toFixed(2)}</span><span>CGST</span><span>${r2(t.tax/2).toFixed(2)}</span><span>SGST</span><span>${r2(t.tax/2).toFixed(2)}</span>
+   ${Math.abs(t.round)>=0.005?`<span>Round off</span><span>${r2(t.round).toFixed(2)}</span>`:''}<span class="g">Total</span><span class="g">₹${b.total.toLocaleString('en-IN')}</span>
+   <span>Paid (${esc(b.mode)})</span><span>${r2(b.paid).toFixed(2)}</span>${bal>0.5?`<span><b>Balance due</b></span><span><b>${r2(bal).toFixed(2)}</b></span>`:''}</div>
+   ${rates.length&&!thermal?`<table style="width:auto;margin-top:10px"><thead><tr><th>GST rate</th><th class="r">Taxable</th><th class="r">CGST</th><th class="r">SGST</th></tr></thead><tbody>${rates.map(([g,r])=>`<tr><td>${g}%</td><td class="r">${r2(r.taxable).toFixed(2)}</td><td class="r">${r2(r.tax/2).toFixed(2)}</td><td class="r">${r2(r.tax/2).toFixed(2)}</td></tr>`).join('')}</tbody></table>`:''}
+   <div class="ft">${esc(S.footer||'')}${S.upi&&bal>0.5?`<br>Pay by UPI: ${esc(S.upi)}`:''}</div></div>`}
+function waBill(b){const S=DB.shop,bal=b.total-b.paid;
+  let s=`*${S.name||'Bill'}*\nBill ${b.no} · ${dl(b.date)}\n\n`+b.lines.map(l=>`${l.name} × ${l.qty} = ₹${r2(lineCalc(l).amt)}`).join('\n')+`\n\n*Total: ₹${b.total.toLocaleString('en-IN')}*\nPaid: ₹${r2(b.paid)}`+(bal>0.5?`\nBalance due: ₹${r2(bal)}`:'')+(S.upi&&bal>0.5?`\nPay by UPI: ${S.upi}`:'')+`\n\n${S.footer||''}`;
+  return'https://wa.me/'+phoneWA(b.cust?.phone)+'?text='+encodeURIComponent(s)}
+function doPrint(html,thermal){$('#print').innerHTML=html;let ps=$('#pstyle');if(!ps){ps=document.createElement('style');ps.id='pstyle';document.head.appendChild(ps)}
+  ps.textContent=thermal?'@page{size:80mm auto;margin:3mm}':'@page{size:A4;margin:10mm}';setTimeout(()=>print(),60)}
+function viewInv(id){const b=DB.bills.find(x=>x.id===id);if(!b){location.hash='#bills';return}
+  $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#bills">← Bills</a><span class="sp"></span></div>
+   <div class="row"><button class="btn pri" id="pA4">Print A4</button><button class="btn" id="pTh">Print 3-inch (thermal)</button><a class="btn" id="wa" target="_blank" rel="noopener" href="${waBill(b)}">Send on WhatsApp</a></div>
+   ${invHTML(b,false)}
+   <div class="row"><button class="btn red" id="delB">Delete bill</button><span class="note">Deleting puts the items back in stock.</span></div>`;
+  $('#pA4').onclick=()=>doPrint(invHTML(b,false),false);$('#pTh').onclick=()=>doPrint(invHTML(b,true),true);
+  twoTap($('#delB'),'Tap again to delete',async()=>{gone('bills',b.id);await persist();location.hash='#bills';setTimeout(()=>flash('Bill '+esc(b.no)+' deleted and stock restored.'),50)})}
+function twoTap(btn,txt,fn){const o=btn.textContent;let armed=false;btn.onclick=()=>{if(armed){fn();return}armed=true;btn.textContent=txt;setTimeout(()=>{armed=false;btn.textContent=o},3000)}}
+
+/* ---------- bills list ---------- */
+function viewBills(){const t=today();
+  $('#view').innerHTML=`<div class="row"><h2 class="sp">Bills</h2><a class="btn pri sm" href="#new">+ New bill</a></div>
+   <input class="in" id="bq" type="search" placeholder="Search bill no, customer or item" value="${esc(st.bq)}">
+   <div class="chips">${[['today','Today'],['month','This month'],['all','All']].map(([k,n])=>`<button class="chip ${st.bf===k?'on':''}" data-bf="${k}">${n}</button>`).join('')}</div>
+   <section class="card" id="bl"></section>`;
+  const draw=()=>{const q=st.bq.trim().toLowerCase();const L=DB.bills.filter(b=>(st.bf==='all'||(st.bf==='today'?b.date===t:b.date.startsWith(t.slice(0,7))))&&(!q||b.no.toLowerCase().includes(q)||(b.cust?.name||'').toLowerCase().includes(q)||b.lines.some(l=>l.name.toLowerCase().includes(q)))).sort((a,b)=>b.date.localeCompare(a.date)||b.n-a.n);
+    const sum=L.reduce((s,b)=>s+b.total,0);$('#bl').innerHTML=L.length?`<p class="note" style="margin:0 0 4px">${L.length} bill${L.length===1?'':'s'} · total <b style="color:var(--ink)">${inr(sum)}</b></p><div class="list">${L.map(billLi).join('')}</div>`:'<p class="empty">No bills here.</p>'};
+  $('#bq').oninput=e=>{st.bq=e.target.value;draw()};$$('[data-bf]').forEach(b=>b.onclick=()=>{st.bf=b.dataset.bf;viewBills()});draw()}
+
+/* ---------- stock ---------- */
+function viewStock(){const ph=isPh(),A=alerts();const exS=new Set(A.ex.map(x=>x[0].id)),soS=new Set(A.soon.map(x=>x[0].id)),loS=new Set(A.low.map(x=>x.id));
+  $('#view').innerHTML=`<div class="row"><h2 class="sp">Stock</h2><a class="btn pri sm" href="#item/new">+ Add item</a></div>
+   <input class="in" id="sq" type="search" placeholder="${ph?'Search medicine or salt':'Search item'}" value="${esc(st.q)}">
+   <div class="chips">${[['all','All · '+DB.items.length],['low','Low stock · '+loS.size],...(ph?[['soon','Expiring · '+soS.size],['ex','Expired · '+exS.size]]:[]),['out','Out of stock']].map(([k,n])=>`<button class="chip ${st.filter===k?'on':''}" data-f="${k}">${n}</button>`).join('')}</div>
+   <section class="card" id="sl"></section>`;
+  const draw=()=>{const q=st.q.trim().toLowerCase();const L=DB.items.filter(i=>(!q||i.name.toLowerCase().includes(q)||(i.salt||'').toLowerCase().includes(q))&&(st.filter==='all'||(st.filter==='low'&&loS.has(i.id))||(st.filter==='soon'&&soS.has(i.id))||(st.filter==='ex'&&exS.has(i.id))||(st.filter==='out'&&qtyOf(i)<=0))).sort((a,b)=>a.name.localeCompare(b.name));
+    $('#sl').innerHTML=L.length?`<div class="list">${L.map(i=>{const s=qtyOf(i);const near=ph?goodBatches(i)[0]:null;return`<a class="li" href="#item/${i.id}"><span class="t"><b>${esc(i.name)}</b><small>${[i.salt,i.rack?'Rack '+i.rack:'',ph&&near&&near.exp?'Next exp '+expL(near.exp):''].filter(Boolean).map(esc).join(' · ')||esc(i.unit||'')}</small></span><span class="a">${inr(i.price)}<br><span class="pill ${s<=0?'p-red':loS.has(i.id)?'p-amb':'p-gry'}">${s} ${esc(i.unit||'')}</span>${exS.has(i.id)?' <span class="pill p-red">Expired</span>':soS.has(i.id)?' <span class="pill p-amb">Exp soon</span>':''}</span></a>`}).join('')}</div>`
+     :`<p class="empty">${DB.items.length?'No items match.':'No items yet. Tap <b>+ Add item</b> to add your first one.'}</p>`};
+  $('#sq').oninput=e=>{st.q=e.target.value;draw()};$$('[data-f]').forEach(b=>b.onclick=()=>{st.filter=b.dataset.f;viewStock()});draw()}
+function viewItem(id){const ph=isPh();const isNew=id==='new';const it=isNew?{id:uid(),name:st.newName||'',salt:'',hsn:'',gst:ph?12:18,price:'',unit:ph?'strip':'pcs',low:'',rack:'',batches:[]}:itemById(id);st.newName='';
+  if(!it){location.hash='#stock';return}
+  $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#stock">← Stock</a></div><div class="two"><form class="card stack" id="itf"><h2>${isNew?'Add item':'Edit item'}</h2>
+   <label class="f">${ph?'Medicine name':'Item name'}<input class="in" id="i_name" required value="${esc(it.name)}"></label>
+   ${ph?`<label class="f">Salt / composition (optional)<input class="in" id="i_salt" value="${esc(it.salt||'')}" placeholder="e.g. Paracetamol 650mg"></label>`:''}
+   <div class="grid g2"><label class="f">${ph?'MRP / sale price ₹':'Sale price ₹'}<input class="in" id="i_price" inputmode="decimal" required value="${esc(it.price)}"></label>
+   <label class="f">GST %<select class="in" id="i_gst">${[0,5,12,18,28].map(g=>`<option ${g==it.gst?'selected':''}>${g}</option>`).join('')}</select></label>
+   <label class="f">Unit<input class="in" id="i_unit" value="${esc(it.unit||'')}" placeholder="${ph?'strip, bottle':'pcs, kg'}"></label><label class="f">HSN code<input class="in" id="i_hsn" value="${esc(it.hsn||'')}" inputmode="numeric"></label>
+   <label class="f">Low stock alert at<input class="in" id="i_low" inputmode="decimal" value="${esc(it.low||'')}" placeholder="e.g. 5"></label><label class="f">Rack / shelf<input class="in" id="i_rack" value="${esc(it.rack||'')}"></label></div>
+   ${isNew?`<h3>Opening stock</h3><div class="grid ${ph?'g3':'g2'}">${ph?`<label class="f">Batch no.<input class="in" id="n_b"></label><label class="f">Expiry<input class="in" id="n_exp" type="month"></label>`:''}<label class="f">Quantity<input class="in" id="n_q" inputmode="decimal" placeholder="0"></label></div>`:''}
+   <button class="btn pri">${isNew?'Save item':'Save changes'}</button><p id="im" class="note" style="margin:0"></p>
+   ${isNew?'':'<button type="button" class="btn red" id="delI">Delete item</button>'}</form>
+   ${isNew?'':`<section class="card stack"><div class="row"><h2 class="sp">Stock</h2><span class="pill p-gry" style="font-size:14px">${qtyOf(it)} ${esc(it.unit||'')}</span></div>
+    ${ph?`<table class="t"><thead><tr><th>Batch</th><th>Expiry</th><th class="r">Qty</th><th></th></tr></thead><tbody>${it.batches.map(b=>{const m=monthsLeft(b.exp);return`<tr><td>${esc(b.b||'-')}</td><td>${expL(b.exp)||'-'} ${qB(it,b)>0&&m<0?'<span class="pill p-red">Expired</span>':qB(it,b)>0&&m<=3?'<span class="pill p-amb">Soon</span>':''}</td><td class="r">${qB(it,b)}</td><td class="r"><button class="btn sm" data-adj="${b.id}" type="button">Edit</button></td></tr>`}).join('')||'<tr><td colspan="4" class="note">No batches yet.</td></tr>'}</tbody></table>`:''}
+    <h3>Add stock (purchase)</h3><div class="grid ${ph?'g3':'g2'}">${ph?`<label class="f">Batch no.<input class="in" id="a_b"></label><label class="f">Expiry<input class="in" id="a_exp" type="month"></label>`:''}<label class="f">Quantity<input class="in" id="a_q" inputmode="decimal"></label></div>
+    <button class="btn pri" type="button" id="addS">Add stock</button><p id="am" class="note" style="margin:0"></p></section>`}</div>`;
+  const val=k=>$('#i_'+k)?$('#i_'+k).value.trim():'';
+  $('#itf').onsubmit=async e=>{e.preventDefault();const name=val('name');if(!name)return;
+    if(DB.items.some(x=>x.id!==it.id&&x.name.toLowerCase()===name.toLowerCase())){$('#im').className='red';$('#im').textContent='An item with this name already exists.';return}
+    Object.assign(it,{name,salt:val('salt'),price:num(val('price')),gst:+val('gst'),unit:val('unit'),hsn:val('hsn'),low:num(val('low')),rack:val('rack'),t:Date.now()});
+    if(isNew){const q=num($('#n_q').value);const bt={id:uid(),b:ph?$('#n_b').value.trim():'',exp:ph?$('#n_exp').value:''};it.batches.push(bt);DB.items.push(it);if(q)DB.ins.push({id:uid(),item:it.id,batch:bt.id,qty:q,date:today(),note:'Opening stock',t:Date.now()})}
+    await persist();
+    if(isNew&&st.draft){addLineAfter=it.id;location.hash='#new';setTimeout(()=>{addLine(itemById(addLineAfter));flash('✓ '+esc(it.name)+' added to stock and to this bill.')},60);return}
+    location.hash='#item/'+it.id;if(!isNew)render();setTimeout(()=>flash('✓ Saved '+esc(it.name)+'.'),50)};
+  if(isNew)return;
+  twoTap($('#delI'),'Tap again to delete',async()=>{gone('items',it.id);await persist();location.hash='#stock';setTimeout(()=>flash('Item deleted. Old bills still show it.'),50)});
+  $('#addS').onclick=async()=>{const q=num($('#a_q').value);if(!q){$('#am').className='red';$('#am').textContent='Type the quantity.';return}
+    const bn=ph?$('#a_b').value.trim():'',ex=ph?$('#a_exp').value:'';
+    let b=it.batches.find(x=>(x.b||'')===bn&&(x.exp||'')===ex);if(!b){b={id:uid(),b:bn,exp:ex};it.batches.push(b);it.t=Date.now()}DB.ins.push({id:uid(),item:it.id,batch:b.id,qty:q,date:today(),note:'Stock added',t:Date.now()});await persist();render();flash('✓ Added '+q+' to '+esc(it.name)+'.')};
+  $$('[data-adj]').forEach(btn=>btn.onclick=()=>{const b=it.batches.find(x=>x.id===btn.dataset.adj);const tr=btn.closest('tr');
+    tr.innerHTML=`<td><input class="in" value="${esc(b.b)}" data-e="b"></td><td><input class="in" type="month" value="${esc(b.exp)}" data-e="exp"></td><td><input class="in" inputmode="decimal" value="${qB(it,b)}" data-e="qty" style="width:70px"></td><td class="r"><button class="btn sm pri" type="button">Save</button></td>`;
+    tr.querySelector('button').onclick=async()=>{b.b=tr.querySelector('[data-e=b]').value.trim();b.exp=tr.querySelector('[data-e=exp]').value;it.t=Date.now();const want=num(tr.querySelector('[data-e=qty]').value),diff=r2(want-qB(it,b));
+      if(diff)DB.ins.push({id:uid(),item:it.id,batch:b.id,qty:diff,date:today(),note:'Stock correction',t:Date.now()});await persist();render();flash('✓ Batch updated.')}})}
+let addLineAfter=null;
+
+/* ---------- udhaar / parties ---------- */
+function viewParties(tab){tab=tab==='sup'?'sup':'cust';
+  $('#view').innerHTML=`<div class="row"><h2 class="sp">Parties</h2></div>
+   <div class="chips"><a class="chip ${tab==='cust'?'on':''}" href="#parties" style="display:flex;align-items:center;text-decoration:none">Customers (udhaar)</a><a class="chip ${tab==='sup'?'on':''}" href="#parties/sup" style="display:flex;align-items:center;text-decoration:none">Suppliers (party payment)</a></div>
+   <input class="in" id="pq" type="search" placeholder="Search ${tab==='sup'?'supplier':'customer'}" value="${esc(st.pq)}"><section class="card" id="pl"></section>
+   <details class="card" ${tab==='sup'&&!DB.sups.length?'open':''}><summary style="font-weight:800;cursor:pointer">+ Add a ${tab==='sup'?'supplier / distributor':'customer'}</summary><form id="pf" class="grid g2" style="margin-top:12px"><label class="f">Name<input class="in" id="pn" required></label><label class="f">Mobile<input class="in" id="pp" inputmode="tel"></label><button class="btn pri">Add ${tab==='sup'?'supplier':'customer'}</button></form></details>`;
+  const ym=today().slice(0,7);
+  const draw=()=>{const q=st.pq.trim().toLowerCase();
+    if(tab==='sup'){const L=DB.sups.filter(x=>!q||x.name.toLowerCase().includes(q)||(x.phone||'').includes(q)).map(c=>({c,m:DB.spays.filter(p=>p.sup===c.id&&p.date.startsWith(ym)).reduce((s,p)=>s+p.amt,0)})).sort((a,b)=>b.m-a.m||a.c.name.localeCompare(b.c.name));
+      const tot=DB.spays.filter(p=>p.date.startsWith(ym)).reduce((s,p)=>s+p.amt,0);
+      $('#pl').innerHTML=L.length?`<p class="note" style="margin:0 0 4px">Paid to parties in ${ymL(ym)}: <b style="color:var(--ink)">${inr(tot)}</b></p><div class="list">${L.map(({c,m})=>`<a class="li" href="#sup/${c.id}"><span class="t"><b>${esc(c.name)}</b><small>${esc(c.phone||'No mobile')}</small></span><span class="a">${inr(m)}<br><small class="note">paid this month</small></span></a>`).join('')}</div>`:'<p class="empty">No suppliers yet. Add your distributors below, then record each payment you make to them.</p>';return}
+    const L=DB.custs.map(c=>({c,d:dueOf(c.id)})).filter(x=>!q||x.c.name.toLowerCase().includes(q)||(x.c.phone||'').includes(q)).sort((a,b)=>b.d-a.d||a.c.name.localeCompare(b.c.name));
+    const tot=L.reduce((s,x)=>s+Math.max(0,x.d),0);
+    $('#pl').innerHTML=L.length?`<p class="note" style="margin:0 0 4px">Total to collect: <b class="red">${inr(tot)}</b></p><div class="list">${L.map(({c,d})=>`<a class="li" href="#party/${c.id}"><span class="t"><b>${esc(c.name)}</b><small>${esc(c.phone||'No mobile')}</small></span><span class="a">${d>0.5?`<span class="red">${inr(d)}</span><br><small class="note">to collect</small>`:d<-0.5?`<span class="grn">${inr(-d)}</span><br><small class="note">advance</small>`:'<span class="pill p-grn">Settled</span>'}</span></a>`).join('')}</div>`:'<p class="empty">No customers yet. They are added when you save a bill with a customer name.</p>'};
+  $('#pq').oninput=e=>{st.pq=e.target.value;draw()};
+  $('#pf').onsubmit=async e=>{e.preventDefault();const n=$('#pn').value.trim();if(!n)return;const rec={id:uid(),name:n,phone:$('#pp').value.trim(),t:Date.now()};
+    if(tab==='sup'){DB.sups.push(rec);await persist();location.hash='#sup/'+rec.id;return}DB.custs.push(rec);await persist();viewParties(tab);flash('✓ Customer added.')};draw()}
+function viewSup(id){const c=supById(id);if(!c){location.hash='#parties/sup';return}
+  const P=DB.spays.filter(p=>p.sup===id).sort((a,b)=>b.date.localeCompare(a.date)||b.t-a.t);const ym=today().slice(0,7);
+  const mTot=P.filter(p=>p.date.startsWith(ym)).reduce((s,p)=>s+p.amt,0),all=P.reduce((s,p)=>s+p.amt,0);
+  $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#parties/sup">← Suppliers</a></div>
+   <div class="two"><section class="card stack"><div class="row"><div class="sp"><h2>${esc(c.name)}</h2><span class="note">${esc(c.phone||'No mobile number')}</span></div>
+    <div style="text-align:right"><span class="note">Paid in ${ymL(ym)}</span><br><b style="font-size:22px">${inr(mTot)}</b></div></div>
+    <h3>Payments made · total ${inr(all)}</h3>${P.length?`<table class="t"><thead><tr><th>Date</th><th>Details</th><th class="r">Amount</th><th></th></tr></thead><tbody>${P.map(p=>`<tr><td>${dl(p.date)}</td><td>${esc(p.mode)}${p.ref?' · Bill '+esc(p.ref):''}${p.note?' · '+esc(p.note):''}</td><td class="r">${inr(p.amt)}</td><td class="r"><button class="btn sm red" data-ds="${p.id}" type="button" style="min-height:28px;padding:0 8px" aria-label="Delete payment">✕</button></td></tr>`).join('')}</tbody></table>`:'<p class="empty">No payments yet.</p>'}</section>
+   <section class="card stack"><h2>Pay this party</h2><p class="note" style="margin:0">Each payment is taken out of that month's nett.</p>
+    <div class="grid g2"><label class="f">Amount ₹<input class="in" id="sa" inputmode="decimal"></label><label class="f">Mode<select class="in" id="sm2"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></label>
+    <label class="f">Date<input class="in" type="date" id="sd" value="${today()}"></label><label class="f">Their bill no. (optional)<input class="in" id="sr"></label></div>
+    <label class="f">Note<input class="in" id="sn2" placeholder="optional"></label><button class="btn pri" id="ssave">Save payment</button>
+    <h3>Supplier details</h3><div class="grid g2"><label class="f">Name<input class="in" id="sn3" value="${esc(c.name)}"></label><label class="f">Mobile<input class="in" id="sp3" inputmode="tel" value="${esc(c.phone||'')}"></label></div>
+    <div class="row"><button class="btn" id="supsave">Save details</button><button class="btn red" id="supdel">Delete supplier</button></div></section></div>`;
+  $('#ssave').onclick=async()=>{const a=num($('#sa').value);if(!(a>0)){flash('Type the amount you paid.',1);return}
+    DB.spays.push({id:uid(),sup:id,date:$('#sd').value||today(),amt:a,mode:$('#sm2').value,ref:$('#sr').value.trim(),note:$('#sn2').value.trim(),t:Date.now()});await persist();render();flash('✓ Payment of '+inr(a)+' to '+esc(c.name)+' saved. Nett is updated.')};
+  $('#supsave').onclick=async()=>{const n=$('#sn3').value.trim();if(!n)return;c.name=n;c.phone=$('#sp3').value.trim();c.t=Date.now();await persist();render();flash('✓ Saved.')};
+  twoTap($('#supdel'),P.length?'Has payments: tap again':'Tap again to delete',async()=>{gone('sups',id);for(const p of P)gone('spays',p.id);await persist();location.hash='#parties/sup'});
+  $$('[data-ds]').forEach(b=>twoTap(b,'Delete?',async()=>{gone('spays',b.dataset.ds);await persist();render();flash('Payment removed.')}))}
+function viewParty(id){const c=custById(id);if(!c){location.hash='#parties';return}const S=DB.shop;
+  const ev=[...DB.bills.filter(b=>b.cust&&b.cust.id===id).map(b=>({d:b.date,t:b.t,txt:'Bill '+b.no,dr:b.total,cr:b.paid,bill:b.id})),...DB.pays.filter(p=>p.cust===id).map(p=>({d:p.date,t:p.t,txt:'Payment received ('+p.mode+')'+(p.note?' · '+p.note:''),dr:0,cr:p.amt,pay:p.id}))].sort((a,b)=>a.d.localeCompare(b.d)||a.t-b.t);
+  let run=0;ev.forEach(e=>{run+=e.dr-e.cr;e.bal=run});const due=dueOf(id);
+  const msg=`Namaste ${c.name} ji,\nYour pending amount at *${S.name||'our shop'}* is *₹${r2(due).toLocaleString('en-IN')}*.${S.upi?`\nPay by UPI: ${S.upi}`:''}\nPlease pay at your convenience. Thank you!`;
+  $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#parties">← Customers</a></div>
+   <div class="two"><section class="card stack"><div class="row"><div class="sp"><h2>${esc(c.name)}</h2><span class="note">${esc(c.phone||'No mobile number')}</span></div>
+    <div style="text-align:right">${due>0.5?`<span class="note">To collect</span><br><b class="red" style="font-size:22px">${inr(due)}</b>`:due<-0.5?`<span class="note">Advance</span><br><b class="grn" style="font-size:22px">${inr(-due)}</b>`:'<span class="pill p-grn">Settled</span>'}</div></div>
+    <div class="row">${due>0.5?`<a class="btn pri" target="_blank" rel="noopener" href="https://wa.me/${phoneWA(c.phone)}?text=${encodeURIComponent(msg)}">WhatsApp reminder</a>`:''}${c.phone?`<a class="btn" href="tel:${esc(c.phone)}">Call</a>`:''}<a class="btn" href="#new" id="billFor">New bill</a></div>
+    <h3>Account</h3>${ev.length?`<table class="t"><thead><tr><th>Date</th><th>Details</th><th class="r">Bill</th><th class="r">Paid</th><th class="r">Balance</th></tr></thead><tbody>${ev.slice().reverse().map(e=>`<tr><td>${dl(e.d)}</td><td>${e.bill?`<a href="#inv/${e.bill}">${esc(e.txt)}</a>`:esc(e.txt)}${e.pay?` <button class="btn sm red" data-dp="${e.pay}" type="button" style="min-height:28px;padding:0 8px">✕</button>`:''}</td><td class="r">${e.dr?r2(e.dr):''}</td><td class="r">${e.cr?r2(e.cr):''}</td><td class="r">${r2(e.bal)}</td></tr>`).join('')}</tbody></table>`:'<p class="empty">No bills or payments yet.</p>'}</section>
+   <section class="card stack"><h2>Receive payment</h2><div class="grid g2"><label class="f">Amount ₹<input class="in" id="ra" inputmode="decimal" placeholder="${due>0?r2(due):''}"></label><label class="f">Mode<select class="in" id="rm"><option>Cash</option><option>UPI</option><option>Card</option><option>Bank</option></select></label>
+    <label class="f">Date<input class="in" type="date" id="rd" value="${today()}"></label><label class="f">Note<input class="in" id="rn" placeholder="optional"></label></div>
+    <button class="btn pri" id="rsave">Save payment</button>
+    <h3>Customer details</h3><div class="grid g2"><label class="f">Name<input class="in" id="cn2" value="${esc(c.name)}"></label><label class="f">Mobile<input class="in" id="cp2" inputmode="tel" value="${esc(c.phone||'')}"></label></div><button class="btn" id="csave">Save details</button></section></div>`;
+  $('#billFor').onclick=()=>{st.draft=newDraft();st.draft.cust={name:c.name,phone:c.phone||''}};
+  $('#rsave').onclick=async()=>{const a=num($('#ra').value);if(!(a>0)){flash('Type the amount received.',1);return}DB.pays.push({id:uid(),cust:id,date:$('#rd').value||today(),amt:a,mode:$('#rm').value,note:$('#rn').value.trim(),t:Date.now()});await persist();render();flash('✓ Payment of '+inr(a)+' saved.')};
+  $('#csave').onclick=async()=>{const n=$('#cn2').value.trim();if(!n)return;c.name=n;c.phone=$('#cp2').value.trim();c.t=Date.now();for(const b of DB.bills)if(b.cust&&b.cust.id===id){b.cust.name=c.name;b.cust.phone=c.phone}await persist();render();flash('✓ Saved.')};
+  $$('[data-dp]').forEach(b=>twoTap(b,'Delete?',async()=>{gone('pays',b.dataset.dp);await persist();render();flash('Payment removed.')}))}
+
+/* ---------- settings ---------- */
+let DLNS;(async()=>{try{if(window.claude&&claude.use)DLNS=await claude.use('downloads')}catch(e){}})();
+async function download(name,txt,type){if(DLNS){try{await DLNS.save({filename:name,data:txt});return}catch(e){flash('Download was cancelled.',1);return}}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+const csv=rows=>'﻿'+rows.map(r=>r.map(v=>{v=String(v??'');return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\n');
+function viewSettings(){const S=DB.shop,ph=isPh();
+  $('#view').innerHTML=`<h2>Settings</h2><div class="two"><form class="card stack" id="sf"><h3>Shop details (printed on bills)</h3>
+   <label class="f">Shop name<input class="in" id="s_name" value="${esc(S.name)}"></label><label class="f">Address<textarea class="in" id="s_addr" rows="2">${esc(S.addr)}</textarea></label>
+   <div class="grid g2"><label class="f">Phone<input class="in" id="s_phone" inputmode="tel" value="${esc(S.phone)}"></label><label class="f">GSTIN<input class="in" id="s_gstin" value="${esc(S.gstin)}" style="text-transform:uppercase"></label>
+   <label class="f">Drug licence no. (pharmacy)<input class="in" id="s_dl" value="${esc(S.dl||'')}"></label><label class="f">UPI ID (for payment requests)<input class="in" id="s_upi" value="${esc(S.upi)}" placeholder="name@okaxis"></label>
+   <label class="f">Bill number prefix<input class="in" id="s_prefix" value="${esc(S.prefix)}"></label><label class="f">Next bill number<input class="in" id="s_seq" inputmode="numeric" value="${DB.seq}"></label></div>
+   <label class="f">Shop type<select class="in" id="s_mode"><option value="pharmacy" ${ph?'selected':''}>Pharmacy (batch no., expiry, salt search)</option><option value="general" ${ph?'':'selected'}>General shop</option></select></label>
+   <label class="f">Prices I type are<select class="in" id="s_tax"><option value="1" ${S.taxIncl?'selected':''}>Including GST (like MRP)</option><option value="0" ${S.taxIncl?'':'selected'}>Before GST (GST added on top)</option></select></label>
+   <label class="f">Message at the bottom of bills<input class="in" id="s_footer" value="${esc(S.footer)}"></label><button class="btn pri">Save shop details</button></form>
+   <div class="stack"><section class="card stack"><h3>Backup</h3><p class="note" style="margin:0">Your data lives only on this device. Download a backup file regularly and keep it in Google Drive. The file is locked with your current PIN.</p>
+    <button class="btn pri" id="bk">Download backup file</button><label class="btn" for="rf">Restore from backup file</label><input type="file" id="rf" accept=".dukaan,.json" hidden>
+    <div class="row"><button class="btn" id="cs1">Sales report (Excel CSV)</button><button class="btn" id="cs2">Stock list (Excel CSV)</button></div></section>
+   <section class="card stack"><h3>Sync phone &amp; laptop + Money Diary link</h3>
+    ${syncOn()?`<p id="syncStatus" style="margin:0"></p>${syncSt.needPin?`<label class="f">PIN used on your other device<input class="in" id="npin" type="password" inputmode="numeric"></label><button class="btn pri" id="npinB">Use this PIN</button>`:''}
+     <p class="note" style="margin:0">Your bills, stock and parties sync automatically. Each month's nett goes to Money Diary as the Business amount (open Money Diary once on this device to link it).</p>
+     <div class="row"><label class="f sp">Send nett to Money Diary from<input class="in" type="month" id="lfrom" value="${esc(DB.shop.linkFrom||'')}"></label></div>
+     <p class="note" style="margin:0">Months before this keep the Business amount from your Excel file.</p>
+     <div class="row"><button class="btn" id="syncB">Sync now</button><button class="btn" id="tokB">Change token</button><button class="btn red" id="offB">Turn off sync</button></div>`
+    :`<p class="note" style="margin:0">Paste the <b>same GitHub sync token you use in Money Diary</b> (its Tokens tab). Use the <b>same PIN</b> on your phone and laptop. Data is encrypted with your PIN before it leaves this device.</p>`}
+    <div id="tokRow" class="stack" ${syncOn()?'hidden':''}><label class="f">GitHub token<input class="in" id="tok" type="password" autocomplete="off" placeholder="ghp_… or github_pat_…"></label><button class="btn pri" id="conB">Connect and sync</button></div><p id="sm" class="note" style="margin:0"></p></section>
+   <section class="card stack"><h3>PIN and security</h3><div class="grid g2"><label class="f">Current PIN<input class="in" id="op" type="password" inputmode="numeric"></label><label class="f">New PIN<input class="in" id="np" type="password" inputmode="numeric"></label></div>
+    <button class="btn" id="chp">Change PIN</button><button class="btn" id="lk">Lock now</button><button class="btn red" id="wipe">Erase all data on this device</button>
+    <p class="note" style="margin:0">The app locks itself after 10 minutes without use. Data is encrypted with AES-256 using your PIN.</p></section></div></div>`;
+  $('#sf').onsubmit=async e=>{e.preventDefault();const v=k=>$('#s_'+k).value.trim();Object.assign(S,{name:v('name'),addr:v('addr'),phone:v('phone'),gstin:v('gstin').toUpperCase(),dl:v('dl'),upi:v('upi'),prefix:v('prefix'),mode:v('mode'),taxIncl:v('tax')==='1',footer:v('footer')});
+    const sq=parseInt(v('seq'));if(sq>0)DB.seq=sq;S.t=Date.now();await persist();render();flash('✓ Shop details saved.')};
+  $('#bk').onclick=async()=>{download('Dukaan-backup-'+today()+'.dukaan',await sealWith(KEYOBJ,SALT,DB),'application/json');flash('✓ Backup downloaded. Save it to Google Drive. You need your current PIN to restore it.')};
+  $('#rf').onchange=async e=>{const f=e.target.files[0];if(!f)return;const pin=prompt('Type the PIN that was used when this backup was made');if(!pin)return;
+    try{const o=await openWith(pin.trim(),await f.text());const keep=DB.sync;DB=upgrade(o.db);if(keep)DB.sync=keep;await persist();render();flash('✓ Backup restored: '+DB.bills.length+' bills, '+DB.items.length+' items.')}catch(err){flash('Could not open this file. Check the PIN and that it is a Dukaan Bill backup.',1)}e.target.value=''};
+  $('#cs1').onclick=()=>{const rows=[['Bill no','Date','Customer','Mobile','Item','Batch','Expiry','HSN','Qty','Rate','Disc %','GST %','Taxable','GST','Amount','Bill total','Paid','Mode']];
+    for(const b of[...DB.bills].sort((a,c)=>a.n-c.n))for(const l of b.lines){const c=lineCalc(l);rows.push([b.no,dl(b.date),b.cust?.name||'',b.cust?.phone||'',l.name,l.batch||'',expL(l.exp),l.hsn||'',l.qty,l.rate,l.disc||0,l.gst,r2(c.taxable),r2(c.tax),r2(c.amt),b.total,b.paid,b.mode])}
+    download('Sales-'+today()+'.csv',csv(rows),'text/csv')};
+  $('#cs2').onclick=()=>{const rows=[['Item','Salt','Unit','Price','GST %','HSN','Rack','Batch','Expiry','Qty']];for(const i of DB.items)for(const b of(i.batches.length?i.batches:[{}]))rows.push([i.name,i.salt||'',i.unit||'',i.price,i.gst,i.hsn||'',i.rack||'',b.b||'',expL(b.exp),b.id?qB(i,b):0]);download('Stock-'+today()+'.csv',csv(rows),'text/csv')};
+  $('#chp').onclick=async()=>{const o=$('#op').value.trim(),n=$('#np').value.trim();if(o!==PIN){flash('Current PIN is wrong.',1);return}if(!/^\d{4,12}$/.test(n)){flash('New PIN must be 4 to 12 digits.',1);return}if(syncOn())await syncNow();clearTimeout(syncTimer);await setPin(n,true);if(syncOn())await syncNow();$('#op').value=$('#np').value='';flash('✓ PIN changed. Download a new backup file, because old backups still use the old PIN.')};
+  $('#lk').onclick=lockNow;showSync();
+  const sm=$('#sm');const busy=async(fn,ok)=>{sm.className='note';sm.textContent='Working…';try{await fn();sm.className='grn';sm.textContent=ok;render()}catch(e){sm.className='red';sm.textContent=e.message==='offline'?'No internet connection.':e.message}};
+  $('#conB').onclick=()=>busy(()=>connectSync($('#tok').value),'✓ Connected. Your data is syncing.');
+  if($('#syncB'))$('#syncB').onclick=()=>syncNow();
+  if($('#lfrom'))$('#lfrom').onchange=async e=>{if(!e.target.value)return;S.linkFrom=e.target.value;S.t=Date.now();await persist();flash('✓ Nett goes to Money Diary from '+ymL(S.linkFrom)+'.')};
+  if($('#tokB'))$('#tokB').onclick=()=>{$('#tokRow').hidden=false;$('#tok').focus()};
+  if($('#offB'))twoTap($('#offB'),'Tap again to turn off',async()=>{DB.sync=null;syncSt.state='off';await persist(true);render();flash('Sync is off on this device. Your data stays here.')});
+  if($('#npinB'))$('#npinB').onclick=()=>busy(()=>enterNewPin($('#npin').value.trim()),'✓ PIN updated. Syncing again.');
+  twoTap($('#wipe'),'Tap again: erase everything',()=>{localStorage.removeItem(STORE);lockNow()})}
+
+viewLock();
+/* installable app + update button */
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{scope:'./'}).catch(()=>{});
+const MYV=document.querySelector('meta[name=app-version]').content;
+async function checkUpd(){if(location.protocol!=='https:')return;try{const t=await(await fetch('./?v='+Date.now(),{cache:'no-store'})).text();const m=t.match(/name="app-version" content="([^"]+)"/);if(m&&m[1]!==MYV){const b=$('#updBar');b.hidden=false;b.style.display='flex'}}catch(e){}}
+$('#updBtn').onclick=async()=>{$('#updBtn').textContent='Updating…';try{await fetch('./',{cache:'reload'});const ks=await caches.keys();await Promise.all(ks.filter(k=>k.startsWith('dukaan-bill-')).map(k=>caches.delete(k)))}catch(e){}location.reload()};
+checkUpd();document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpd()});
+</script>
+</body>
+</html>
