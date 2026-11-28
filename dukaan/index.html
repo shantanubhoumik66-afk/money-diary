@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.27">
+<meta name="app-version" content="2026.11.28.28">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -707,8 +707,11 @@ function viewStock(sub){if(sub==='import')return viewImport();const ph=isPh(),A=
   $('#view').innerHTML=`<div class="row"><h2 class="sp">Stock</h2><label class="btn sm" for="impF" title="Import stock from a CSV or Excel file">⇪ Import</label><input type="file" id="impF" accept=".csv,.txt,.xlsx,.xls,.pdf,text/csv" hidden><a class="btn pri sm" href="#item/new">+ Add item</a></div>${importsList().length?'<a href="#settings/recover" class="note" style="margin-top:-6px">Undo an import</a>':''}
    <input class="in" id="sq" type="search" placeholder="${ph?'Search medicine or salt':'Search item'}" value="${esc(st.q)}">
    <div class="chips">${[['all','All · '+DB.items.length],['low','Low stock · '+loS.size],...(ph?[['soon','Expiring · '+soS.size],['ex','Expired · '+exS.size]]:[]),['out','Out of stock']].map(([k,n])=>`<button class="chip ${st.filter===k?'on':''}" data-f="${k}">${n}</button>`).join('')}</div>
+   <div class="kpi hero" id="stVal"></div>
    <section class="card" id="sl"></section>`;
   const draw=()=>{const q=st.q.trim().toLowerCase();const L=DB.items.filter(i=>(!q||i.name.toLowerCase().includes(q)||(i.salt||'').toLowerCase().includes(q))&&(st.filter==='all'||(st.filter==='low'&&loS.has(i.id))||(st.filter==='soon'&&soS.has(i.id))||(st.filter==='ex'&&exS.has(i.id))||(st.filter==='out'&&qtyOf(i)<=0))).sort((a,b)=>a.name.localeCompare(b.name)||num(a.price)-num(b.price));
+    {let val=0,units=0;for(const i of L){const qn=qtyOf(i);if(qn>0){val+=qn*num(i.price);units+=qn}}const part=!!q||st.filter!=='all';
+     $('#stVal').innerHTML=`<span>Total stock value (MRP × quantity)${part?' · shown items':''}</span><b>${inr(val)}</b><small style="color:#d5fbf4">${L.length} product${L.length===1?'':'s'} · ${r2(units).toLocaleString('en-IN')} units in stock</small>`}
     $('#sl').innerHTML=L.length?`<div class="list">${L.map(i=>{const s=qtyOf(i);const near=ph?goodBatches(i)[0]:null;return`<a class="li" href="#item/${i.id}"><span class="t"><b>${esc(i.name)}</b><small>${[i.salt,i.rack?'Rack '+i.rack:'',ph&&near&&near.exp?'Next exp '+expL(near.exp):''].filter(Boolean).map(esc).join(' · ')||esc(i.unit||'')}</small></span><span class="a">${inr(i.price)}<br><span class="pill ${s<=0?'p-red':loS.has(i.id)?'p-amb':'p-gry'}">${s} ${esc(i.unit||'')}</span>${exS.has(i.id)?' <span class="pill p-red">Expired</span>':soS.has(i.id)?' <span class="pill p-amb">Exp soon</span>':''}</span></a>`}).join('')}</div>`
      :`<p class="empty">${DB.items.length?'No items match.':'No items yet. Tap <b>+ Add item</b>, or <b>⇪ Import</b> your stock list from a CSV or Excel file.'}</p>`};
   $('#impF').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)impFile(f)};
