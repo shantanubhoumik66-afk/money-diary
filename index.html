@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.36">
+<meta name="app-version" content="2026.11.28.37">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -43,6 +43,11 @@ nav.tabs a.on{color:var(--ink);border-color:var(--band)}
 .bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding-block:16px}
 select,input[type=search]{min-height:44px;font:16px Inter,sans-serif;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
 .hero{background:var(--band);color:var(--bandInk);border-radius:16px;padding:clamp(20px,3vw,32px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:20px;align-items:center}
+.ovl{display:flex;flex-direction:column;gap:12px;min-width:0}.ovnet span{font-size:13px;font-weight:600;display:block}.ovnet b{display:block;font:700 22px 'Space Grotesk',sans-serif;white-space:nowrap}
+.ovc{border-top:1px solid currentColor;border-color:rgba(255,255,255,.18);padding-top:8px}.ovh{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700}
+.ovv{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:2px}.ovv b{font:700 17px 'Space Grotesk',sans-serif}.ovv small{font-size:11.5px;opacity:.8}
+.hero select.ovtf{width:auto!important;min-height:28px!important;padding:2px 8px!important;font-size:12px!important;border-radius:8px!important;background:rgba(255,255,255,.16)!important;color:inherit!important;border:1px solid rgba(255,255,255,.35)!important}
+.hero select.ovtf option{color:#111;background:#fff}
 .hero .big{font:700 clamp(36px,6vw,56px)/1.05 'Space Grotesk',sans-serif;white-space:nowrap}
 .hero .lbl{font-size:14px;font-weight:600}
 .hk{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}
@@ -823,13 +828,38 @@ function viewYears(){
   document.querySelectorAll('[data-yr]').forEach(b=>b.onclick=()=>{st.year=b.dataset.yr;location.hash='overview'});
   chart('cy',YS.map(o=>({go:()=>{st.year=o.y;location.hash='overview'},label:o.y,tip:o.y+' · tap to open',bars:[[{v:o.c,c:'var(--m)',n:'Total Credit'},{v:o.b,c:'var(--b)',n:'Business'}],[{v:o.x,c:'var(--x)',n:'Expenses'}],[{v:o.mf,c:'var(--e)',n:'MF invested'}]]})));
 }
+/* Overview: three small line charts (credit incl. business, expenses, saved after expenses), weekly or monthly */
+const ovTf=()=>{try{return localStorage.getItem('md.ovtf')==='week'?'week':'month'}catch(e){return'month'}};
+function ovSeries(tf){const{inc,exp}=data();const C={},X={},t=todayISO();const key=d=>tf==='week'?mondayOf(d):d.slice(0,7);
+  for(const r of inc){if(r.off)continue;const k=key(r.d);C[k]=(C[k]||0)+r.m+r.e+(r.u||0)}
+  for(const x of exp){const k=key(x.d);X[k]=(X[k]||0)+x.amt}
+  for(const r of monthRows()){if(!r.biz)continue;if(tf==='month'){C[r.ym]=(C[r.ym]||0)+r.biz;continue}
+    const y=+r.ym.slice(0,4),m=+r.ym.slice(5,7),dim=new Date(y,m,0).getDate();const last=r.ym===t.slice(0,7)?+t.slice(8):dim;if(r.ym>t.slice(0,7))continue;
+    for(let dd=1;dd<=last;dd++){const k=key(r.ym+'-'+pad(dd));C[k]=(C[k]||0)+r.biz/last}}
+  let ks=[...new Set([...Object.keys(C),...Object.keys(X)])].filter(k=>k<=(tf==='week'?mondayOf(t):t.slice(0,7))).sort();if(ks.length>(tf==='week'?52:24))ks=ks.slice(-(tf==='week'?52:24));
+  const lab=k=>tf==='week'?dm(k):ymLabel(k);
+  return{ks,lab,c:ks.map(k=>Math.round(C[k]||0)),x:ks.map(k=>Math.round(X[k]||0)),s:ks.map(k=>Math.round((C[k]||0)-(X[k]||0)))}}
+function lineSm(title,col,vals,S,tf){const W=300,H=96,pl=4,pr=4,pt=14,pb=18;if(!vals.length)return`<div class="ovc"><div class="ovh"><span>${title}</span>${tfSel(tf)}</div><p class="lbl" style="opacity:.8;margin:6px 0">No data yet</p></div>`;
+  const mn=Math.min(0,...vals),mx=Math.max(1,...vals),n=vals.length,X=i=>n===1?W/2:pl+i*(W-pl-pr)/(n-1),Y=v=>pt+(mx-v)/(mx-mn||1)*(H-pt-pb);
+  const pts=vals.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');const last=vals[n-1],prev=n>1?vals[n-2]:null,d=prev==null?0:last-prev;
+  return`<div class="ovc"><div class="ovh"><span>${title}</span>${tfSel(tf)}</div>
+   <div class="ovv"><b style="color:${col}">${inr(last)}</b><small>${esc(S.lab(S.ks[n-1]))}${prev!=null&&d?` · ${d>0?'▲':'▼'} ${inr(Math.abs(d))}`:''}</small></div>
+   <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" role="img" aria-label="${title}">
+    ${mn<0?`<line x1="0" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="3 3"/>`:''}
+    <polygon points="${X(0)},${Y(Math.max(mn,0))} ${pts} ${X(n-1)},${Y(Math.max(mn,0))}" fill="${col}" fill-opacity=".16"/>
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    ${vals.map((v,i)=>`<circle cx="${X(i)}" cy="${Y(v)}" r="${n>30?2:3}" fill="${col}"><title>${esc(S.lab(S.ks[i]))}: ${inr(v)}</title></circle>`).join('')}
+    <text x="0" y="${H-3}" font-size="10" fill="currentColor" fill-opacity=".75">${esc(S.lab(S.ks[0]))}</text><text x="${W}" y="${H-3}" font-size="10" text-anchor="end" fill="currentColor" fill-opacity=".75">${esc(S.lab(S.ks[n-1]))}</text></svg></div>`}
+const tfSel=tf=>`<select class="ovtf" aria-label="Time frame"><option value="week" ${tf==='week'?'selected':''}>Weekly</option><option value="month" ${tf==='month'?'selected':''}>Monthly</option></select>`;
+function ovCharts(){const tf=ovTf(),S=ovSeries(tf);return lineSm('Total credit + business','currentColor',S.c,S,tf)+lineSm('Total expenses','#fda4af',S.x,S,tf)+lineSm('Saved after expenses','#86efac',S.s,S,tf)}
+function bindOv(){const box=$('#ovCharts');if(!box)return;box.onchange=e=>{if(!e.target.classList.contains('ovtf'))return;try{localStorage.setItem('md.ovtf',e.target.value)}catch(_){}box.innerHTML=ovCharts()}}
 function viewOverview(){
   const rows=monthRows();const{exp}=data();
   const T=rows.reduce((a,r)=>({m:a.m+r.m,e:a.e+r.e,u:a.u+(r.u||0),b:a.b+r.biz,x:a.x+r.x,mf:a.mf+r.mf,d:a.d+r.days,o:a.o+r.off}),{m:0,e:0,u:0,b:0,x:0,mf:0,d:0,o:0});
   const inc=T.m+T.e+(T.u||0)+T.b,left=inc-T.x-T.mf,label=st.year==='all'?'all years':st.year;
   const top=itemTotals(exp).slice(0,10);const tmax=top[0]?.amt||1;
   const modes={};for(const x of exp){const k=x.mode||'Not set';modes[k]=(modes[k]||0)+x.amt}
-  $('#view').innerHTML=`<section class="hero"><div><div class="lbl">Net saving in ${esc(label)}, after expenses and MF</div><div class="big num">${inr(left)}</div></div>
+  $('#view').innerHTML=`<section class="hero"><div class="ovl"><div class="ovnet"><span>Net saving in ${esc(label)}, after expenses and MF</span><b>${inr(left)}</b></div><div id="ovCharts">${ovCharts()}</div></div>
   <div class="hk"><div><span>Total Credit</span><b>${inr(T.m+T.e+(T.u||0))}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>Saved before MF</span><b class="svgrn">${inr(inc-T.x)}</b></div><div><span>MF invested</span><b class="mfhl">${inr(T.mf)}</b></div><div><span>Working days</span><b>${T.d}</b></div><div><span>Off days</span><b>${T.o}</b></div></div></section>
   <div class="grid2">
   <section class="card"><h2>Nett income vs expenses by month</h2>${leg([['var(--m)','Morning'],['var(--e)','Evening'],...(T.u?[['var(--u)','Total only (no split)']]:[]),['var(--b)','Business'],['var(--x)','Expenses']])}${fig('c1')}</section>
@@ -839,7 +869,7 @@ function viewOverview(){
   <section class="card"><h2>Month by month</h2><div class="scroll"><table style="min-width:860px"><thead><tr><th>Month</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Business</th><th class="r">Nett income</th><th class="r">vs last month</th><th class="r">Expenses</th><th class="r">MF</th><th class="r">Net saving</th></tr></thead><tbody>
   ${rows.map((r,i)=>{const a=r.m+r.e+(r.u||0)+r.biz,p=i?rows[i-1].m+rows[i-1].e+rows[i-1].biz:0,l=a-r.x-r.mf;return`<tr><td>${ymLabel(r.ym)}</td><td class="r">${mE(r,'m')}</td><td class="r">${mE(r,'e')}</td><td class="r">${inr(r.m+r.e+(r.u||0))}</td><td class="r">${inr(r.biz)}</td><td class="r"><b>${inr(a)}</b></td><td class="r">${chg(a,p)}</td><td class="r exc">${inr(r.x)}</td><td class="r">${inr(r.mf)}</td><td class="r ${l<0?'dnc':''}">${inr(l)}</td></tr>`}).join('')}
   <tr style="font-weight:700"><td>Total</td><td class="r">${inr(T.m)}</td><td class="r">${inr(T.e)}</td><td class="r">${inr(T.m+T.e+(T.u||0))}</td><td class="r">${inr(T.b)}</td><td class="r">${inr(inc)}</td><td></td><td class="r exc">${inr(T.x)}</td><td class="r">${inr(T.mf)}</td><td class="r">${inr(left)}</td></tr>
-  </tbody></table></div>${T.u?`<p class="note" style="margin:8px 0 0">${inr(T.u)} of Total Credit comes from sheets with only a total (no MORNING/NIGHT columns), so it is not split into morning and evening.</p>`:''}</section>`;
+  </tbody></table></div>${T.u?`<p class="note" style="margin:8px 0 0">${inr(T.u)} of Total Credit comes from sheets with only a total (no MORNING/NIGHT columns), so it is not split into morning and evening.</p>`:''}</section>`;bindOv();
   chart('c1',rows.map(r=>({label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym),bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'},{v:r.u||0,c:'var(--u)',n:'Total only (no split)'},{v:r.biz,c:'var(--b)',n:'Business'}],[{v:r.x,c:'var(--x)',n:'Expenses'}]]})));
 }
 function viewInvest(){
