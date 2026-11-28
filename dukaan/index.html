@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.33">
+<meta name="app-version" content="2026.11.28.42">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -198,7 +198,14 @@ async function storeSave(txt){let ok=false;
     else if(Date.now()-m.at>30*864e5&&localStorage.getItem(STORE)){localStorage.removeItem(STORE)}
     SAVED_T=txt;return}
   localStorage.setItem(STORE,txt);SAVED_T=txt}
-async function persist(noSync){STK=null;try{await storeSave(await sealWith(KEYOBJ,SALT,DB,true))}catch(e){flash('⚠ Could not save on this device (storage full or blocked). Please sync and download a backup now.',1);throw e}if(!noSync)syncSoon()}
+/* encrypted copy that Money Diary can read (same link key) for its shop questions */
+const ASKF='dukaan-ask.json';let askT=null;
+async function askSeal(){const key=await crypto.subtle.importKey('raw',ub64(DB.link.key),'AES-GCM',false,['encrypt']);const iv=crypto.getRandomValues(new Uint8Array(12));const at=Date.now();
+  let data=te.encode(JSON.stringify(shareable(DB)));const z=gzOK;if(z)data=await gz(data);
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,data));return JSON.stringify({app:'myshop-ask',v:1,z,iv:b64(iv),ct:b64(ct),at})}
+function askIdb(){return new Promise((res,rej)=>{const r=indexedDB.open('myshop-ask',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+function askSave(){clearTimeout(askT);askT=setTimeout(async()=>{try{if(!DB||!DB.link||!DB.link.key)return;const v=await askSeal();const d=await askIdb();await new Promise((res,rej)=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,'snap');t.oncomplete=res;t.onerror=()=>rej(t.error)});d.close()}catch(e){}},1500)}
+async function persist(noSync){STK=null;askSave();try{await storeSave(await sealWith(KEYOBJ,SALT,DB,true))}catch(e){flash('⚠ Could not save on this device (storage full or blocked). Please sync and download a backup now.',1);throw e}if(!noSync)syncSoon()}
 async function setPin(pin,noSync){SALT=crypto.getRandomValues(new Uint8Array(16));KEYOBJ=await deriveKey(pin,SALT);PIN=pin;await persist(noSync)}
 const newLink=()=>({key:b64(crypto.getRandomValues(new Uint8Array(32))),t:Date.now()});
 const blank=()=>({v:2,shop:{name:'',addr:'',phone:'',gstin:'',mode:'pharmacy',prefix:'INV-',taxIncl:true,upi:'',footer:'Thank you! Please visit again.',dl:'',t:0},items:[],bills:[],custs:[],pays:[],sups:[],spays:[],ins:[],del:{},seq:1,link:newLink()});
@@ -260,7 +267,7 @@ async function syncNow(){if(!syncOn())return;if(syncing){syncAgain=true;return}s
     if(DB.sync.gistId){try{R=await readRemote(DB.sync.token,DB.sync.gistId)}catch(e){if(e.message!=='notfound')throw e;DB.sync.gistId=null}}
     if(R){let got;try{got=await openRemote(R)}catch(e){syncSt.needPin=true;throw new Error('The PIN was changed on your other device. Enter that new PIN in Settings to keep syncing.')}
       if(b64(got.salt)!==b64(SALT)){SALT=got.salt;KEYOBJ=got.key}DB=Object.assign(mergeDB(DB,got.db),{sync:DB.sync});STK=null}
-    const files={[SF]:{content:await sealWith(KEYOBJ,SALT,shareable(DB),'auto')},[LF]:{content:await linkFile()}};
+    const files={[SF]:{content:await sealWith(KEYOBJ,SALT,shareable(DB),'auto')},[LF]:{content:await linkFile()},[ASKF]:{content:await askSeal()}};
     if(DB.sync.gistId)await gh('/gists/'+DB.sync.gistId,{method:'PATCH',body:JSON.stringify({files})});
     else{const g=await gh('/gists',{method:'POST',body:JSON.stringify({description:'My Shop encrypted sync (do not edit)',public:false,files})});DB.sync.gistId=g.id}
     await persist(true);try{localStorage.setItem('dukaan.link',DB.link.key)}catch(e){}
@@ -344,7 +351,7 @@ function boot(){
    <a class="btn hide-m" style="margin-top:auto" href="../" aria-label="Open Money Diary" title="Money Diary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h7M8 11h5"/></svg><span>Money Diary</span></a>
    <button class="btn hide-m" id="lockB">${ic('lock').replace('<svg','<svg width="18" height="18"')} Lock</button></header>
    <main><div id="flash" class="msg" hidden style="margin-bottom:12px"></div><div id="view" class="stack"></div></main></div>`;
-  $('#lockB').onclick=lockNow;idle();render();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}try{localStorage.setItem('dukaan.link',DB.link.key)}catch(e){}syncNow();
+  $('#lockB').onclick=lockNow;idle();render();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}try{localStorage.setItem('dukaan.link',DB.link.key)}catch(e){}askSave();syncNow();
 }
 addEventListener('hashchange',()=>{if(DB)render()});
 function route(){const h=location.hash.slice(1)||'home';const[r,a]=h.split('/');return{r,a}}
@@ -352,7 +359,7 @@ const navHist=[];
 function goBack(btn){btn.classList.add('flash');setTimeout(()=>{btn.classList.remove('flash');if(navHist.length<2)return;navHist.pop();location.hash=navHist[navHist.length-1]},300)}
 function render(){const{r,a}=route();{const h=location.hash&&location.hash!=='#'?location.hash:'#home';if(navHist[navHist.length-1]!==h)navHist.push(h);if(navHist.length>50)navHist.shift();$$('[data-back]').forEach(b=>{b.hidden=navHist.length<2;b.onclick=()=>goBack(b)})}$('#shopName').textContent=DB.shop.name||'My Shop';
   const nr=r==='perf'?'parties':r==='inv'?'bills':r==='party'||r==='sup'?'parties':r==='item'?'stock':r;$$('nav.nav a').forEach(x=>x.classList.toggle('on',x.dataset.r===nr));
-  ({home:viewHome,new:viewNew,bills:viewBills,inv:()=>viewInv(a),stock:()=>viewStock(a),item:()=>viewItem(a),parties:()=>viewParties(a),summary:viewSummary,perf:viewPerf,party:()=>viewParty(a),sup:()=>viewSup(a),settings:()=>viewSettings(a)}[r]||viewHome)();scrollTo(0,0)}
+  ({home:viewHome,new:viewNew,bills:()=>viewBills(a),inv:()=>viewInv(a),stock:()=>viewStock(a),item:()=>viewItem(a),parties:()=>viewParties(a),summary:viewSummary,perf:viewPerf,party:()=>viewParty(a),sup:()=>viewSup(a),settings:()=>viewSettings(a)}[r]||viewHome)();scrollTo(0,0)}
 
 /* ---------- home ---------- */
 function alerts(){const ex=[],soon=[],low=[];
@@ -467,13 +474,10 @@ function sPeriods(q){const t=today(),cy=+t.slice(0,4),cm=+t.slice(5,7),selY=home
   const yre=/\b(20\d{2})\b/g;while((m=yre.exec(q))){if(P.some(p=>p.unit==='month'&&p.i<m.index&&m.index-p.i<14))continue;add(m.index,m[1],m[1]+'-01-01',m[1]+'-12-31','year')}
   return P.sort((a,b)=>a.i-b.i)}
 /* links */
-const sGo=(g,v,txt)=>`<a href="#" class="askgo" data-sgo="${g}" data-v="${esc(v)}">${txt}</a>`;
-const sRange=(p,txt)=>sGo('range',JSON.stringify({from:p.from,to:p.to,label:p.label}),txt||esc(p.label));
+const sGo=(g,v,txt)=>`<a href="#${g}/${esc(encodeURIComponent(v))}" class="askgo" data-sgo="${g}">${txt}</a>`;
+const sRange=(p,txt)=>sGo('bills','r~'+p.from+'~'+p.to+'~'+p.label,txt||esc(p.label));
 const sDayP=d=>({from:d,to:d,label:dl(d)}),sMonP=ym=>({from:ym+'-01',to:sEnd(+ym.slice(0,4),+ym.slice(5,7)),label:ymL(ym)});
-document.addEventListener('click',e=>{const a=e.target.closest('[data-sgo]');if(!a||!DB)return;e.preventDefault();const g=a.dataset.sgo,v=a.dataset.v;
-  if(g==='range'){st.bf='range';st.br=JSON.parse(v);st.bq='';location.hash==='#bills'?render():location.hash='#bills'}
-  else if(g==='stock'){st.filter=v;st.q='';location.hash==='#stock'?render():location.hash='#stock'}
-  else location.hash='#'+g+'/'+v});
+
 /* name matching: longest name found in the question */
 function sFind(q,list){let best=null;for(const x of list){const n=String(x.name||'').toLowerCase().trim();if(n.length>=3&&q.includes(n)&&(!best||n.length>best.n.length))best={...x,n}}
   if(best)return best;const words=q.replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w.length>=4&&!SSTOP.has(w));
@@ -573,7 +577,6 @@ function viewHome(){const t=today(),ym=t.slice(0,7),Y=homeYear();let sT=0,cashT=
    <div class="kpi"><span>Money received today</span><b class="grn">${inr(cashT)}</b></div><div class="kpi"><span>This month's nett</span><b>${inr((NM[ym]||{nett:0}).nett)}</b></div>
    <div class="kpi"><a href="#parties" style="text-decoration:none;color:inherit"><span>Due to collect</span><b class="red">${inr(udh)}</b></a></div></div>
    <a class="btn pri" href="#new" style="min-height:52px;font-size:16px">${ic('plus').replace('<svg','<svg width="22" height="22"')} New sale invoice</a>
-   ${shAskHTML()}
    ${cmpHTML()}
    <section class="card stack"><div class="row"><h2 class="sp">Nett amount by month</h2><a href="#parties/sup">Pay a party</a></div>
     <p class="note" style="margin:0">Nett = sales − (party payments + customer due still unpaid). When a customer pays, their oldest invoices are cleared first and that month's nett goes up. ${DB.sync&&DB.sync.token?'From '+ymL(DB.shop.linkFrom)+', this nett is added to your Business amount in Money Diary.':'Turn on sync in Settings to send this nett to Money Diary as your Business amount.'}</p>
@@ -588,7 +591,7 @@ function viewHome(){const t=today(),ym=t.slice(0,7),Y=homeYear();let sT=0,cashT=
     ${A.soon.length?`<h3 style="margin-top:10px">Expiring within 3 months · ${A.soon.length}</h3><div class="list">${A.soon.slice(0,12).map(([it,b])=>`<a class="li" href="#item/${it.id}"><span class="t"><b>${esc(it.name)}</b><small>Batch ${esc(b.b||'-')} · ${qB(it,b)} left</small></span><span class="pill p-amb">Exp ${expL(b.exp)}</span></a>`).join('')}</div>`:''}
     ${A.low.length?`<h3 style="margin-top:10px">Low stock · ${A.low.length}</h3><div class="list">${A.low.map(it=>`<a class="li" href="#item/${it.id}"><span class="t"><b>${esc(it.name)}</b><small>Alert at ${it.low}</small></span><span class="pill p-amb">${qtyOf(it)} left</span></a>`).join('')}</div>`:''}
    </section><section class="card"><div class="row"><h2 class="sp">Recent sale invoices</h2><a href="#bills">All invoices</a></div>
-    ${recent.length?`<div class="list">${recent.map(billLi).join('')}</div>`:'<p class="empty">No sale invoices yet. Tap New sale invoice to make your first one.</p>'}</section></div>`;bindCmp();bindShAsk();$('#hy').onchange=e=>{st.hy=e.target.value;viewHome()}}
+    ${recent.length?`<div class="list">${recent.map(billLi).join('')}</div>`:'<p class="empty">No sale invoices yet. Tap New sale invoice to make your first one.</p>'}</section></div>`;bindCmp();$('#hy').onchange=e=>{st.hy=e.target.value;viewHome()}}
 const PICON='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>';
 function printInv(b){const th=PS().paper==='th';return th?printThermal(b):doPrint(invHTML(b,false),false)}
 document.addEventListener('click',e=>{const x=e.target.closest('[data-prn]');if(!x||!DB)return;e.preventDefault();const b=DB.bills.find(y=>y.id===x.dataset.prn);if(!b)return;x.classList.add('on');setTimeout(()=>x.classList.remove('on'),600);printInv(b)});
@@ -828,7 +831,7 @@ function prnStatus(){const c=prnCfg();return PRN.kind?`<span class="pill p-grn">
 function twoTap(btn,txt,fn){const o=btn.textContent;let armed=false;btn.onclick=()=>{if(armed){fn();return}armed=true;btn.textContent=txt;setTimeout(()=>{armed=false;btn.textContent=o},3000)}}
 
 /* ---------- bills list ---------- */
-function viewBills(){const t=today();
+function viewBills(sub){const t=today();if(sub&&sub.startsWith('r~')){const[,f,to,...lb]=decodeURIComponent(sub).split('~');st.bf='range';st.br={from:f,to,label:lb.join('~')};st.bq='';history.replaceState(null,'','#bills');navHist[navHist.length-1]='#bills'}
   $('#view').innerHTML=`<div class="row"><h2 class="sp">Sale invoices</h2><a class="btn pri sm" href="#new">+ New sale invoice</a></div>
    <input class="in" id="bq" type="search" placeholder="Search invoice no, customer or item" value="${esc(st.bq)}">
    <div class="chips">${[['today','Today'],['month','This month'],['all','All'],...(st.br?[['range',st.br.label]]:[])].map(([k,n])=>`<button class="chip ${st.bf===k?'on':''}" data-bf="${k}">${esc(n)}</button>`).join('')}</div>
@@ -935,7 +938,7 @@ function viewImport(){const I=st.imp;if(!I){location.hash='#stock';return}const 
       STK=null;const cur=qB(it,bt);const d=I.mode==='add'||cur===0&&!nUpd?x.qty:r2(x.qty-cur);const delta=I.mode==='add'?x.qty:r2(x.qty-cur);
       if(delta||!isNew)DB.ins.push({id:uid(),item:it.id,batch:bt.id,qty:delta,date:today(),note:'Imported from '+I.file,t:now,imp,...(isNew?{newItem:1}:{oldPrice})})}
     await persist();st.imp=null;st.filter='all';st.q='';location.hash='#stock';setTimeout(()=>flash(`✓ Imported: ${nNew} new item${nNew===1?'':'s'}${nUpd?`, ${nUpd} updated`:''}${nSkip?`, ${nSkip} left unchanged`:''}.`),60)}}
-function viewStock(sub){if(sub==='import')return viewImport();const ph=isPh(),A=alerts();const exS=new Set(A.ex.map(x=>x[0].id)),soS=new Set(A.soon.map(x=>x[0].id)),loS=new Set(A.low.map(x=>x.id));
+function viewStock(sub){if(sub==='import')return viewImport();if(['all','instock','low','soon','ex','out'].includes(sub)){st.filter=sub;st.q='';history.replaceState(null,'','#stock');navHist[navHist.length-1]='#stock'}const ph=isPh(),A=alerts();const exS=new Set(A.ex.map(x=>x[0].id)),soS=new Set(A.soon.map(x=>x[0].id)),loS=new Set(A.low.map(x=>x.id));
   $('#view').innerHTML=`<div class="row"><h2 class="sp">Stock</h2><label class="btn sm" for="impF" title="Import stock from a CSV or Excel file">⇪ Import</label><input type="file" id="impF" accept=".csv,.txt,.xlsx,.xls,.pdf,text/csv" hidden><a class="btn pri sm" href="#item/new">+ Add item</a></div>${importsList().length?'<a href="#settings/recover" class="note" style="margin-top:-6px">Undo an import</a>':''}
    <input class="in" id="sq" type="search" placeholder="${ph?'Search medicine or salt':'Search item'}" value="${esc(st.q)}">
    <div class="chips">${[['all','All · '+DB.items.length],['instock','In stock · '+DB.items.filter(i=>qtyOf(i)>0).length],['low','Low stock · '+loS.size],...(ph?[['soon','Expiring · '+soS.size],['ex','Expired · '+exS.size]]:[]),['out','Out of stock']].map(([k,n])=>`<button class="chip ${st.filter===k?'on':''}" data-f="${k}">${n}</button>`).join('')}</div>
@@ -1174,14 +1177,16 @@ function viewSettings(sub){if(sub==='recover')return viewRecover();const S=DB.sh
   if($('#npinB'))$('#npinB').onclick=()=>busy(()=>enterNewPin($('#npin').value.trim()),'✓ PIN updated. Syncing again.');
   twoTap($('#wipe'),'Tap again: erase everything',async()=>{localStorage.removeItem(STORE);localStorage.removeItem(MIG);try{await idbDo('readwrite',s=>s.delete('main'))}catch(e){}SAVED_T=null;lockNow()})}
 
-storeLoad().then(t=>{SAVED_T=t;viewLock()}).catch(()=>{$('#app').innerHTML=`<div class="lock"><div class="card stack"><div class="logo">₹</div><h2>Could not open your saved data</h2><p class="note" style="margin:0">Your data is safe. The browser did not allow access just now. Close My Shop fully (remove it from recent apps) and open it again.</p><button class="btn pri" onclick="location.reload()">Try again</button></div></div>`});
+const ASKMODE=new URLSearchParams(location.search).has('ask');
+if(ASKMODE){window.askLoad=db=>{DB=Object.assign(blank(),db);STK=null;st.hy=null};window.askQ=q=>shAnswer(q);window.askReady=1}
+else storeLoad().then(t=>{SAVED_T=t;viewLock()}).catch(()=>{$('#app').innerHTML=`<div class="lock"><div class="card stack"><div class="logo">₹</div><h2>Could not open your saved data</h2><p class="note" style="margin:0">Your data is safe. The browser did not allow access just now. Close My Shop fully (remove it from recent apps) and open it again.</p><button class="btn pri" onclick="location.reload()">Try again</button></div></div>`});
 /* installable app + update button */
-if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{scope:'./'}).catch(()=>{});
+if(!ASKMODE&&'serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{scope:'./'}).catch(()=>{});
 const MYV=document.querySelector('meta[name=app-version]').content;
 async function checkUpd(){if(location.protocol!=='https:'&&location.hostname!=='localhost')return MYV;try{const t=await(await fetch('./?v='+Date.now(),{cache:'no-store'})).text();const m=t.match(/name="app-version" content="([^"]+)"/);if(m&&m[1]!==MYV){const b=$('#updBar');b.hidden=false;b.style.display='flex'}return m?m[1]:null}catch(e){return null}}
 async function doUpdate(){$$('#updBtn,#updNow').forEach(b=>b.textContent='Updating…');try{await fetch('./',{cache:'reload'});const ks=await caches.keys();await Promise.all(ks.filter(k=>k.startsWith('dukaan-bill-')).map(k=>caches.delete(k)));const r=await navigator.serviceWorker?.getRegistration('./');if(r)await r.update()}catch(e){}location.reload()}
 $('#updBtn').onclick=doUpdate;setInterval(()=>{if(!document.hidden)checkUpd()},30*60e3);
-checkUpd();document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpd()});
+if(!ASKMODE)checkUpd();document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpd()});
 </script>
 </body>
 </html>

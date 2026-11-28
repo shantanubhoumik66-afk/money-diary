@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.41">
+<meta name="app-version" content="2026.11.28.42">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -51,11 +51,11 @@ select,input[type=search]{min-height:44px;font:16px Inter,sans-serif;padding:0 1
 .ovr{display:flex;flex-direction:column;gap:12px;min-width:0}
 .ask{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.24);border-radius:14px;padding:12px 14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
 .askh{font-weight:800;font-size:15px;margin-bottom:8px}
-#askF{display:flex;gap:8px}#askF .in{flex:1;min-width:0;min-height:42px}#askF .btn{min-height:42px;padding:0 16px}
+#askF,#askF2{display:flex;gap:8px}#askF .in,#askF2 .in{flex:1;min-width:0;min-height:42px}#askF .btn,#askF2 .btn{min-height:42px;padding:0 16px}
 .askchips{display:flex;gap:6px;overflow-x:auto;margin-top:8px;scrollbar-width:none}.askchips::-webkit-scrollbar{display:none}
 .hero .askchips .chip{flex:none;font-size:12px;padding:6px 10px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:inherit;border-radius:999px;cursor:pointer;white-space:nowrap}
 a.askgo{color:inherit;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;font-weight:800;cursor:pointer}a.askgo:hover{text-decoration-style:solid}
-#askA:not(:empty){margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.2)}
+#askA:not(:empty),#askA2:not(:empty){margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.2)}
 .askq{margin:0 0 4px;font-size:12px;opacity:.75}.askr{margin:0 0 4px;font-size:15px;line-height:1.45}.askr b{font-size:17px}.askl{margin:2px 0;font-size:13px;opacity:.92;line-height:1.45}
 .ovl{display:flex;flex-direction:column;gap:12px;min-width:0}.ovnet span{font-size:13px;font-weight:600;display:block}.ovnet b{display:block;font:700 22px 'Space Grotesk',sans-serif;white-space:nowrap}
 .ovc{border-top:1px solid currentColor;border-color:rgba(255,255,255,.18);padding-top:8px}.ovh{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700}
@@ -397,9 +397,9 @@ async function openRemote(o,pin){
   const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},key,ub64(o.ct));
   return{db:JSON.parse(dec.decode(pt)),key,salt};
 }
-let lastLink=null;
+let lastLink=null,lastAsk=null;
 async function readRemote(tok,id){
-  const g=await gh('/gists/'+id,{},tok);lastLink=g.files&&g.files['dukaan-link.json']||null;const f=g.files&&g.files[SYNC_FILE];if(!f)return null;
+  const g=await gh('/gists/'+id,{},tok);lastLink=g.files&&g.files['dukaan-link.json']||null;lastAsk=g.files&&g.files['dukaan-ask.json']||null;const f=g.files&&g.files[SYNC_FILE];if(!f)return null;
   let t=f.content;if(f.truncated){const r=await fetch(f.raw_url,{cache:'no-store'});t=await r.text()}
   return JSON.parse(t);
 }
@@ -966,6 +966,35 @@ function askHTML(){return`<div class="ask"><div class="askh">💬 Ask about your
 function bindAsk(){const f=$('#askF');if(!f)return;const go=q=>{const a=askAnswer(q),el=$('#askA');el.innerHTML=a?`<p class="askq">“${esc(q)}”</p><p class="askr">${a.head}</p>${a.lines.map(l=>`<p class="askl">${l}</p>`).join('')}`:'<p class="askl">Type a question first.</p>'};
   f.onsubmit=e=>{e.preventDefault();go($('#askQ').value)};document.querySelectorAll('[data-ask]').forEach(b=>b.onclick=()=>{$('#askQ').value=b.dataset.ask;go(b.dataset.ask)})}
 
+/* ---- Ask about My Shop: My Shop's own answer engine runs in a hidden frame on the shop's encrypted copy ---- */
+const SHOP={p:null,at:0};
+function shopFrame(){if(SHOP.p)return SHOP.p;SHOP.p=new Promise((res,rej)=>{const f=document.createElement('iframe');f.src='dukaan/?ask=1';f.hidden=true;f.tabIndex=-1;f.setAttribute('aria-hidden','true');f.title='My Shop answers';
+  f.onload=()=>{let n=0;const chk=()=>{const w=f.contentWindow;if(w&&w.askReady)res(w);else if(++n>50){f.remove();rej(new Error('old'))}else setTimeout(chk,100)};chk()};f.onerror=()=>{f.remove();rej(new Error('old'))};document.body.appendChild(f)});
+  SHOP.p.catch(()=>{SHOP.p=null});return SHOP.p}
+function shopLocal(){return new Promise(res=>{try{const r=indexedDB.open('myshop-ask',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onerror=()=>res(null);
+  r.onsuccess=()=>{const d=r.result;try{const g=d.transaction('kv').objectStore('kv').get('snap');g.onsuccess=()=>{d.close();res(g.result||null)};g.onerror=()=>{d.close();res(null)}}catch(e){d.close();res(null)}}}catch(e){res(null)}})}
+async function shopData(){try{const k=localStorage.getItem('dukaan.link');if(k&&(!DB.link||DB.link.key!==k))DB.link={key:k,t:Date.now()}}catch(e){}
+  if(!DB.link||!DB.link.key)return{err:'nolink'};const C=[];const l=await shopLocal();if(l)C.push(l);
+  if(lastAsk){try{C.push(lastAsk.truncated?await (await fetch(lastAsk.raw_url,{cache:'no-store'})).text():lastAsk.content)}catch(e){}}
+  const P=C.map(t=>{try{return JSON.parse(t)}catch(e){return null}}).filter(Boolean).sort((a,b)=>(b.at||0)-(a.at||0));if(!P.length)return{err:'nodata'};
+  for(const o of P){try{const key=await crypto.subtle.importKey('raw',ub64(DB.link.key),'AES-GCM',false,['decrypt']);let d=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},key,ub64(o.ct)));
+    if(o.z)d=new Uint8Array(await new Response(new Blob([d]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());return{db:JSON.parse(dec.decode(d)),at:o.at}}catch(e){}}
+  return{err:'nokey'}}
+async function shopAnswer(q){const D=await shopData();
+  if(D.err)return{head:D.err==='nodata'?'I can’t see your shop data yet.':D.err==='nokey'?'Your shop data is locked with a different link.':'My Shop is not connected here yet.',
+    lines:[D.err==='nokey'?'Open My Shop once on this device so both apps use the same link, then ask again.':'Open My Shop once on this device (or turn on sync in both apps), then ask again.']};
+  let w;try{w=await shopFrame()}catch(e){return{head:'Please update My Shop first.',lines:['Open My Shop and tap Update now, then come back and ask again.']}}
+  if(SHOP.at!==D.at){w.askLoad(D.db);SHOP.at=D.at}const a=w.askQ(q);if(!a)return null;
+  const fix=h=>String(h).replace(/href="#/g,'href="dukaan/#');const ago=Date.now()-(D.at||0);
+  return{head:fix(a.head),lines:a.lines.map(fix).concat(ago>36e5?[`<span style="opacity:.7">Shop data as of ${esc(new Date(D.at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}))}. Open My Shop to refresh.</span>`]:[])}}
+const SHEX2=['Sales this month','Which day highest sales this month?','Top 5 selling medicines this year','Who owes me most?','Cash received today','Online received this month','Expiring medicines','Low stock items','Compare sales Oct vs Nov','Party payments this month','Top customers this year'];
+function shopAskHTML(){return`<div class="ask" style="margin-top:10px"><div class="askh">🏪 Ask about My Shop</div><form id="askF2" autocomplete="off"><input class="in" id="askQ2" placeholder="e.g. Which day had the highest sales?" aria-label="Your question about My Shop"><button class="btn pri" type="submit">Ask</button></form>
+  <div class="askchips">${SHEX2.map(x=>`<button type="button" class="chip" data-ask2="${esc(x)}">${esc(x)}</button>`).join('')}</div><div id="askA2" class="askA" aria-live="polite"></div><p class="askl" style="opacity:.7;margin-top:6px">Tap an underlined invoice, day, customer or medicine to open it in My Shop.</p></div>`}
+function bindShopAsk(){const f=$('#askF2');if(!f)return;const go=async q=>{const el=$('#askA2');if(!q.trim()){el.innerHTML='<p class="askl">Type a question first.</p>';return}el.innerHTML='<p class="askl">Looking in My Shop…</p>';
+    let a;try{a=await shopAnswer(q)}catch(e){a={head:'Could not read My Shop just now.',lines:['Please try again.']}}
+    el.innerHTML=a?`<p class="askq">“${esc(q)}”</p><p class="askr">${a.head}</p>${a.lines.map(l=>`<p class="askl">${l}</p>`).join('')}`:'<p class="askl">Type a question first.</p>'};
+  f.onsubmit=e=>{e.preventDefault();go($('#askQ2').value)};document.querySelectorAll('[data-ask2]').forEach(b=>b.onclick=()=>{$('#askQ2').value=b.dataset.ask2;go(b.dataset.ask2)})}
+
 function viewOverview(){
   const rows=monthRows();const{exp}=data();
   const T=rows.reduce((a,r)=>({m:a.m+r.m,e:a.e+r.e,u:a.u+(r.u||0),b:a.b+r.biz,x:a.x+r.x,mf:a.mf+r.mf,d:a.d+r.days,o:a.o+r.off}),{m:0,e:0,u:0,b:0,x:0,mf:0,d:0,o:0});
@@ -973,7 +1002,7 @@ function viewOverview(){
   const top=itemTotals(exp).slice(0,10);const tmax=top[0]?.amt||1;
   const modes={};for(const x of exp){const k=x.mode||'Not set';modes[k]=(modes[k]||0)+x.amt}
   $('#view').innerHTML=`<section class="hero ovhero"><div class="ovl"><div class="ovnet"><span>Net saving in ${esc(label)}, after expenses and MF</span><b>${inr(left)}</b></div><div id="ovCharts">${ovCharts()}</div></div>
-  <div class="ovr"><div class="hk"><div><span>Total Credit</span><b>${inr(T.m+T.e+(T.u||0))}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>Saved before MF</span><b class="svgrn">${inr(inc-T.x)}</b></div><div><span>MF invested</span><b class="mfhl">${inr(T.mf)}</b></div><div><span>Working days</span><b>${T.d}</b></div><div><span>Off days</span><b>${T.o}</b></div></div>${askHTML()}</div></section>
+  <div class="ovr"><div class="hk"><div><span>Total Credit</span><b>${inr(T.m+T.e+(T.u||0))}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>Saved before MF</span><b class="svgrn">${inr(inc-T.x)}</b></div><div><span>MF invested</span><b class="mfhl">${inr(T.mf)}</b></div><div><span>Working days</span><b>${T.d}</b></div><div><span>Off days</span><b>${T.o}</b></div></div>${askHTML()}${shopAskHTML()}</div></section>
   <div class="grid2">
   <section class="card"><h2>Nett income vs expenses by month</h2>${leg([['var(--m)','Morning'],['var(--e)','Evening'],...(T.u?[['var(--u)','Total only (no split)']]:[]),['var(--b)','Business'],['var(--x)','Expenses']])}${fig('c1')}</section>
   <section class="card"><h2>Where the money goes</h2><p class="note" style="margin:0 0 8px">Tap an item to see its full history.</p>
@@ -982,7 +1011,7 @@ function viewOverview(){
   <section class="card"><h2>Month by month</h2><div class="scroll"><table style="min-width:860px"><thead><tr><th>Month</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Business</th><th class="r">Nett income</th><th class="r">vs last month</th><th class="r">Expenses</th><th class="r">MF</th><th class="r">Net saving</th></tr></thead><tbody>
   ${rows.map((r,i)=>{const a=r.m+r.e+(r.u||0)+r.biz,p=i?rows[i-1].m+rows[i-1].e+rows[i-1].biz:0,l=a-r.x-r.mf;return`<tr><td>${ymLabel(r.ym)}</td><td class="r">${mE(r,'m')}</td><td class="r">${mE(r,'e')}</td><td class="r">${inr(r.m+r.e+(r.u||0))}</td><td class="r">${inr(r.biz)}</td><td class="r"><b>${inr(a)}</b></td><td class="r">${chg(a,p)}</td><td class="r exc">${inr(r.x)}</td><td class="r">${inr(r.mf)}</td><td class="r ${l<0?'dnc':''}">${inr(l)}</td></tr>`}).join('')}
   <tr style="font-weight:700"><td>Total</td><td class="r">${inr(T.m)}</td><td class="r">${inr(T.e)}</td><td class="r">${inr(T.m+T.e+(T.u||0))}</td><td class="r">${inr(T.b)}</td><td class="r">${inr(inc)}</td><td></td><td class="r exc">${inr(T.x)}</td><td class="r">${inr(T.mf)}</td><td class="r">${inr(left)}</td></tr>
-  </tbody></table></div>${T.u?`<p class="note" style="margin:8px 0 0">${inr(T.u)} of Total Credit comes from sheets with only a total (no MORNING/NIGHT columns), so it is not split into morning and evening.</p>`:''}</section>`;bindOv();bindAsk();
+  </tbody></table></div>${T.u?`<p class="note" style="margin:8px 0 0">${inr(T.u)} of Total Credit comes from sheets with only a total (no MORNING/NIGHT columns), so it is not split into morning and evening.</p>`:''}</section>`;bindOv();bindAsk();bindShopAsk();
   chart('c1',rows.map(r=>({label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym),bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'},{v:r.u||0,c:'var(--u)',n:'Total only (no split)'},{v:r.biz,c:'var(--b)',n:'Business'}],[{v:r.x,c:'var(--x)',n:'Expenses'}]]})));
 }
 function viewInvest(){
