@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.39">
+<meta name="app-version" content="2026.11.28.40">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -48,6 +48,14 @@ select,input[type=search]{min-height:44px;font:16px Inter,sans-serif;padding:0 1
 .hero .hk>div b{font-size:clamp(17px,4.6vw,22px)}
 .hero .hk>div>span{display:block;margin-bottom:4px}.hero .hk>div>b.exred,.hero .hk>div>b.svgrn,.hero .hk>div>b.mfhl{display:inline-block;width:auto}
 .hero.ovhero{align-items:start}
+.ovr{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ask{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.24);border-radius:14px;padding:12px 14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+.askh{font-weight:800;font-size:15px;margin-bottom:8px}
+#askF{display:flex;gap:8px}#askF .in{flex:1;min-width:0;min-height:42px}#askF .btn{min-height:42px;padding:0 16px}
+.askchips{display:flex;gap:6px;overflow-x:auto;margin-top:8px;scrollbar-width:none}.askchips::-webkit-scrollbar{display:none}
+.hero .askchips .chip{flex:none;font-size:12px;padding:6px 10px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:inherit;border-radius:999px;cursor:pointer;white-space:nowrap}
+#askA:not(:empty){margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.2)}
+.askq{margin:0 0 4px;font-size:12px;opacity:.75}.askr{margin:0 0 4px;font-size:15px;line-height:1.45}.askr b{font-size:17px}.askl{margin:2px 0;font-size:13px;opacity:.92;line-height:1.45}
 .ovl{display:flex;flex-direction:column;gap:12px;min-width:0}.ovnet span{font-size:13px;font-weight:600;display:block}.ovnet b{display:block;font:700 22px 'Space Grotesk',sans-serif;white-space:nowrap}
 .ovc{border-top:1px solid currentColor;border-color:rgba(255,255,255,.18);padding-top:8px}.ovh{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700}
 .ovv{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:2px}.ovv b{font:700 17px 'Space Grotesk',sans-serif}.ovv small{font-size:11.5px;opacity:.8}
@@ -857,9 +865,95 @@ function lineSm(title,col,vals,S,tf){const W=300,H=96,pl=4,pr=4,pt=14,pb=18;if(!
     <text x="0" y="${H-3}" font-size="10" fill="currentColor" fill-opacity=".75">${esc(S.lab(S.ks[0]))}</text><text x="${W}" y="${H-3}" font-size="10" text-anchor="end" fill="currentColor" fill-opacity=".75">${esc(S.lab(S.ks[n-1]))}</text></svg></div>`}
 const tfSel=tf=>`<select class="ovtf" aria-label="Time frame"><option value="week" ${tf==='week'?'selected':''}>Weekly</option><option value="month" ${tf==='month'?'selected':''}>Monthly</option></select>`;
 function ovCharts(){const tf=ovTf(),S=ovSeries(tf);return lineSm('Total credit + business','#ffd60a',S.c,S,tf)+lineSm('Total expenses','#ff4d6d',S.x,S,tf)+lineSm('Saved after expenses','#2ee59d',S.s,S,tf)}
-function alignOv(){const box=$('#ovCharts'),hk=$('.ovhero .hk'),l=$('.ovhero .ovl');if(!box||!hk||!l)return;hk.style.marginTop='0px';if(hk.getBoundingClientRect().left>l.getBoundingClientRect().right-4)hk.style.marginTop=(box.getBoundingClientRect().top-hk.getBoundingClientRect().top)+'px'}
+function alignOv(){return;const box=$('#ovCharts'),hk=$('.ovhero .hk'),l=$('.ovhero .ovl');if(!box||!hk||!l)return;hk.style.marginTop='0px';if(hk.getBoundingClientRect().left>l.getBoundingClientRect().right-4)hk.style.marginTop=(box.getBoundingClientRect().top-hk.getBoundingClientRect().top)+'px'}
 addEventListener('resize',()=>{try{alignOv()}catch(e){}});
 function bindOv(){const box=$('#ovCharts');if(!box)return;requestAnimationFrame(alignOv);box.onchange=e=>{if(!e.target.classList.contains('ovtf'))return;try{localStorage.setItem('md.ovtf',e.target.value)}catch(_){}box.innerHTML=ovCharts()}}
+/* ---------- Ask: answers questions about your own data. No AI: the app works out the exact numbers. ---------- */
+const ASKM=[['jan','january'],['feb','february'],['mar','march'],['apr','april'],['may'],['jun','june'],['jul','july'],['aug','august'],['sep','sept','september'],['oct','october'],['nov','november'],['dec','december']];
+const mEnd=(y,m)=>y+'-'+pad(m)+'-'+pad(new Date(y,m,0).getDate());
+function askPeriods(q){const t=todayISO(),cy=+t.slice(0,4),cm=+t.slice(5,7),selY=st.year&&st.year!=='all'?+st.year:null;const P=[];
+  const add=(i,label,from,to,unit)=>P.push({i,label,from,to,unit});
+  const R=[[/\btoday\b/g,()=>['today',t,t,'day']],[/\byesterday\b/g,()=>{const y=addDays(t,-1);return['yesterday ('+dm(y)+')',y,y,'day']}],
+    [/\bthis week\b/g,()=>['this week',mondayOf(t),addDays(mondayOf(t),6),'week']],[/\blast week\b/g,()=>{const s=addDays(mondayOf(t),-7);return['last week ('+wkLabel(s)+')',s,addDays(s,6),'week']}],
+    [/\bthis month\b/g,()=>['this month ('+ymLabel(t.slice(0,7))+')',t.slice(0,8)+'01',mEnd(cy,cm),'month']],
+    [/\blast month\b/g,()=>{const y=cm===1?cy-1:cy,m=cm===1?12:cm-1;return['last month ('+ymLabel(y+'-'+pad(m))+')',y+'-'+pad(m)+'-01',mEnd(y,m),'month']}],
+    [/\bthis year\b/g,()=>['this year ('+cy+')',cy+'-01-01',cy+'-12-31','year']],[/\blast year\b/g,()=>['last year ('+(cy-1)+')',(cy-1)+'-01-01',(cy-1)+'-12-31','year']],
+    [/\b(all time|overall|ever|all years|so far)\b/g,()=>['all time','0000-01-01','9999-12-31','all']]];
+  for(const[re,f]of R){let m;while((m=re.exec(q))){const[l,a,b,u]=f();add(m.index,l,a,b,u)}}
+  const mre=new RegExp('\\b('+ASKM.flat().join('|')+')\\b(?:[\\s\'’-]*(\\d{4}|\\d{2})\\b)?','g');let m;
+  while((m=mre.exec(q))){if(m[1]==='may'&&!m[2]&&/\bmay (i|we|you)\b/.test(q.slice(m.index,m.index+8)))continue;const mi=ASKM.findIndex(a=>a.includes(m[1]))+1;
+    let y=m[2]?(m[2].length===2?2000+ +m[2]:+m[2]):selY||(mi>cm?cy-1:cy);add(m.index,ymLabel(y+'-'+pad(mi)),y+'-'+pad(mi)+'-01',mEnd(y,mi),'month')}
+  const yre=/\b(20\d{2})\b/g;while((m=yre.exec(q))){if(P.some(p=>p.unit==='month'&&q.slice(p.i,m.index+4).length<14&&p.i<m.index))continue;add(m.index,m[1],m[1]+'-01-01',m[1]+'-12-31','year')}
+  return P.sort((a,b)=>a.i-b.i)}
+const ASKMET=[['mf',/\b(mf|mutual fund|sip|invest(ed|ment)?)\b/,'MF invested'],['net',/\b(net saving|after mf)\b/,'Net saving (after MF)'],['saved',/\bsav(e|ed|ing|ings)\b/,'Saved after expenses'],
+  ['biz',/\bbusiness\b/,'Business'],['nett',/\b(nett? income|total income|income)\b/,'Nett income (credit + business)'],['m',/\bmorning\b/,'Morning credit'],['e',/\b(evening|night)\b/,'Evening credit'],
+  ['credit',/\b(credit|earn|earned|earning|earnings)\b/,'Total Credit'],['x',/\b(expense|expenses|spend|spent|spending|cost|paid|pay|buy|bought|purchase)\b/,'Expenses'],
+  ['off',/\b(off ?day|off ?days|holiday|leave)\b/,'Off days'],['days',/\b(working day|working days|work days|days worked)\b/,'Working days']];
+const STOPW=new Set('how much many what when which who where did do does i my me spent spend spending on in for the a an of to from total amount money rs rupees and or vs versus compare compared with between was is are this last month week year today yesterday expense expenses buy bought purchase paid pay cost credit morning evening night business income nett net saving savings saved save mf average avg per daily monthly weekly best worst highest lowest most least top biggest smallest max min time times ever overall all so far days day off working show tell give please much spend on cash gpay online upi'.split(' '));
+function askItem(q,D){const names=new Map();for(const d in D)for(const x of D[d].exp){const k=norm(x.item);if(!names.has(k))names.set(k,x.item)}
+  let best=null;for(const[k,n]of names){const l=String(n).toLowerCase();if(l.length>=3&&q.includes(l)&&(!best||l.length>best.length))best=l}
+  if(best)return{term:best,label:names.get(norm(best))||best.toUpperCase()};
+  const words=q.replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w.length>=3&&!STOPW.has(w)&&!/^\d+$/.test(w)&&!ASKM.flat().includes(w));
+  for(const w of words){const hits=[...names.values()].filter(n=>String(n).toLowerCase().includes(w));if(hits.length)return{term:w,label:w.toUpperCase(),hits}}
+  return words.length?{term:null,miss:words[0]}:null}
+function askAgg(D,from,to,f){const r={m:0,e:0,u:0,x:0,xn:0,days:0,off:0,biz:0,mf:0,last:null,items:{}};
+  for(const d in D){if(d<from||d>to)continue;const o=D[d];if(o.off&&!(o.m+o.e+(o.u||0)))r.off++;else if(o.m||o.e||o.u){r.m+=o.m;r.e+=o.e;r.u+=o.u||0;r.days++}
+    for(const x of o.exp){if(f.item&&!String(x.item).toLowerCase().includes(f.item))continue;if(f.mode&&!(f.mode==='Cash'?/^cash$/i.test(x.mode):!/^cash$/i.test(x.mode)))continue;
+      r.x+=x.amt;r.xn++;if(!r.last||d>r.last.d)r.last={d,amt:x.amt,item:x.item};const k=norm(x.item);const it=r.items[k]||(r.items[k]={name:x.item,amt:0,n:0});it.amt+=x.amt;it.n++}}
+  const yms=new Set(Object.keys(D).map(d=>d.slice(0,7)));for(const k of[...Object.keys(DB.biz||{}),...Object.keys(DB.manualM||{}),...Object.keys(DB.mf||{}),...Object.keys((DB.dk&&DB.dk.m)||{})])yms.add(k);
+  for(const ym of yms){const s=ym+'-01',y=+ym.slice(0,4),mo=+ym.slice(5,7),e=mEnd(y,mo);if(e<from||s>to)continue;const dim=+e.slice(8);
+    const a=from>s?from:s,b=to<e?to:e;const share=(new Date(b+'T00:00')-new Date(a+'T00:00'))/864e5+1;const k=share>=dim?1:share/dim;r.biz+=bizOf(ym)*k;r.mf+=mfOf(ym)*k}
+  r.credit=r.m+r.e+r.u;r.nett=r.credit+r.biz;r.saved=r.nett-r.x;r.net=r.saved-r.mf;return r}
+const askVal=(r,k)=>k==='off'||k==='days'?r[k]:Math.round(r[k]);
+const askFmt=(k,v)=>k==='off'||k==='days'?v+' day'+(v===1?'':'s'):inr(v);
+function askAnswer(raw){const q=' '+raw.toLowerCase().replace(/[’']/g,"'").replace(/\s+/g,' ').trim()+' ';if(q.trim().length<2)return null;
+  const D=allDays();const P=askPeriods(q);const t=todayISO();
+  const defP=st.year&&st.year!=='all'?{label:st.year,from:st.year+'-01-01',to:st.year+'-12-31',unit:'year'}:{label:'all time',from:'0000-01-01',to:'9999-12-31',unit:'all'};
+  const per=P[0]||defP;const mode=/\bcash\b/.test(q)?'Cash':/\b(gpay|online|upi|google pay|phonepe|paytm)\b/.test(q)?'GPay':null;
+  let met=(ASKMET.find(([,re])=>re.test(q))||[])[0];const it=askItem(q,D);
+  if(!met&&!(it&&it.term)&&!mode&&!P.length&&!/\b(top|best|worst|highest|lowest|average|compare|last time|when)\b/.test(q))return{head:'I can answer questions about your credit, business, expenses, savings, MF and off days.',lines:['Try: “How much spent on petrol this month?”, “Compare credit Oct vs Nov”, “Which month I saved most?”, “Top 5 expenses this year”.']};
+  if(!met)met=it&&it.term?'x':mode?'x':'credit';
+  const f={item:met==='x'&&it&&it.term?it.term:null,mode:met==='x'?mode:null};const mlab=(ASKMET.find(a=>a[0]===met)||[,,'Total'])[2]+(f.item?' on '+(it.label||f.item.toUpperCase()):'')+(f.mode?' ('+(f.mode==='Cash'?'cash':'GPay / online')+')':'');
+  const lines=[];let head='';
+  if(met==='x'&&it&&!it.term&&!/\b(top|biggest|most|highest|where|which item|items)\b/.test(q)&&it.miss&&!mode)return{head:`I couldn’t find “${esc(it.miss)}” in your expenses.`,lines:['Check the spelling, or try a word from the item name (for example “petrol” or “fish”).']};
+  // last time
+  if(/\b(last time|when did i|last bought|last paid|last spent|last purchase)\b/.test(q)&&f.item){const r=askAgg(D,'0000-01-01',t,f);if(!r.last)return{head:`No expense found for ${esc(it.label)}.`,lines:[]};
+    return{head:`Last ${esc(r.last.item)}: <b>${dl(r.last.d)}</b>, ${inr(r.last.amt)}.`,lines:[`${r.xn} time${r.xn===1?'':'s'} in total · ${inr(r.x)} altogether.`]}}
+  // compare two periods
+  if(/\b(compare|compared|vs|versus|difference|against)\b/.test(q)&&P.length>=2){const a=askAgg(D,P[0].from,P[0].to,f),b=askAgg(D,P[1].from,P[1].to,f);const va=askVal(a,met),vb=askVal(b,met),d=vb-va;
+    return{head:`${esc(mlab)}: ${esc(P[0].label)} <b>${askFmt(met,va)}</b> vs ${esc(P[1].label)} <b>${askFmt(met,vb)}</b>.`,lines:[d?`${esc(P[1].label)} is ${d>0?'▲ higher':'▼ lower'} by <b>${askFmt(met,Math.abs(d))}</b>${va&&met!=='off'&&met!=='days'?` (${d>0?'+':'−'}${Math.abs(Math.round(d/va*100))}%)`:''}.`:'Both are the same.']}}
+  // top items
+  if(/\b(top|biggest|highest|most|where)\b/.test(q)&&/\b(item|items|expense|expenses|spend|spending|spent|money go|money goes)\b/.test(q)&&!/\b(month|week|day)\b/.test(q.replace(/\bthis month|last month|this week|last week|today|yesterday\b/g,''))){
+    const n=Math.min(20,+(q.match(/\btop (\d+)/)||[])[1]||5);const r=askAgg(D,per.from,per.to,{mode});const L=Object.values(r.items).sort((a,b)=>b.amt-a.amt).slice(0,n);
+    if(!L.length)return{head:`No expenses in ${esc(per.label)}.`,lines:[]};return{head:`Top ${L.length} expenses in ${esc(per.label)} (total ${inr(r.x)}):`,lines:L.map((x,i)=>`${i+1}. ${esc(x.name)}: <b>${inr(x.amt)}</b> (${x.n} time${x.n===1?'':'s'})`)}}
+  // best / worst month or week
+  const hi=/\b(best|highest|most|max|maximum|biggest|top)\b/.test(q),lo=/\b(worst|lowest|least|min|minimum|smallest)\b/.test(q);const unitM=q.match(/\b(month|week|day)\b/);
+  if((hi||lo)&&unitM){const u=unitM[1];const rangeP=P.find(p=>p.unit==='year'||p.unit==='all')||defP;const keys=new Set();
+    for(const d in D)if(d>=rangeP.from&&d<=rangeP.to&&d<=t)keys.add(u==='month'?d.slice(0,7):u==='week'?mondayOf(d):d);
+    if(u==='month')for(const ym of Object.keys(DB.biz||{}))if(ym+'-01'>=rangeP.from&&ym+'-01'<=rangeP.to)keys.add(ym);
+    const rows=[...keys].map(k=>{const from=u==='month'?k+'-01':k,to=u==='month'?mEnd(+k.slice(0,4),+k.slice(5,7)):u==='week'?addDays(k,6):k;return{k,v:askVal(askAgg(D,from,to,f),met)}}).filter(r=>met==='x'||r.v!==0||u!=='day');
+    if(!rows.length)return{head:`No data in ${esc(rangeP.label)}.`,lines:[]};rows.sort((a,b)=>lo?a.v-b.v:b.v-a.v);const lab=k=>u==='month'?ymLabel(k):u==='week'?wkLabel(k):dl(k);
+    return{head:`${lo?'Lowest':'Highest'} ${u} for ${esc(mlab.toLowerCase())} in ${esc(rangeP.label)}: <b>${esc(lab(rows[0].k))}</b>, ${askFmt(met,rows[0].v)}.`,lines:rows.slice(1,4).map((r,i)=>`${i+2}. ${esc(lab(r.k))}: ${askFmt(met,r.v)}`)}}
+  // averages
+  if(/\b(average|avg|per day|daily|per month|monthly|per week|weekly)\b/.test(q)&&met!=='off'&&met!=='days'){const r=askAgg(D,per.from,per.to,f);const end=per.to<t?per.to:t;
+    const calDays=Math.max(1,(new Date(end+'T00:00')-new Date((per.from<'1990'?Object.keys(D).sort()[0]||t:per.from)+'T00:00'))/864e5+1);
+    const v=askVal(r,met);if(/\b(per month|monthly|average month)\b/.test(q)){const months=Math.max(1,new Set(Object.keys(D).filter(d=>d>=per.from&&d<=end).map(d=>d.slice(0,7))).size);return{head:`Average ${esc(mlab.toLowerCase())} per month in ${esc(per.label)}: <b>${inr(v/months)}</b>.`,lines:[`Total ${inr(v)} over ${months} month${months===1?'':'s'}.`]}}
+    if(/\b(per week|weekly)\b/.test(q)){const w=Math.max(1,calDays/7);return{head:`Average ${esc(mlab.toLowerCase())} per week in ${esc(per.label)}: <b>${inr(v/w)}</b>.`,lines:[`Total ${inr(v)} over ${Math.round(calDays)} days.`]}}
+    const base=['credit','m','e','nett'].includes(met)?r.days:calDays;return{head:`Average ${esc(mlab.toLowerCase())} per ${['credit','m','e','nett'].includes(met)?'working day':'day'} in ${esc(per.label)}: <b>${inr(base?v/base:0)}</b>.`,lines:[`Total ${inr(v)} over ${Math.round(base)} ${['credit','m','e','nett'].includes(met)?'working days':'days'}.`]}}
+  // plain total for one period
+  const r=askAgg(D,per.from,per.to,f);const v=askVal(r,met);head=`${esc(mlab)}, ${esc(per.label)}: <b>${askFmt(met,v)}</b>.`;
+  if(met==='x'&&r.xn)lines.push(`${r.xn} payment${r.xn===1?'':'s'}${f.item&&r.last?` · last on ${dl(r.last.d)} (${inr(r.last.amt)})`:''}.`);
+  if(met==='x'&&!f.item&&!f.mode&&r.x){const top=Object.values(r.items).sort((a,b)=>b.amt-a.amt).slice(0,3);lines.push('Biggest: '+top.map(x=>`${esc(x.name)} ${inr(x.amt)}`).join(', ')+'.')}
+  if(met==='credit')lines.push(`Morning ${inr(r.m)} · Evening ${inr(r.e)}${r.u?` · Total-only ${inr(r.u)}`:''} · ${r.days} working day${r.days===1?'':'s'}, ${r.off} off.`);
+  if(met==='saved'||met==='net')lines.push(`Credit ${inr(r.credit)} + Business ${inr(Math.round(r.biz))} − Expenses ${inr(r.x)}${met==='net'?` − MF ${inr(Math.round(r.mf))}`:''}.`);
+  if((met==='biz'||met==='mf'||met==='nett'||met==='saved'||met==='net')&&(per.unit==='day'||per.unit==='week'))lines.push('Business and MF are monthly, so they are spread evenly over the days.');
+  return{head,lines}}
+const ASKEX=['How much spent on petrol this month?','Compare credit Oct vs Nov','Which month I saved most?','Top 5 expenses this year','Average daily credit last month','How many off days in October?','When did I last buy fish?','Cash expenses last week'];
+function askHTML(){return`<div class="ask"><div class="askh">💬 Ask about your money</div><form id="askF" autocomplete="off"><input class="in" id="askQ" placeholder="e.g. How much spent on fish in October?" aria-label="Your question"><button class="btn pri" type="submit">Ask</button></form>
+  <div class="askchips">${ASKEX.map(x=>`<button type="button" class="chip" data-ask="${esc(x)}">${esc(x)}</button>`).join('')}</div><div id="askA" aria-live="polite"></div></div>`}
+function bindAsk(){const f=$('#askF');if(!f)return;const go=q=>{const a=askAnswer(q),el=$('#askA');el.innerHTML=a?`<p class="askq">“${esc(q)}”</p><p class="askr">${a.head}</p>${a.lines.map(l=>`<p class="askl">${l}</p>`).join('')}`:'<p class="askl">Type a question first.</p>'};
+  f.onsubmit=e=>{e.preventDefault();go($('#askQ').value)};document.querySelectorAll('[data-ask]').forEach(b=>b.onclick=()=>{$('#askQ').value=b.dataset.ask;go(b.dataset.ask)})}
+
 function viewOverview(){
   const rows=monthRows();const{exp}=data();
   const T=rows.reduce((a,r)=>({m:a.m+r.m,e:a.e+r.e,u:a.u+(r.u||0),b:a.b+r.biz,x:a.x+r.x,mf:a.mf+r.mf,d:a.d+r.days,o:a.o+r.off}),{m:0,e:0,u:0,b:0,x:0,mf:0,d:0,o:0});
@@ -867,7 +961,7 @@ function viewOverview(){
   const top=itemTotals(exp).slice(0,10);const tmax=top[0]?.amt||1;
   const modes={};for(const x of exp){const k=x.mode||'Not set';modes[k]=(modes[k]||0)+x.amt}
   $('#view').innerHTML=`<section class="hero ovhero"><div class="ovl"><div class="ovnet"><span>Net saving in ${esc(label)}, after expenses and MF</span><b>${inr(left)}</b></div><div id="ovCharts">${ovCharts()}</div></div>
-  <div class="hk"><div><span>Total Credit</span><b>${inr(T.m+T.e+(T.u||0))}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>Saved before MF</span><b class="svgrn">${inr(inc-T.x)}</b></div><div><span>MF invested</span><b class="mfhl">${inr(T.mf)}</b></div><div><span>Working days</span><b>${T.d}</b></div><div><span>Off days</span><b>${T.o}</b></div></div></section>
+  <div class="ovr"><div class="hk"><div><span>Total Credit</span><b>${inr(T.m+T.e+(T.u||0))}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>Saved before MF</span><b class="svgrn">${inr(inc-T.x)}</b></div><div><span>MF invested</span><b class="mfhl">${inr(T.mf)}</b></div><div><span>Working days</span><b>${T.d}</b></div><div><span>Off days</span><b>${T.o}</b></div></div>${askHTML()}</div></section>
   <div class="grid2">
   <section class="card"><h2>Nett income vs expenses by month</h2>${leg([['var(--m)','Morning'],['var(--e)','Evening'],...(T.u?[['var(--u)','Total only (no split)']]:[]),['var(--b)','Business'],['var(--x)','Expenses']])}${fig('c1')}</section>
   <section class="card"><h2>Where the money goes</h2><p class="note" style="margin:0 0 8px">Tap an item to see its full history.</p>
@@ -876,7 +970,7 @@ function viewOverview(){
   <section class="card"><h2>Month by month</h2><div class="scroll"><table style="min-width:860px"><thead><tr><th>Month</th><th class="r">Morning</th><th class="r">Evening</th><th class="r">Total Credit</th><th class="r">Business</th><th class="r">Nett income</th><th class="r">vs last month</th><th class="r">Expenses</th><th class="r">MF</th><th class="r">Net saving</th></tr></thead><tbody>
   ${rows.map((r,i)=>{const a=r.m+r.e+(r.u||0)+r.biz,p=i?rows[i-1].m+rows[i-1].e+rows[i-1].biz:0,l=a-r.x-r.mf;return`<tr><td>${ymLabel(r.ym)}</td><td class="r">${mE(r,'m')}</td><td class="r">${mE(r,'e')}</td><td class="r">${inr(r.m+r.e+(r.u||0))}</td><td class="r">${inr(r.biz)}</td><td class="r"><b>${inr(a)}</b></td><td class="r">${chg(a,p)}</td><td class="r exc">${inr(r.x)}</td><td class="r">${inr(r.mf)}</td><td class="r ${l<0?'dnc':''}">${inr(l)}</td></tr>`}).join('')}
   <tr style="font-weight:700"><td>Total</td><td class="r">${inr(T.m)}</td><td class="r">${inr(T.e)}</td><td class="r">${inr(T.m+T.e+(T.u||0))}</td><td class="r">${inr(T.b)}</td><td class="r">${inr(inc)}</td><td></td><td class="r exc">${inr(T.x)}</td><td class="r">${inr(T.mf)}</td><td class="r">${inr(left)}</td></tr>
-  </tbody></table></div>${T.u?`<p class="note" style="margin:8px 0 0">${inr(T.u)} of Total Credit comes from sheets with only a total (no MORNING/NIGHT columns), so it is not split into morning and evening.</p>`:''}</section>`;bindOv();
+  </tbody></table></div>${T.u?`<p class="note" style="margin:8px 0 0">${inr(T.u)} of Total Credit comes from sheets with only a total (no MORNING/NIGHT columns), so it is not split into morning and evening.</p>`:''}</section>`;bindOv();bindAsk();
   chart('c1',rows.map(r=>({label:ymLabel(r.ym).slice(0,3),tip:ymLabel(r.ym),bars:[[{v:r.m,c:'var(--m)',n:'Morning'},{v:r.e,c:'var(--e)',n:'Evening'},{v:r.u||0,c:'var(--u)',n:'Total only (no split)'},{v:r.biz,c:'var(--b)',n:'Business'}],[{v:r.x,c:'var(--x)',n:'Expenses'}]]})));
 }
 function viewInvest(){
