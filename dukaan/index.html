@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.25">
+<meta name="app-version" content="2026.11.28.26">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -676,7 +676,7 @@ async function impFile(f){try{let rows;
     else if(/\.xls$/i.test(f.name)){flash('This is an old Excel file (.xls). Open it in Excel and “Save as” .xlsx or CSV, then import that.',1);return}
     else{flash('Please choose a CSV or Excel (.xlsx) file.',1);return}
     rows=rows.filter(r=>r&&r.some(c=>String(c??'').trim()!==''));if(!rows.length){flash('The file is empty.',1);return}
-    const{hr,map}=impGuess(rows);st.imp={file:f.name,rows,hr,map,mode:'set',price:true};location.hash='#stock/import';if(route().a==='import')render()}
+    const{hr,map}=impGuess(rows);st.imp={file:f.name,rows,hr,map,mode:'skip',price:false};location.hash='#stock/import';if(route().a==='import')render()}
   catch(e){flash('Could not read this file: '+esc(e.message||'unknown error'),1)}}
 function viewImport(){const I=st.imp;if(!I){location.hash='#stock';return}const ph=isPh();const hdr=I.hr>=0?I.rows[I.hr]:[];const W=Math.max(...I.rows.slice(0,20).map(r=>r.length));
   const L=impRows();const byName=new Map(DB.items.map(i=>[i.name.toUpperCase(),i]));const ex=L.filter(x=>byName.has(x.name)).length;
@@ -684,25 +684,25 @@ function viewImport(){const I=st.imp;if(!I){location.hash='#stock';return}const 
   $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#stock">← Stock</a></div>
    <section class="card stack"><h2>Import stock</h2><p class="note" style="margin:0">File: <b>${esc(I.file)}</b> · ${L.length} item${L.length===1?'':'s'} found${ex?` · ${ex} already in your stock`:''}</p>
     <div class="grid g2">${IMPF.filter(([k])=>ph||!['batch','exp','salt'].includes(k)).map(([k,t])=>`<label class="f">${t}<select class="in" data-imap="${k}">${opt(k)}</select></label>`).join('')}</div>
-    ${ex?`<label class="f">Items already in your stock<select class="in" id="impMode"><option value="set" ${I.mode==='set'?'selected':''}>Set stock to the quantity in the file</option><option value="add" ${I.mode==='add'?'selected':''}>Add the file quantity to current stock</option><option value="skip" ${I.mode==='skip'?'selected':''}>Leave them unchanged</option></select></label>
+    ${ex?`<label class="f">Items already in your stock<select class="in" id="impMode"><option value="skip" ${I.mode==='skip'?'selected':''}>Keep my stock and MRP as they are (only add new items)</option><option value="add" ${I.mode==='add'?'selected':''}>Add the file quantity to my current stock</option><option value="set" ${I.mode==='set'?'selected':''}>Replace my quantity with the file's quantity</option></select></label>
      <label class="row" style="gap:10px;font-weight:600"><input type="checkbox" id="impPrice" ${I.price?'checked':''} style="width:22px;height:22px">Update their sales price from the file</label>`:''}
     <div style="overflow-x:auto"><table class="t"><thead><tr><th>Item name</th><th class="r">Sales price</th><th class="r">Stock qty</th>${ph?'<th>Batch</th><th>Exp</th>':''}<th></th></tr></thead><tbody>
-     ${L.slice(0,30).map(x=>`<tr><td>${esc(x.name)}</td><td class="r">${x.price?inr(x.price):'<span class="red">—</span>'}</td><td class="r">${x.qty}</td>${ph?`<td>${esc(x.b)}</td><td>${expL(x.exp)}</td>`:''}<td>${byName.has(x.name)?'<span class="pill p-gry">In stock</span>':'<span class="pill p-grn">New</span>'}</td></tr>`).join('')}</tbody></table></div>
+     ${L.slice(0,30).map(x=>`<tr><td>${esc(x.name)}</td><td class="r">${x.price?inr(x.price):'<span class="red">—</span>'}</td><td class="r">${x.qty}</td>${ph?`<td>${esc(x.b)}</td><td>${expL(x.exp)}</td>`:''}<td>${byName.has(x.name)?`<span class="pill p-gry">Have ${qtyOf(byName.get(x.name))} @ ${inr(byName.get(x.name).price)}</span>`:'<span class="pill p-grn">New</span>'}</td></tr>`).join('')}</tbody></table></div>
     ${L.length>30?`<p class="note" style="margin:0">…and ${L.length-30} more.</p>`:''}${!L.length?'<p class="msg err">No items found. Check that “Item name” points to the right column.</p>':''}
     <button class="btn pri" id="impGo" style="min-height:50px" ${L.length?'':'disabled'}>Import ${L.length} item${L.length===1?'':'s'} into Stock</button><p id="impM" class="note" style="margin:0"></p></section>`;
   $$('[data-imap]').forEach(s=>s.onchange=()=>{I.map[s.dataset.imap]=s.value===''?null:+s.value;viewImport()});
   if($('#impMode'))$('#impMode').onchange=e=>{I.mode=e.target.value};if($('#impPrice'))$('#impPrice').onchange=e=>{I.price=e.target.checked};
-  $('#impGo').onclick=async()=>{$('#impGo').disabled=true;$('#impM').textContent='Importing…';let nNew=0,nUpd=0,nSkip=0;const now=Date.now();
-    for(const x of impRows()){let it=DB.items.find(i=>i.name.toUpperCase()===x.name);
-      if(!it){it={id:uid(),name:x.name,salt:x.salt,hsn:'',gst:0,price:x.price,unit:'',low:'',rack:'',batches:[],t:now};DB.items.push(it);nNew++}
-      else{if(I.mode==='skip'){nSkip++;continue}if(I.price&&x.price){it.price=x.price}if(x.salt&&!it.salt)it.salt=x.salt;it.t=now;nUpd++}
+  $('#impGo').onclick=async()=>{$('#impGo').disabled=true;$('#impM').textContent='Importing…';let nNew=0,nUpd=0,nSkip=0;const now=Date.now(),imp=uid();
+    for(const x of impRows()){let it=DB.items.find(i=>i.name.toUpperCase()===x.name);let isNew=false,oldPrice=null;
+      if(!it){it={id:uid(),name:x.name,salt:x.salt,hsn:'',gst:0,price:x.price,unit:'',low:'',rack:'',batches:[],t:now,imp};DB.items.push(it);nNew++;isNew=true}
+      else{if(I.mode==='skip'){nSkip++;continue}oldPrice=it.price;if(I.price&&x.price){it.price=x.price}if(x.salt&&!it.salt)it.salt=x.salt;it.t=now;nUpd++}
       let bt=it.batches.find(b=>(b.b||'')===x.b&&(b.exp||'')===x.exp);if(!bt&&!x.b&&!x.exp&&it.batches.length===1)bt=it.batches[0];
       if(!bt){bt={id:uid(),b:x.b,exp:x.exp};it.batches.push(bt);it.t=now}
       STK=null;const cur=qB(it,bt);const d=I.mode==='add'||cur===0&&!nUpd?x.qty:r2(x.qty-cur);const delta=I.mode==='add'?x.qty:r2(x.qty-cur);
-      if(delta)DB.ins.push({id:uid(),item:it.id,batch:bt.id,qty:delta,date:today(),note:'Imported from '+I.file,t:now})}
+      if(delta||!isNew)DB.ins.push({id:uid(),item:it.id,batch:bt.id,qty:delta,date:today(),note:'Imported from '+I.file,t:now,imp,...(isNew?{newItem:1}:{oldPrice})})}
     await persist();st.imp=null;st.filter='all';st.q='';location.hash='#stock';setTimeout(()=>flash(`✓ Imported: ${nNew} new item${nNew===1?'':'s'}${nUpd?`, ${nUpd} updated`:''}${nSkip?`, ${nSkip} left unchanged`:''}.`),60)}}
 function viewStock(sub){if(sub==='import')return viewImport();const ph=isPh(),A=alerts();const exS=new Set(A.ex.map(x=>x[0].id)),soS=new Set(A.soon.map(x=>x[0].id)),loS=new Set(A.low.map(x=>x.id));
-  $('#view').innerHTML=`<div class="row"><h2 class="sp">Stock</h2><label class="btn sm" for="impF" title="Import stock from a CSV or Excel file">⇪ Import</label><input type="file" id="impF" accept=".csv,.txt,.xlsx,.xls,.pdf,text/csv" hidden><a class="btn pri sm" href="#item/new">+ Add item</a></div>
+  $('#view').innerHTML=`<div class="row"><h2 class="sp">Stock</h2><label class="btn sm" for="impF" title="Import stock from a CSV or Excel file">⇪ Import</label><input type="file" id="impF" accept=".csv,.txt,.xlsx,.xls,.pdf,text/csv" hidden><a class="btn pri sm" href="#item/new">+ Add item</a></div>${importsList().length?'<a href="#settings/recover" class="note" style="margin-top:-6px">Undo an import</a>':''}
    <input class="in" id="sq" type="search" placeholder="${ph?'Search medicine or salt':'Search item'}" value="${esc(st.q)}">
    <div class="chips">${[['all','All · '+DB.items.length],['low','Low stock · '+loS.size],...(ph?[['soon','Expiring · '+soS.size],['ex','Expired · '+exS.size]]:[]),['out','Out of stock']].map(([k,n])=>`<button class="chip ${st.filter===k?'on':''}" data-f="${k}">${n}</button>`).join('')}</div>
    <section class="card" id="sl"></section>`;
@@ -817,6 +817,23 @@ function viewParty(id){const c=custById(id);if(!c){location.hash='#parties';retu
 let DLNS;(async()=>{try{if(window.claude&&claude.use)DLNS=await claude.use('downloads')}catch(e){}})();
 async function download(name,txt,type){if(DLNS){try{await DLNS.save({filename:name,data:txt});return}catch(e){flash('Download was cancelled.',1);return}}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 const csv=rows=>'﻿'+rows.map(r=>r.map(v=>{v=String(v??'');return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\n');
+/* ---------- undo an import: old quantities come back exactly, old MRP from the import record or an earlier synced copy ---------- */
+function importsList(){const G=new Map();for(const e of DB.ins){if(!/^Imported from /.test(e.note||''))continue;const k=e.imp||('old:'+e.note+'|'+e.t);const g=G.get(k)||{k,file:e.note.slice(14),t:e.t,E:[]};g.E.push(e);G.set(k,g)}
+  for(const it of DB.items)if(it.imp&&!G.has(it.imp))G.set(it.imp,{k:it.imp,file:'',t:it.t,E:[]});
+  return[...G.values()].sort((a,b)=>b.t-a.t)}
+async function undoImport(g){const ids=new Set(g.E.map(e=>e.id));let copy=null;
+  const needOld=g.E.some(e=>!('oldPrice' in e)&&!e.newItem);
+  if(needOld&&syncOn()){try{const L=await gh('/gists/'+DB.sync.gistId+'/commits?per_page=60');
+      for(const c of L){const gg=await gh('/gists/'+DB.sync.gistId+'/'+c.version);const t=await fileText(gg.files&&gg.files[SF]);if(!t)continue;const d=upgrade((await openRemote(t)).db);if(!d.ins.some(e=>ids.has(e.id))){copy=d;break}}}catch(e){}}
+  let nItems=0,nRemoved=0,nPrice=0;const now=Date.now();const touched=new Set(g.E.map(e=>e.item));if(g.k&&!g.k.startsWith('old:'))for(const it of DB.items)if(it.imp===g.k)touched.add(it.id);
+  for(const id of touched){const it=itemById(id);if(!it)continue;const mine=g.E.filter(e=>e.item===id);
+    const created=it.imp===g.k||mine.some(e=>e.newItem)||(copy?!copy.items.some(x=>x.id===id):!DB.ins.some(e=>e.item===id&&!ids.has(e.id)));
+    const used=DB.bills.some(b=>b.lines.some(l=>l.itemId===id));
+    if(created&&!used){gone('items',id);nRemoved++;continue}
+    const op=mine.find(e=>'oldPrice' in e);const cp=copy&&copy.items.find(x=>x.id===id);const old=op?op.oldPrice:cp?cp.price:null;
+    if(old!=null&&old!==it.price){it.price=old;nPrice++}if(cp&&cp.salt!==undefined&&!op)it.salt=cp.salt;it.t=now;nItems++}
+  for(const e of g.E)gone('ins',e.id);STK=null;await persist();
+  return{nItems,nRemoved,nPrice,noCopy:needOld&&!copy}}
 /* ---------- recover from an earlier synced copy (GitHub keeps every version) ---------- */
 const dbStats=d=>({items:d.items.length,bills:d.bills.length,custs:d.custs.length,sups:d.sups.length});
 async function listCopies(){const L=await gh('/gists/'+DB.sync.gistId+'/commits?per_page=60');const out=[];let last='';
@@ -826,11 +843,17 @@ async function listCopies(){const L=await gh('/gists/'+DB.sync.gistId+'/commits?
 function bringBack(old){let n=0;const now=Date.now();
   for(const c of COLS){const have=new Set(DB[c].map(x=>x.id));for(const x of old[c]){if(have.has(x.id))continue;const y=JSON.parse(JSON.stringify(x));y.t=now;DB[c].push(y);delete DB.del[x.id];n++}}
   STK=null;return n}
-function viewRecover(){if(!syncOn()){$('#view').innerHTML=`<div class="row"><a class="btn sm" href="#settings">← Settings</a></div><section class="card stack"><h2>Recover data</h2><p>Earlier copies are kept only when sync is on. Turn on sync in Settings, or use <b>Restore from backup file</b> if you downloaded one.</p></section>`;return}
+function importsHTML(){const L=importsList();if(!L.length)return'';
+  return`<section class="card stack"><h2>Undo an import</h2><p class="note" style="margin:0">Puts back the quantity and MRP your items had before that import, and removes items the import added (unless they are on a sale invoice).</p>
+   <div class="list">${L.map((g,i)=>`<div class="li" style="cursor:default"><span class="t"><b>${esc(g.file||'Imported file')}</b><small>${new Date(g.t).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} · ${new Set(g.E.map(e=>e.item)).size} items changed</small></span><button class="btn red sm" type="button" data-undoimp="${i}">Undo import</button></div>`).join('')}</div><p id="uiM" class="note" style="margin:0"></p></section>`}
+function bindImports(){const L=importsList();$$('[data-undoimp]').forEach(b=>twoTap(b,'Tap again to undo',async()=>{b.disabled=true;b.textContent='Undoing…';
+  const r=await undoImport(L[+b.dataset.undoimp]);location.hash='#stock';setTimeout(()=>flash(`✓ Import undone: ${r.nItems} item${r.nItems===1?'':'s'} back to old quantity${r.nPrice?`, ${r.nPrice} MRP restored`:''}${r.nRemoved?`, ${r.nRemoved} imported item${r.nRemoved===1?'':'s'} removed`:''}.${r.noCopy?' Old MRP could not be found (sync was off), so please check MRPs.':''}`),60)}))}
+function viewRecover(){if(!syncOn()){$('#view').innerHTML=`<div class="row"><a class="btn sm" href="#settings">← Settings</a></div><section class="card stack"><h2>Recover data</h2><p>Earlier copies are kept only when sync is on. Turn on sync in Settings, or use <b>Restore from backup file</b> if you downloaded one.</p></section>${importsHTML()}`;bindImports();return}
   const now=dbStats(DB);
   $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#settings">← Settings</a></div><section class="card stack"><h2>Recover from an earlier copy</h2>
    <p class="note" style="margin:0">Each time My Shop syncs, GitHub keeps a copy. Pick a copy from before the problem and tap <b>Bring back missing data</b>. Only things that are missing now are added back. Nothing you have now is removed.</p>
    <p style="margin:0">Now: <b>${now.items}</b> items · <b>${now.bills}</b> invoices · <b>${now.custs}</b> customers · <b>${now.sups}</b> suppliers</p><div id="cpL"><p class="note">Loading earlier copies…</p></div></section>`;
+  $('#view').insertAdjacentHTML('beforeend',importsHTML());bindImports();$('#view').firstElementChild.insertAdjacentHTML('afterend','');
   listCopies().then(C=>{const el=$('#cpL');if(!el)return;if(!C.length){el.innerHTML='<p class="note">No earlier copies found.</p>';return}
     el.innerHTML=`<div class="list">${C.map((c,i)=>{const miss=COLS.reduce((n,k)=>{const h=new Set(DB[k].map(x=>x.id));return n+c.d[k].filter(x=>!h.has(x.id)).length},0);
       return`<div class="li" style="cursor:default"><span class="t"><b>${new Date(c.at).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</b><small>${c.st.items} items · ${c.st.bills} invoices · ${c.st.custs} customers</small></span>
