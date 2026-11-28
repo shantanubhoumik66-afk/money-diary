@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.44">
+<meta name="app-version" content="2026.11.28.45">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -772,15 +772,84 @@ async function shareInv(b,how){const name=('Sale-invoice-'+b.no).replace(/[^\w-]
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name+'.png';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},800);flash('✓ Invoice picture downloaded. Attach it in WhatsApp or email.')}
   catch(e){if(e&&e.name==='AbortError')return;flash('Could not share the picture here. Use Print → Save as PDF, or Share as text.',1)}}
 function viewInv(id){const b=DB.bills.find(x=>x.id===id);if(!b){location.hash='#bills';return}const P=PS();
-  $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#bills">← Sale invoices</a><span class="sp"></span><button class="btn sm" data-prn="${b.id}" aria-label="Print this sale invoice">${PICON} Print</button><button class="btn sm" id="edB">✎ Edit</button></div>
+  $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#bills">← Sale invoices</a><span class="sp"></span><button class="btn sm" data-prn="${b.id}" aria-label="Print this sale invoice">${PICON} Print</button>${b.imp?'':'<button class="btn sm" id="edB">✎ Edit</button>'}</div>${b.imp?`<p class="note" style="margin:0">Imported from <b>${esc(b.impFile||'a file')}</b>. It has only the totals (no medicine list), so stock was not changed.</p>`:''}
    <div class="row"><button class="btn pri" id="shImg">Share invoice</button><button class="btn" id="shTxt">Share as text</button><a class="btn" id="wa" target="_blank" rel="noopener" href="${waBill(b)}">WhatsApp</a></div>
    <div class="row"><button class="btn" id="pDef">Print ${P.paper==='th'?'3-inch':'A4'}</button><button class="btn" id="pOther">Print ${P.paper==='th'?'A4':'3-inch'}</button><a class="btn sm" href="#settings/print" style="margin-left:auto">Print settings</a></div>
    ${invHTML(b,false)}
    <div class="row"><button class="btn red" id="delB">Delete invoice</button><span class="note">Deleting puts the items back in stock.</span></div>`;
   const th=P.paper==='th';const pr=x=>x?printThermal(b):doPrint(invHTML(b,false),false);$('#pDef').onclick=()=>pr(th);$('#pOther').onclick=()=>pr(!th);
   $('#shImg').onclick=()=>shareInv(b,'img');$('#shTxt').onclick=()=>shareInv(b,'text');
-  $('#edB').onclick=()=>{const dp=b.disc!=null?b.disc:(b.lines[0]&&b.lines[0].disc)||0;st.draft={editId:b.id,date:b.date,cust:{name:b.cust?b.cust.name:'',phone:b.cust?b.cust.phone||'':''},lines:b.lines.map(l=>({...l})),disc:String(dp||0),paid:String(b.recv!=null?b.recv:b.paid),mode:b.mode==='Udhaar'?'Due':b.mode,ro:b.ro==null?'':String(b.ro),pdue:b.prevDue?String(b.prevDue):'',pdep:b.prevDep?String(b.prevDep):''};location.hash='#new'};
+  if($('#edB'))$('#edB').onclick=()=>{const dp=b.disc!=null?b.disc:(b.lines[0]&&b.lines[0].disc)||0;st.draft={editId:b.id,date:b.date,cust:{name:b.cust?b.cust.name:'',phone:b.cust?b.cust.phone||'':''},lines:b.lines.map(l=>({...l})),disc:String(dp||0),paid:String(b.recv!=null?b.recv:b.paid),mode:b.mode==='Udhaar'?'Due':b.mode,ro:b.ro==null?'':String(b.ro),pdue:b.prevDue?String(b.prevDue):'',pdep:b.prevDep?String(b.prevDep):''};location.hash='#new'};
   twoTap($('#delB'),'Tap again to delete',async()=>{gone('bills',b.id);for(const p of DB.pays.filter(p=>p.bill===b.id))gone('pays',p.id);await persist();location.hash='#bills';setTimeout(()=>flash('Sale invoice '+esc(b.no)+' deleted and stock restored.'),50)})}
+/* ---------- import old sale invoices (totals only) from Excel / CSV ---------- */
+const IMPB=[['date','Date',/date|^dt$/i],['pay','Payable amount',/payable|net\s*amount|nett|final|after\s*disc|to\s*pay/i],['due','Due amount',/due|balance|pending|udh?aa?r|credit|outstanding/i],
+  ['mode','Payment mode',/mode|method|pay(ment)?\s*type|^payment$/i],['cust','Client name',/client|customer|party|name|patient/i],['bill','Bill amount',/bill|gross|total|mrp|amount|value/i],['paid','Paid amount (optional)',/paid|received|recd|receipt/i]];
+function invImpGuess(rows){for(let r=0;r<Math.min(rows.length,15);r++){const row=(rows[r]||[]).map(x=>String(x??'').trim());const m={};
+    for(const[k,,re]of IMPB){const i=row.findIndex((c,ci)=>c&&re.test(c)&&!Object.values(m).includes(ci));if(i>=0)m[k]=i}
+    if(m.date!=null&&(m.bill!=null||m.pay!=null))return{hr:r,map:m}}
+  return{hr:-1,map:{date:0,cust:1,bill:2,pay:3,due:4,mode:5}}}
+const MON3=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+function invDate(v){if(v==null||v==='')return'';const ok=(y,m,d)=>{y=+y;if(y<100)y+=2000;m=+m;d=+d;if(!(y>1990&&y<2100&&m>=1&&m<=12&&d>=1&&d<=31))return'';const x=new Date(y,m-1,d);return x.getMonth()===m-1?y+'-'+pad(m)+'-'+pad(d):''};
+  if(typeof v==='number'){if(v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return ok(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate())}return''}
+  const s=String(v).trim().toLowerCase();let m;
+  if((m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/)))return ok(m[1],m[2],m[3]);
+  if((m=s.match(/^(\d{1,2})[-\/.\s](\d{1,2})[-\/.\s](\d{2,4})\b/)))return ok(m[3],m[2],m[1]);
+  if((m=s.match(/^(\d{1,2})(?:st|nd|rd|th)?[-\/.\s]*([a-z]{3})[a-z]*[-\/.,\s]*(\d{2,4})\b/)))return MON3.includes(m[2])?ok(m[3],MON3.indexOf(m[2])+1,m[1]):'';
+  if(/^\d{5}(\.\d+)?$/.test(s))return invDate(+s);return''}
+function invMode(v,due,pay){const s=String(v??'').trim().toLowerCase();
+  if(/cash/.test(s))return'Cash';if(/upi|g\s*pay|google|phone\s*pe|paytm|bhim|online|qr/.test(s))return'UPI';if(/card|debit|credit\s*card|pos/.test(s))return'Card';if(/bank|neft|imps|rtgs|transfer|cheque|check/.test(s))return'Bank';
+  if(/due|credit|udh?aa?r|baki|pending/.test(s))return'Due';return due>=pay-0.5&&pay>0?'Due':'Cash'}
+function invImpRows(){const I=st.bimp,g=(r,k)=>I.map[k]==null?null:r[I.map[k]];const out=[],bad=[];
+  for(const[idx,r]of I.rows.entries()){if(idx<=I.hr||!r)continue;const date=invDate(g(r,'date'));const name=String(g(r,'cust')??'').trim().replace(/\s+/g,' ');
+    if(/^(grand\s*)?total\b/i.test(name)||/^(grand\s*)?total\b/i.test(String(g(r,'date')??'').trim()))continue;
+    const has=k=>I.map[k]!=null&&String(g(r,k)??'').trim()!=='';let bill=num(g(r,'bill')),pay=has('pay')?num(g(r,'pay')):bill;if(!has('bill'))bill=pay;
+    let due=has('due')?num(g(r,'due')):has('paid')?pay-num(g(r,'paid')):0;
+    if(!date||!(pay>0||bill>0)){if(r.some(c=>String(c??'').trim()))bad.push(idx+1);continue}
+    if(!(pay>0))pay=bill;if(bill<pay)bill=pay;due=Math.max(0,Math.min(r2(due),pay));const mode=invMode(g(r,'mode'),due,pay);
+    out.push({row:idx+1,date,name:name.toUpperCase()==='WALK-IN'||/^walk/i.test(name)?'':name,bill:r2(bill),pay:r2(pay),due,paid:r2(pay-due),mode:due>=pay-0.005?'Due':mode})}
+  const seen=new Set(DB.bills.map(b=>b.date+'|'+(b.cust?.name||'').toLowerCase()+'|'+r2(b.total)));for(const x of out)x.dup=seen.has(x.date+'|'+x.name.toLowerCase()+'|'+x.pay);
+  return{L:out,bad}}
+async function invImpFile(f){try{let rows;
+    if(/\.csv$|\.txt$/i.test(f.name))rows=readCsvRows(await f.text());
+    else if(/\.xlsx$/i.test(f.name)){const sh=await readXlsx(await f.arrayBuffer());const best=sh.sort((a,b)=>b.rows.length-a.rows.length)[0];rows=best?best.rows:[]}
+    else if(/\.xls$/i.test(f.name)){flash('This is an old Excel file (.xls). Open it in Excel and “Save as” .xlsx or CSV, then import that.',1);return}
+    else{flash('Please choose an Excel (.xlsx) or CSV file.',1);return}
+    rows=rows.filter(r=>r&&r.some(c=>String(c??'').trim()!==''));if(!rows.length){flash('The file is empty.',1);return}
+    const{hr,map}=invImpGuess(rows);st.bimp={file:f.name,rows,hr,map,dup:'skip'};location.hash='#bills/import';if(route().a==='import')render()}
+  catch(e){flash('Could not read this file: '+esc(e.message||'unknown error'),1)}}
+function viewInvImport(){const I=st.bimp;if(!I){location.hash='#bills';return}const hdr=I.hr>=0?I.rows[I.hr]:[];const W=Math.max(...I.rows.slice(0,20).map(r=>r.length));
+  const{L,bad}=invImpRows();const nd=L.filter(x=>x.dup).length;const use=L.filter(x=>I.dup==='add'||!x.dup);
+  const T=use.reduce((a,x)=>({b:a.b+x.bill,p:a.p+x.pay,d:a.d+x.due}),{b:0,p:0,d:0});const lf=DB.shop.linkFrom||'';const md=lf?use.filter(x=>x.date.slice(0,7)>=lf):[];
+  const newC=new Set(use.filter(x=>x.name&&!DB.custs.some(c=>c.name.toLowerCase()===x.name.toLowerCase())).map(x=>x.name.toLowerCase())).size;
+  const opt=k=>`<option value="">— not in file —</option>`+Array.from({length:W},(_,i)=>`<option value="${i}" ${String(I.map[k])===String(i)?'selected':''}>Column ${i+1}${hdr[i]!=null&&String(hdr[i]).trim()?': '+esc(String(hdr[i]).trim()):''}</option>`).join('');
+  $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#bills">← Sale invoices</a></div>
+   <section class="card stack"><h2>Import sale invoices</h2><p class="note" style="margin:0">File: <b>${esc(I.file)}</b> · ${L.length} invoice${L.length===1?'':'s'} found${bad.length?` · ${bad.length} row${bad.length===1?'':'s'} skipped (no date or amount: row ${bad.slice(0,8).join(', ')}${bad.length>8?'…':''})`:''}</p>
+    <div class="grid g2">${['date','cust','bill','pay','due','mode','paid'].map(k=>IMPB.find(x=>x[0]===k)).map(([k,t])=>`<label class="f">${t}<select class="in" data-bmap="${k}">${opt(k)}</select></label>`).join('')}</div>
+    ${nd?`<label class="f">${nd} invoice${nd===1?' looks':'s look'} already saved (same date, customer and amount)<select class="in" id="bDup"><option value="skip" ${I.dup==='skip'?'selected':''}>Skip them (recommended)</option><option value="add" ${I.dup==='add'?'selected':''}>Import them again anyway</option></select></label>`:''}
+    <div class="grid g2" style="gap:8px"><div class="kpi"><span>Bill amount</span><b>${inr(T.b)}</b></div><div class="kpi"><span>Payable (sales)</span><b>${inr(T.p)}</b></div><div class="kpi"><span>Received</span><b>${inr(T.p-T.d)}</b></div><div class="kpi"><span>Due</span><b class="red">${inr(T.d)}</b></div></div>
+    <div style="overflow-x:auto"><table class="t"><thead><tr><th>Date</th><th>Client</th><th class="r">Bill</th><th class="r">Payable</th><th class="r">Due</th><th>Mode</th><th></th></tr></thead><tbody>
+     ${L.slice(0,40).map(x=>`<tr style="${x.dup&&I.dup!=='add'?'opacity:.45':''}"><td>${dl(x.date)}</td><td>${esc(x.name||'Walk-in')}</td><td class="r">${inr(x.bill)}</td><td class="r">${inr(x.pay)}</td><td class="r">${x.due?`<span class="red">${inr(x.due)}</span>`:'—'}</td><td>${esc(modeL(x.mode))}</td><td>${x.dup?'<span class="pill p-gry">Already saved</span>':''}</td></tr>`).join('')}</tbody></table></div>
+    ${L.length>40?`<p class="note" style="margin:0">…and ${L.length-40} more.</p>`:''}
+    ${!L.length?'<p class="msg err">No invoices found. Check that “Date” and “Bill amount” point to the right columns.</p>':''}
+    <ul class="note" style="margin:0;padding-left:18px">
+     <li>Discount = Bill amount − Payable amount. Received = Payable − Due. Each due goes on that client’s account${newC?` (${newC} new client${newC===1?'':'s'} will be added to Parties)`:''}.</li>
+     <li>These invoices have only totals, so <b>stock is not changed</b>.</li>
+     ${md.length?`<li class="red"><b>${md.length} invoice${md.length===1?' is':'s are'} from ${ymL(lf)} or later.</b> Their sales will also go into Money Diary’s Business amount for those months (you send nett from ${ymL(lf)}).</li>`:`<li>Money Diary is not affected (all dates are before ${lf?ymL(lf):'the link month'}).</li>`}</ul>
+    <button class="btn pri" id="bImpGo" style="min-height:50px" ${use.length?'':'disabled'}>Import ${use.length} sale invoice${use.length===1?'':'s'}</button></section>`;
+  $$('[data-bmap]').forEach(x=>x.onchange=()=>{I.map[x.dataset.bmap]=x.value===''?null:+x.value;viewInvImport()});
+  if($('#bDup'))$('#bDup').onchange=e=>{I.dup=e.target.value;viewInvImport()};
+  $('#bImpGo').onclick=async()=>{const imp=uid(),now=Date.now();let k=0;const madeC=new Set();
+    for(const x of [...use].sort((a,b)=>a.date.localeCompare(b.date)||a.row-b.row)){let cust=null;
+      if(x.name){cust=DB.custs.find(c=>c.name.toLowerCase()===x.name.toLowerCase());if(!cust){cust={id:uid(),name:x.name,phone:'',addr:'',imp,t:now};DB.custs.push(cust);madeC.add(cust.id)}}
+      const pct=x.bill>0?(x.bill-x.pay)/x.bill*100:0;const line={name:'OLD SALE (IMPORTED)',qty:1,rate:x.bill,disc:pct,gst:0};const amt=lineCalc(line).amt;
+      DB.bills.push({id:uid(),n:DB.seq,no:(DB.shop.prefix||'')+DB.seq,date:x.date,cust:cust?{id:cust.id,name:cust.name,phone:cust.phone||''}:null,lines:[line],disc:r2(pct),ro:r2(x.pay-amt),total:x.pay,paid:x.paid,recv:x.paid,mode:x.paid<=0?'Due':x.mode==='Due'?'Cash':x.mode,imp,impFile:I.file,t0:now+k,t:now+k});DB.seq++;k++}
+    await persist();st.bimp=null;st.bf='all';st.bq='';location.hash='#bills';setTimeout(()=>flash(`✓ Imported ${k} sale invoice${k===1?'':'s'}${madeC.size?` and ${madeC.size} new client${madeC.size===1?'':'s'}`:''}. You can undo it at the bottom of this page.`),60)}}
+function invImports(){const G=new Map();for(const b of DB.bills){if(!b.imp)continue;const g=G.get(b.imp)||{id:b.imp,file:b.impFile||'file',n:0,tot:0,t:b.t0||b.t};g.n++;g.tot+=b.total;G.set(b.imp,g)}return[...G.values()].sort((a,b)=>b.t-a.t)}
+function invImpCard(){const L=invImports();if(!L.length)return'';return`<section class="card stack"><h2>Imported from files</h2>${L.map(g=>`<div class="row"><span class="sp"><b>${esc(g.file)}</b><br><small class="note">${g.n} invoice${g.n===1?'':'s'} · ${inr(g.tot)} · ${new Date(g.t).toLocaleDateString('en-IN')}</small></span><button class="btn sm red" data-bundo="${g.id}">Undo import</button></div>`).join('')}</section>`}
+function bindInvImpCard(){$$('[data-bundo]').forEach(btn=>twoTap(btn,'Tap again to remove',async()=>{const id=btn.dataset.bundo;const bs=DB.bills.filter(b=>b.imp===id);const ids=new Set(bs.map(b=>b.id));
+  for(const b of bs)gone('bills',b.id);for(const p of DB.pays.filter(p=>ids.has(p.bill)))gone('pays',p.id);
+  let nc=0;for(const c of DB.custs.filter(c=>c.imp===id))if(!DB.bills.some(b=>b.cust&&b.cust.id===c.id)&&!DB.pays.some(p=>p.cust===c.id)){gone('custs',c.id);nc++}
+  await persist();viewBills();flash(`Removed ${bs.length} imported invoice${bs.length===1?'':'s'}${nc?` and ${nc} client${nc===1?'':'s'} it added`:''}.`)}))}
 /* ---------- receipt printer (3-inch thermal, ESC/POS) by USB cable or COM port ---------- */
 const PRN={dev:null,port:null,kind:''};
 const prnCfg=()=>Object.assign({cols:48,cut:1,feed:4,how:'auto'},(()=>{try{return JSON.parse(localStorage.getItem('myshop.printer'))||{}}catch(e){return{}}})());
@@ -846,11 +915,11 @@ function prnStatus(){const c=prnCfg();return PRN.kind?`<span class="pill p-grn">
 function twoTap(btn,txt,fn){const o=btn.textContent;let armed=false;btn.onclick=()=>{if(armed){fn();return}armed=true;btn.textContent=txt;setTimeout(()=>{armed=false;btn.textContent=o},3000)}}
 
 /* ---------- bills list ---------- */
-function viewBills(sub){const t=today();if(sub&&sub.startsWith('r~')){const[,f,to,...lb]=decodeURIComponent(sub).split('~');st.bf='range';st.br={from:f,to,label:lb.join('~')};st.bq='';history.replaceState(null,'','#bills');navHist[navHist.length-1]='#bills'}
-  $('#view').innerHTML=`<div class="row"><h2 class="sp">Sale invoices</h2><a class="btn pri sm" href="#new">+ New sale invoice</a></div>
+function viewBills(sub){if(sub==='import')return viewInvImport();const t=today();if(sub&&sub.startsWith('r~')){const[,f,to,...lb]=decodeURIComponent(sub).split('~');st.bf='range';st.br={from:f,to,label:lb.join('~')};st.bq='';history.replaceState(null,'','#bills');navHist[navHist.length-1]='#bills'}
+  $('#view').innerHTML=`<div class="row"><h2 class="sp">Sale invoices</h2><label class="btn sm" title="Add old sale invoices from an Excel or CSV file">⇪ Import<input type="file" id="bImpF" accept=".xlsx,.csv,.txt" hidden></label><a class="btn pri sm" href="#new">+ New sale invoice</a></div>
    <input class="in" id="bq" type="search" placeholder="Search invoice no, customer or item" value="${esc(st.bq)}">
    <div class="chips">${[['today','Today'],['month','This month'],['all','All'],...(st.br?[['range',st.br.label]]:[])].map(([k,n])=>`<button class="chip ${st.bf===k?'on':''}" data-bf="${k}">${esc(n)}</button>`).join('')}</div>
-   <section class="card" id="bl"></section>`;
+   <section class="card" id="bl"></section>${invImpCard()}`;$('#bImpF').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)invImpFile(f)};bindInvImpCard();
   const draw=()=>{const q=st.bq.trim().toLowerCase();const L=DB.bills.filter(b=>(st.bf==='all'||(st.bf==='range'&&st.br?b.date>=st.br.from&&b.date<=st.br.to:st.bf==='today'?b.date===t:b.date.startsWith(t.slice(0,7))))&&(!q||b.no.toLowerCase().includes(q)||(b.cust?.name||'').toLowerCase().includes(q)||b.lines.some(l=>l.name.toLowerCase().includes(q)))).sort((a,b)=>b.date.localeCompare(a.date)||b.n-a.n);
     const sum=L.reduce((s,b)=>s+b.total,0);$('#bl').innerHTML=L.length?`<p class="note" style="margin:0 0 4px">${L.length} invoice${L.length===1?'':'s'} · total <b style="color:var(--ink)">${inr(sum)}</b></p><div class="list">${L.map(billLi).join('')}</div>`:'<p class="empty">No sale invoices here.</p>'};
   $('#bq').oninput=e=>{st.bq=e.target.value;draw()};$$('[data-bf]').forEach(b=>b.onclick=()=>{st.bf=b.dataset.bf;viewBills()});draw()}
