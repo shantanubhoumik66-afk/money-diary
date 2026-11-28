@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.18">
+<meta name="app-version" content="2026.11.28.19">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -44,6 +44,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:70
 .li{display:flex;gap:10px;align-items:center;padding:12px 2px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left}
 .li:last-child{border-bottom:0}
 .lirow{display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line)}.lirow:last-child{border-bottom:0}.lirow .li{border-bottom:0;flex:1;min-width:0}
+.dbox{display:flex;gap:6px;align-items:center}.dbox .in{flex:1;min-width:0}.dstep{flex:none;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:14px;color:var(--acc);cursor:pointer}.dstep:active{background:var(--acc);color:#fff}.dbox .chip{min-height:44px}
 .prnb{flex:none;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--acc);display:flex;align-items:center;justify-content:center;cursor:pointer}.prnb:hover{background:var(--soft)}.prnb.on,.prnb:active{background:var(--acc);color:#fff;border-color:var(--acc)}.li .t{flex:1;min-width:0}.li .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.li .t small{color:var(--muted);font-size:12.5px}
 .li .a{text-align:right;font-weight:800;white-space:nowrap}
 .chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
@@ -257,6 +258,11 @@ function showSync(){const el=$('#syncDot');if(!el)return;const t=syncOn()?{ok:'�
 setInterval(()=>{if(DB&&!document.hidden)syncNow()},5*60e3);
 document.addEventListener('visibilitychange',()=>{if(DB&&!document.hidden)syncNow()});
 
+/* date with one-day back / forward buttons; any past or future year */
+const dateBox=(id,v)=>`<span class="dbox"><button type="button" class="dstep" data-dstep="-1" data-for="${id}" aria-label="One day earlier">◀</button><input class="in" id="${id}" type="date" value="${esc(v||today())}" min="1990-01-01" max="9999-12-31"><button type="button" class="dstep" data-dstep="1" data-for="${id}" aria-label="One day later">▶</button><button type="button" class="chip" data-dtoday="${id}">Today</button></span>`;
+document.addEventListener('click',e=>{const b=e.target.closest('[data-dstep],[data-dtoday]');if(!b)return;const inp=document.getElementById(b.dataset.for||b.dataset.dtoday);if(!inp)return;
+  let v=today();if(b.dataset.dstep){const[y,m,d]=(inp.value||today()).split('-').map(Number);const dt=new Date(y,m-1,d+ +b.dataset.dstep);v=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate())}
+  inp.value=v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}))});
 /* ---------- state ---------- */
 const st={draft:null,q:'',filter:'all',bq:'',bf:'month',pq:''};
 const newDraft=()=>({date:today(),cust:{name:'',phone:''},lines:[],paid:'',mode:'Cash',disc:'0',ro:'',pdue:'',pdep:''});
@@ -437,7 +443,7 @@ function drawPay(){const{D,L,dp}=payCalc(),el=$('#payBox');if(!el)return;const Q
    <div class="chips" role="group" aria-label="Payment mode">${['Cash','UPI','Card','Due'].map(m=>`<button type="button" class="chip ${D.mode===m?'on':''}" data-mode="${m}">${m}</button>`).join('')}</div>
    <label class="f">Amount received ₹<input class="in" id="pd" inputmode="decimal" value="${D.paid===''?'':esc(D.paid)}"></label>
    <p style="margin:0" id="balL"></p>
-   <label class="f">Invoice date<input class="in" id="bd" type="date" value="${D.date}"></label>
+   <label class="f">Invoice date${dateBox('bd',D.date)}</label>
    <button class="btn pri" id="saveB" style="min-height:50px;font-size:16px" ${L.length?'':'disabled'}>${D.editId?'Save changes':'Save sale invoice'}</button><p id="bm" class="note" style="margin:0"></p>`;
   el.querySelectorAll('[data-dp]').forEach(b=>b.onclick=()=>{D.disc=b.dataset.dp;$('#dpc').value='';refreshTot()});
   $('#dpc').oninput=e=>{D.disc=e.target.value===''?'0':e.target.value;refreshTot()};
@@ -678,7 +684,7 @@ function viewSup(id){const c=supById(id);if(!c){location.hash='#parties/sup';ret
     <h3>Payments made · total ${inr(all)}</h3>${P.length?`<table class="t"><thead><tr><th>Date</th><th>Details</th><th class="r">Amount</th><th></th></tr></thead><tbody>${P.map(p=>`<tr><td>${dl(p.date)}</td><td>${esc(p.mode)}${p.ref?' · Bill '+esc(p.ref):''}${p.note?' · '+esc(p.note):''}</td><td class="r">${inr(p.amt)}</td><td class="r"><button class="btn sm red" data-ds="${p.id}" type="button" style="min-height:28px;padding:0 8px" aria-label="Delete payment">✕</button></td></tr>`).join('')}</tbody></table>`:'<p class="empty">No payments yet.</p>'}</section>
    <section class="card stack"><h2>Pay this party</h2><p class="note" style="margin:0">Each payment is taken out of that month's nett.</p>
     <div class="grid g2"><label class="f">Amount ₹<input class="in" id="sa" inputmode="decimal"></label><label class="f">Mode<select class="in" id="sm2"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></label>
-    <label class="f">Date<input class="in" type="date" id="sd" value="${today()}"></label><label class="f">Their bill no. (optional)<input class="in" id="sr"></label></div>
+    <label class="f">Date${dateBox('sd',today())}</label><label class="f">Their bill no. (optional)<input class="in" id="sr"></label></div>
     <label class="f">Note<input class="in" id="sn2" placeholder="optional"></label><button class="btn pri" id="ssave">Save payment</button>
     <h3>Supplier details</h3><div class="grid g2"><label class="f">Name<input class="in" id="sn3" value="${esc(c.name)}"></label><label class="f">Mobile<input class="in" id="sp3" inputmode="tel" value="${esc(c.phone||'')}"></label></div>
     <div class="row"><button class="btn" id="supsave">Save details</button><button class="btn red" id="supdel">Delete supplier</button></div></section></div>`;
@@ -699,7 +705,7 @@ function viewParty(id){const c=custById(id);if(!c){location.hash='#parties';retu
    <section class="card stack"><h2>Receive money</h2>
     <div class="chips" role="group" aria-label="Type of money received"><button type="button" class="chip on" data-rt="pay">Payment of due</button><button type="button" class="chip" data-rt="dep">Deposit (advance)</button></div>
     <p class="note" id="rtNote" style="margin:0">Reduces what ${esc(c.name)} owes you.</p><div class="grid g2"><label class="f">Amount ₹<input class="in" id="ra" inputmode="decimal" placeholder="${due>0?r2(due):''}"></label><label class="f">Mode<select class="in" id="rm"><option>Cash</option><option>UPI</option><option>Card</option><option>Bank</option></select></label>
-    <label class="f">Date<input class="in" type="date" id="rd" value="${today()}"></label><label class="f">Note<input class="in" id="rn" placeholder="optional"></label></div>
+    <label class="f">Date${dateBox('rd',today())}</label><label class="f">Note<input class="in" id="rn" placeholder="optional"></label></div>
     <button class="btn pri" id="rsave">Save</button>
     <h3>Customer details</h3><div class="grid g2"><label class="f">Name<input class="in" id="cn2" value="${esc(c.name)}"></label><label class="f">Mobile<input class="in" id="cp2" inputmode="tel" value="${esc(c.phone||'')}"></label></div><button class="btn" id="csave">Save details</button></section></div>`;
   $('#billFor').onclick=()=>{st.draft=newDraft();st.draft.cust={name:c.name,phone:c.phone||''}};
