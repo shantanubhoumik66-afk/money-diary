@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.29">
+<meta name="app-version" content="2026.11.28.30">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -337,6 +337,36 @@ function alerts(){const ex=[],soon=[],low=[];
   for(const it of DB.items){for(const b of it.batches){if(!(qB(it,b)>0)||!b.exp)continue;const m=monthsLeft(b.exp);if(m<0)ex.push([it,b]);else if(m<=3)soon.push([it,b])}
     if(it.low&&qtyOf(it)<=it.low)low.push(it)}
   soon.sort((x,y)=>x[1].exp.localeCompare(y[1].exp));return{ex,soon,low}}
+/* ---------- sales comparison of months you pick ---------- */
+const ymAdd=(ym,n)=>{const d=new Date(+ym.slice(0,4),+ym.slice(5,7)-1+n,1);return d.getFullYear()+'-'+pad(d.getMonth()+1)};
+const ymS=ym=>new Date(ym+'-01T00:00').toLocaleDateString('en-IN',{month:'short'})+" '"+ym.slice(2,4);
+const kfmt=v=>v>=1e7?'₹'+r2(v/1e7)+' Cr':v>=1e5?'₹'+r2(v/1e5)+' L':v>=1e3?'₹'+(Math.round(v/100)/10)+'k':'₹'+Math.round(v);
+function salesByMonth(){const M={};for(const b of DB.bills){const k=b.date.slice(0,7);M[k]=(M[k]||0)+b.total}return M}
+function cmpMonths(){const cur=today().slice(0,7);let first=cur;for(const b of DB.bills){const k=b.date.slice(0,7);if(k<first)first=k}
+  if(first>ymAdd(cur,-11))first=ymAdd(cur,-11);const L=[];for(let k=first;k<=cur;k=ymAdd(k,1))L.push(k);return L.reverse()}
+function cmpSel(){let a;try{a=JSON.parse(localStorage.getItem('myshop.cmp'))}catch(e){}const cur=today().slice(0,7);return Array.isArray(a)&&a.length?a:[ymAdd(cur,-1),cur]}
+function cmpHTML(){const S=salesByMonth(),sel=[...new Set(cmpSel())].sort(),cur=today().slice(0,7);
+  const pre=[['2','Last 2'],['3','Last 3'],['6','Last 6']];
+  return`<section class="card stack" id="cmpCard"><div class="row"><h2 class="sp">Sales comparison</h2></div>
+   <p class="note" style="margin:0">Tap the months you want to compare.</p>
+   <div class="chips">${pre.map(([n,t])=>`<button type="button" class="chip" data-cpre="${n}">${t} months</button>`).join('')}</div>
+   <div class="chips" style="flex-wrap:wrap">${cmpMonths().map(k=>`<button type="button" class="chip ${sel.includes(k)?'on':''}" data-cm="${k}" aria-pressed="${sel.includes(k)}">${ymS(k)}</button>`).join('')}</div>
+   ${cmpChart(sel,S)}${cmpDiff(sel,S)}</section>`}
+function cmpChart(sel,S){if(!sel.length)return'<p class="empty">Pick at least one month.</p>';
+  const W=Math.max(320,sel.length*86),H=230,top=34,bot=40,ph=H-top-bot,max=Math.max(1,...sel.map(k=>S[k]||0));const bw=Math.min(46,(W/sel.length)*0.5);
+  const bars=sel.map((k,i)=>{const v=S[k]||0,cx=(i+0.5)*W/sel.length,h=Math.max(v?3:0,v/max*ph),y=top+ph-h;
+    return`<g><title>${ymL(k)}: ${inr(v)}</title><path d="M${cx-bw/2},${top+ph}V${y+Math.min(4,h)}a4,4 0 0 1 4,-4h${bw-8}a4,4 0 0 1 4,4V${top+ph}Z" fill="var(--acc)"/>
+     <text x="${cx}" y="${y-8}" text-anchor="middle" font-size="13" font-weight="800" fill="var(--ink)">${v?kfmt(v):'₹0'}</text>
+     <text x="${cx}" y="${top+ph+22}" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--muted)">${ymS(k)}</text></g>`}).join('');
+  return`<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:${Math.min(W,560)}px;max-height:260px" role="img" aria-label="Sales by month: ${sel.map(k=>ymL(k)+' '+inr(S[k]||0)).join(', ')}">
+   <line x1="0" x2="${W}" y1="${top+ph}" y2="${top+ph}" stroke="var(--line)" stroke-width="1.5"/>${bars}</svg></div>`}
+function cmpDiff(sel,S){if(sel.length<2)return'';const row=(a,b)=>{const x=S[a]||0,y=S[b]||0,d=y-x,pc=x?Math.round(d/x*100):null;
+    return`<div class="li" style="cursor:default"><span class="t"><b>${ymS(a)} → ${ymS(b)}</b><small>${inr(x)} → ${inr(y)}</small></span><span class="a ${d>0?'grn':d<0?'red':''}">${d>0?'▲ +':d<0?'▼ −':''}${inr(Math.abs(d))}${pc!=null&&d?`<br><small>${d>0?'+':'−'}${Math.abs(pc)}%</small>`:''}</span></div>`};
+  const pairs=[];for(let i=1;i<sel.length;i++)pairs.push(row(sel[i-1],sel[i]));if(sel.length>2)pairs.push(row(sel[0],sel[sel.length-1]).replace('<b>','<b>Overall: '));
+  return`<div class="list">${pairs.join('')}</div>`}
+function bindCmp(){const card=$('#cmpCard');if(!card)return;const save=a=>{try{localStorage.setItem('myshop.cmp',JSON.stringify(a))}catch(e){}card.outerHTML=cmpHTML();bindCmp()};
+  card.querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>{const k=b.dataset.cm;let a=cmpSel();a=a.includes(k)?a.filter(x=>x!==k):[...a,k];save(a)});
+  card.querySelectorAll('[data-cpre]').forEach(b=>b.onclick=()=>{const n=+b.dataset.cpre,cur=today().slice(0,7);save(Array.from({length:n},(_,i)=>ymAdd(cur,-(n-1-i))))})}
 function viewHome(){const t=today(),ym=t.slice(0,7);let sT=0,cashT=0,nT=0;
   for(const b of DB.bills){if(b.date===t){sT+=b.total;nT++;cashT+=b.paid}}
   for(const p of DB.pays)if(p.date===t)cashT+=p.amt;
@@ -347,6 +377,7 @@ function viewHome(){const t=today(),ym=t.slice(0,7);let sT=0,cashT=0,nT=0;
    <div class="kpi"><span>Money received today</span><b class="grn">${inr(cashT)}</b></div><div class="kpi"><span>This month's nett</span><b>${inr((NM[ym]||{nett:0}).nett)}</b></div>
    <div class="kpi"><a href="#parties" style="text-decoration:none;color:inherit"><span>Due to collect</span><b class="red">${inr(udh)}</b></a></div></div>
    <a class="btn pri" href="#new" style="min-height:52px;font-size:16px">${ic('plus').replace('<svg','<svg width="22" height="22"')} New sale invoice</a>
+   ${cmpHTML()}
    <section class="card stack"><div class="row"><h2 class="sp">Nett amount by month</h2><a href="#parties/sup">Pay a party</a></div>
     <p class="note" style="margin:0">Nett = sales − (party payments + customer due still unpaid). When a customer pays, their oldest invoices are cleared first and that month's nett goes up. ${DB.sync&&DB.sync.token?'From '+ymL(DB.shop.linkFrom)+', this nett is added to your Business amount in Money Diary.':'Turn on sync in Settings to send this nett to Money Diary as your Business amount.'}</p>
     ${months.length?`<div style="overflow-x:auto"><table class="t"><thead><tr><th>Month</th><th class="r">Sales</th><th class="r">Party paid</th><th class="r">Due pending</th><th class="r">Nett</th></tr></thead><tbody>${months.map(k=>{const x=NM[k];return`<tr><td>${ymL(k)}</td><td class="r">${inr(x.sales)}</td><td class="r">${x.party?'−'+inr(x.party):'₹0'}</td><td class="r">${x.due?`<span class="red">−${inr(x.due)}</span>`:'₹0'}</td><td class="r"><b>${inr(x.nett)}</b></td></tr>`}).join('')}</tbody></table></div>`:'<p class="empty">Nett shows here once you make sale invoices or pay a party.</p>'}</section>
@@ -356,7 +387,7 @@ function viewHome(){const t=today(),ym=t.slice(0,7);let sT=0,cashT=0,nT=0;
     ${A.soon.length?`<h3 style="margin-top:10px">Expiring within 3 months · ${A.soon.length}</h3><div class="list">${A.soon.slice(0,12).map(([it,b])=>`<a class="li" href="#item/${it.id}"><span class="t"><b>${esc(it.name)}</b><small>Batch ${esc(b.b||'-')} · ${qB(it,b)} left</small></span><span class="pill p-amb">Exp ${expL(b.exp)}</span></a>`).join('')}</div>`:''}
     ${A.low.length?`<h3 style="margin-top:10px">Low stock · ${A.low.length}</h3><div class="list">${A.low.map(it=>`<a class="li" href="#item/${it.id}"><span class="t"><b>${esc(it.name)}</b><small>Alert at ${it.low}</small></span><span class="pill p-amb">${qtyOf(it)} left</span></a>`).join('')}</div>`:''}
    </section><section class="card"><div class="row"><h2 class="sp">Recent sale invoices</h2><a href="#bills">All invoices</a></div>
-    ${recent.length?`<div class="list">${recent.map(billLi).join('')}</div>`:'<p class="empty">No sale invoices yet. Tap New sale invoice to make your first one.</p>'}</section></div>`}
+    ${recent.length?`<div class="list">${recent.map(billLi).join('')}</div>`:'<p class="empty">No sale invoices yet. Tap New sale invoice to make your first one.</p>'}</section></div>`;bindCmp()}
 const PICON='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>';
 function printInv(b){const th=PS().paper==='th';return th?printThermal(b):doPrint(invHTML(b,false),false)}
 document.addEventListener('click',e=>{const x=e.target.closest('[data-prn]');if(!x||!DB)return;e.preventDefault();const b=DB.bills.find(y=>y.id===x.dataset.prn);if(!b)return;x.classList.add('on');setTimeout(()=>x.classList.remove('on'),600);printInv(b)});
