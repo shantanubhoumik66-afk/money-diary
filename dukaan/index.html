@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.6">
+<meta name="app-version" content="2026.11.28.7">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -469,7 +469,14 @@ function viewItem(id){const ph=isPh();const isNew=id==='new';const it=isNew?{id:
    ${isNew?'':`<section class="card stack"><div class="row"><h2 class="sp">Stock</h2><span class="pill p-gry" style="font-size:14px">${qtyOf(it)} ${esc(it.unit||'')}</span></div>
     ${ph?`<table class="t"><thead><tr><th>Batch</th><th>Expiry</th><th class="r">Qty</th><th></th></tr></thead><tbody>${it.batches.map(b=>{const m=monthsLeft(b.exp);return`<tr><td>${esc(b.b||'-')}</td><td>${expL(b.exp)||'-'} ${qB(it,b)>0&&m<0?'<span class="pill p-red">Expired</span>':qB(it,b)>0&&m<=3?'<span class="pill p-amb">Soon</span>':''}</td><td class="r">${qB(it,b)}</td><td class="r"><button class="btn sm" data-adj="${b.id}" type="button">Edit</button></td></tr>`}).join('')||'<tr><td colspan="4" class="note">No batches yet.</td></tr>'}</tbody></table>`:''}
     <h3>Add stock (purchase)</h3><div class="grid ${ph?'g3':'g2'}">${ph?`<label class="f">Batch no.<input class="in" id="a_b"></label><label class="f">Expiry<input class="in" id="a_exp" type="month"></label>`:''}<label class="f">Quantity<input class="in" id="a_q" inputmode="decimal"></label></div>
-    <button class="btn pri" type="button" id="addS">Add stock</button><p id="am" class="note" style="margin:0"></p></section>`}</div>`;
+    <button class="btn pri" type="button" id="addS">Add stock</button><p id="am" class="note" style="margin:0"></p>
+    <h3>Reduce stock</h3><p class="note" style="margin:0">For damaged, expired or returned items, or when your count is less than the app shows. Sales on bills reduce stock by themselves.</p>
+    <div class="grid g2">${ph&&it.batches.length>1?`<label class="f" style="grid-column:1/-1">Batch<select class="in" id="r_b">${it.batches.filter(b=>qB(it,b)>0).map(b=>`<option value="${b.id}">Batch ${esc(b.b||'-')} · Exp ${expL(b.exp)||'-'} · ${qB(it,b)} left</option>`).join('')||'<option value="">No stock left</option>'}</select></label>`:''}
+     <label class="f">Quantity to remove<input class="in" id="r_q" inputmode="decimal"></label><label class="f">Reason<select class="in" id="r_why"><option>Damaged / broken</option><option>Expired</option><option>Returned to supplier</option><option>Used in shop</option><option>Count correction</option><option>Other</option></select></label></div>
+    <button class="btn red" type="button" id="redS">Reduce stock</button><p id="rm" class="note" style="margin:0"></p>
+    <details><summary style="font-weight:800;cursor:pointer">Stock history</summary>${(()=>{const H=[...DB.ins.filter(x=>x.item===it.id).map(x=>({d:x.date,t:x.t,q:x.qty,w:x.note||'',b:x.batch,id:x.id})),...DB.bills.flatMap(b=>b.lines.filter(l=>l.itemId===it.id).map(l=>({d:b.date,t:b.t,q:-l.qty,w:'Sold · '+b.no,b:l.batchId})))].sort((a,b)=>b.d.localeCompare(a.d)||(b.t||0)-(a.t||0)).slice(0,60);
+      const bn=id=>{const x=it.batches.find(y=>y.id===id);return x&&x.b?' · Batch '+x.b:''};
+      return H.length?`<table class="t" style="margin-top:8px"><thead><tr><th>Date</th><th>What</th><th class="r">Qty</th><th></th></tr></thead><tbody>${H.map(h=>`<tr><td>${dl(h.d)}</td><td>${esc(h.w+bn(h.b))}</td><td class="r ${h.q<0?'red':'grn'}">${h.q>0?'+':''}${h.q}</td><td class="r">${h.id?`<button class="btn sm" type="button" data-undo="${h.id}" style="min-height:28px;padding:0 8px" aria-label="Undo this entry">Undo</button>`:''}</td></tr>`).join('')}</tbody></table>`:'<p class="note">No stock changes yet.</p>'})()}</details></section>`}</div>`;
   const val=k=>$('#i_'+k)?$('#i_'+k).value.trim():'';
   $('#itf').onsubmit=async e=>{e.preventDefault();const name=val('name');if(!name)return;
     if(DB.items.some(x=>x.id!==it.id&&x.name.toLowerCase()===name.toLowerCase())){$('#im').className='red';$('#im').textContent='An item with this name already exists.';return}
@@ -483,6 +490,11 @@ function viewItem(id){const ph=isPh();const isNew=id==='new';const it=isNew?{id:
   $('#addS').onclick=async()=>{const q=num($('#a_q').value);if(!q){$('#am').className='red';$('#am').textContent='Type the quantity.';return}
     const bn=ph?$('#a_b').value.trim():'',ex=ph?$('#a_exp').value:'';
     let b=it.batches.find(x=>(x.b||'')===bn&&(x.exp||'')===ex);if(!b){b={id:uid(),b:bn,exp:ex};it.batches.push(b);it.t=Date.now()}DB.ins.push({id:uid(),item:it.id,batch:b.id,qty:q,date:today(),note:'Stock added',t:Date.now()});await persist();render();flash('✓ Added '+q+' to '+esc(it.name)+'.')};
+  $('#redS').onclick=async()=>{const rm=$('#rm');const q=num($('#r_q').value);if(!(q>0)){rm.className='red';rm.textContent='Type how many to remove.';return}
+    const bs=$('#r_b');let b=bs?it.batches.find(x=>x.id===bs.value):(goodBatches(it)[0]||it.batches[0]);if(!b){rm.className='red';rm.textContent='This item has no stock to reduce.';return}
+    const have=qB(it,b);if(q>have&&!$('#redS').dataset.ok){$('#redS').dataset.ok=1;rm.className='red';rm.textContent='Only '+have+' in stock. Tap Reduce stock again to remove '+q+' anyway.';return}
+    const why=$('#r_why').value;DB.ins.push({id:uid(),item:it.id,batch:b.id,qty:-q,date:today(),note:why,t:Date.now()});await persist();render();flash('✓ Removed '+q+' from '+esc(it.name)+' ('+esc(why)+'). Now '+qtyOf(it)+' in stock.')};
+  $$('[data-undo]').forEach(b=>twoTap(b,'Sure?',async()=>{gone('ins',b.dataset.undo);await persist();render();flash('Entry removed. Stock is updated.')}));
   $$('[data-adj]').forEach(btn=>btn.onclick=()=>{const b=it.batches.find(x=>x.id===btn.dataset.adj);const tr=btn.closest('tr');
     tr.innerHTML=`<td><input class="in" value="${esc(b.b)}" data-e="b"></td><td><input class="in" type="month" value="${esc(b.exp)}" data-e="exp"></td><td><input class="in" inputmode="decimal" value="${qB(it,b)}" data-e="qty" style="width:70px"></td><td class="r"><button class="btn sm pri" type="button">Save</button></td>`;
     tr.querySelector('button').onclick=async()=>{b.b=tr.querySelector('[data-e=b]').value.trim();b.exp=tr.querySelector('[data-e=exp]').value;it.t=Date.now();const want=num(tr.querySelector('[data-e=qty]').value),diff=r2(want-qB(it,b));
