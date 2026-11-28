@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.4">
+<meta name="app-version" content="2026.11.28.5">
 <title>My Shop</title>
 <link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -105,6 +105,45 @@ nav.nav svg{width:22px;height:22px;flex:none}
 <div id="updBar" class="msg" hidden style="position:fixed;left:12px;right:12px;top:12px;z-index:60;display:flex;gap:10px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.15)"><span class="sp">A new version of My Shop is ready.</span><button class="btn pri sm" id="updBtn">Update now</button></div>
 <div id="app"></div>
 <div id="print"></div>
+<script>
+/* Fingerprint / face unlock. The PIN still locks the data. Here the PIN is kept sealed on this device
+   and is only opened after the phone or laptop confirms your fingerprint, face or screen lock. */
+window.BIO=(()=>{
+  const te=new TextEncoder(),td=new TextDecoder(),rnd=n=>crypto.getRandomValues(new Uint8Array(n));
+  const b64=u=>{u=new Uint8Array(u);let s='';for(let i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);return btoa(s)};
+  const ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+  const K=app=>'bio.'+app;
+  function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('bio-keys',1);r.onupgradeneeded=()=>r.result.createObjectStore('k');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+  async function idbDo(mode,fn){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('k',mode);const q=fn(tx.objectStore('k'));tx.oncomplete=()=>res(q&&q.result);tx.onerror=()=>rej(tx.error)})}
+  async function deviceKey(app,make){let k=await idbDo('readonly',s=>s.get(app));
+    if(!k&&make){k=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);await idbDo('readwrite',s=>s.put(k,app))}
+    if(!k)throw new Error('nokey');return k}
+  async function prfKey(secret){const base=await crypto.subtle.importKey('raw',secret,'HKDF',false,['deriveKey']);
+    return crypto.subtle.deriveKey({name:'HKDF',hash:'SHA-256',salt:te.encode('bio-unlock'),info:new Uint8Array()},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+  async function assert(id,salt){const a=await navigator.credentials.get({publicKey:{challenge:rnd(32),allowCredentials:[{type:'public-key',id:ub64(id),transports:['internal','hybrid']}],userVerification:'required',timeout:60000,extensions:salt?{prf:{eval:{first:salt}}}:{}}});
+    const r=a.getClientExtensionResults&&a.getClientExtensionResults().prf;return r&&r.results&&r.results.first}
+  const api={
+    async supported(){try{return !!(window.PublicKeyCredential&&window.isSecureContext&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())}catch(e){return false}},
+    on(app){try{return !!JSON.parse(localStorage.getItem(K(app)))}catch(e){return false}},
+    async enable(app,label,pin){const salt=rnd(32);
+      const c=await navigator.credentials.create({publicKey:{challenge:rnd(32),rp:{name:label},user:{id:rnd(16),name:label+' unlock',displayName:label},
+        pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'},
+        timeout:60000,extensions:{prf:{eval:{first:salt}}}}});
+      const id=b64(c.rawId);const ext=(c.getClientExtensionResults&&c.getClientExtensionResults().prf)||{};
+      let secret=ext.results&&ext.results.first;
+      if(!secret&&ext.enabled){try{secret=await assert(id,salt)}catch(e){}}
+      const key=secret?await prfKey(secret):await deviceKey(app,true);const iv=rnd(12);
+      const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,te.encode(pin));
+      localStorage.setItem(K(app),JSON.stringify({id,salt:b64(salt),iv:b64(iv),ct:b64(ct),mode:secret?'prf':'device'}))},
+    async pin(app){const c=JSON.parse(localStorage.getItem(K(app))||'null');if(!c)throw new Error('off');
+      const secret=await assert(c.id,c.mode==='prf'?ub64(c.salt):null);
+      const key=c.mode==='prf'?(secret?await prfKey(secret):null):await deviceKey(app,false);if(!key)throw new Error('nokey');
+      return td.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(c.iv)},key,ub64(c.ct)))},
+    async off(app){localStorage.removeItem(K(app));try{await idbDo('readwrite',s=>s.delete(app))}catch(e){}},
+    why(e){const n=e&&e.name;return n==='NotAllowedError'||n==='AbortError'?'Fingerprint was cancelled. Try again or use your PIN.':n==='InvalidStateError'?'This device already has a fingerprint unlock for this app. Turn it off and on again.':'Fingerprint unlock did not work here. Use your PIN.'}
+  };
+  return api})();
+</script>
 <script>
 'use strict';
 /* ---------- helpers ---------- */
@@ -233,6 +272,7 @@ function flash(t,err){const m=$('#flash');if(!m)return;m.className='msg'+(err?' 
 /* ---------- lock / setup ---------- */
 const FAIL='dukaan.fail';
 function failInfo(){try{return JSON.parse(localStorage.getItem(FAIL))||{n:0,until:0}}catch(e){return{n:0,until:0}}}
+let bioAuto=true;
 function viewLock(){const has=!!localStorage.getItem(STORE);
   $('#app').innerHTML=`<div class="lock"><form class="card stack" id="lf" autocomplete="off">
    <div class="row"><div class="logo">₹</div><div><h2>My Shop</h2><div class="note">${has?'Enter your PIN to open your shop data.':'Set up your shop. Your data stays on this device, locked with your PIN.'}</div></div></div>
@@ -240,7 +280,7 @@ function viewLock(){const has=!!localStorage.getItem(STORE);
    <label class="f">Type of shop<select class="in" id="sm"><option value="pharmacy">Pharmacy / medical store (batch + expiry)</option><option value="general">General shop</option></select></label>`}
    <label class="f">${has?'PIN':'Choose a PIN (4 to 12 digits)'}<input class="in" id="p1" type="password" inputmode="numeric" pattern="[0-9]{4,12}" required autofocus></label>
    ${has?'':'<label class="f">Type the PIN again<input class="in" id="p2" type="password" inputmode="numeric" required></label>'}
-   <button class="btn pri" id="lgo">${has?'Unlock':'Create my shop'}</button><p id="lm" class="note" style="margin:0;min-height:1.4em"></p>
+   <button class="btn pri" id="lgo">${has?'Unlock':'Create my shop'}</button>${has&&BIO.on('myshop')?`<button type="button" class="btn" id="bioB"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 11v3a8 8 0 0 1-1.5 4.7"/><path d="M8.5 7.5A5 5 0 0 1 17 11v1.5"/><path d="M5 10a7 7 0 0 1 13.5-2.5"/><path d="M8 12v2a12 12 0 0 1-1 4.5"/><path d="M15.5 14.5a14 14 0 0 1-1.2 5"/></svg> Unlock with fingerprint</button>`:''}<p id="lm" class="note" style="margin:0;min-height:1.4em"></p>
    ${has?'':'<p class="note" style="margin:0">Remember this PIN. Nobody, including the app maker, can recover data without it. Keep a backup file from Settings.</p>'}</form></div>`;
   $('#lf').onsubmit=async e=>{e.preventDefault();const p1=$('#p1').value.trim(),lm=$('#lm');
     if(!/^\d{4,12}$/.test(p1)){lm.textContent='The PIN must be 4 to 12 digits.';return}
@@ -250,6 +290,11 @@ function viewLock(){const has=!!localStorage.getItem(STORE);
     $('#lgo').disabled=true;lm.textContent='Unlocking…';
     try{const o=await openWith(p1,localStorage.getItem(STORE));DB=upgrade(o.db);KEYOBJ=o.key;SALT=o.salt;PIN=p1;localStorage.removeItem(FAIL);boot()}
     catch(err){f.n++;if(f.n>=5)f.until=Date.now()+30000*2**(f.n-5);localStorage.setItem(FAIL,JSON.stringify(f));$('#lgo').disabled=false;lm.textContent='Wrong PIN.'+(f.n>=5?' Locked for a while.':'')}};
+  const bb=$('#bioB');if(bb){const go=async auto=>{const lm=$('#lm');lm.textContent='Touch the fingerprint sensor…';let p;
+      try{p=await BIO.pin('myshop')}catch(e){lm.textContent=auto?'':BIO.why(e);return}
+      lm.textContent='Unlocking…';try{const o=await openWith(p,localStorage.getItem(STORE));DB=upgrade(o.db);KEYOBJ=o.key;SALT=o.salt;PIN=p;localStorage.removeItem(FAIL);boot()}
+      catch(e){await BIO.off('myshop');bb.remove();lm.textContent='Your PIN was changed. Unlock with your PIN, then turn on fingerprint again in Settings.'}};
+    bb.onclick=()=>go(false);if(bioAuto){bioAuto=false;setTimeout(()=>go(true),250)}}
 }
 let idleT;function idle(){clearTimeout(idleT);idleT=setTimeout(lockNow,10*60*1000)}
 function lockNow(){clearTimeout(syncTimer);DB=null;KEYOBJ=null;PIN=null;st.draft=null;viewLock()}
@@ -521,6 +566,7 @@ function viewSettings(){const S=DB.shop,ph=isPh();
      <div class="row"><button class="btn" id="syncB">Sync now</button><button class="btn" id="tokB">Change token</button><button class="btn red" id="offB">Turn off sync</button></div>`
     :`<p class="note" style="margin:0">Paste the <b>same GitHub sync token you use in Money Diary</b> (its Tokens tab). Use the <b>same PIN</b> on your phone and laptop. Data is encrypted with your PIN before it leaves this device.</p>`}
     <div id="tokRow" class="stack" ${syncOn()?'hidden':''}><label class="f">GitHub token<input class="in" id="tok" type="password" autocomplete="off" placeholder="ghp_… or github_pat_…"></label><button class="btn pri" id="conB">Connect and sync</button></div><p id="sm" class="note" style="margin:0"></p></section>
+   <section class="card stack" id="bioCard" hidden><h3>Fingerprint / face unlock</h3><p class="note" style="margin:0">Open the app with your fingerprint instead of typing the PIN. Your PIN still works and still protects the data. Turn this on separately on your phone and on your laptop.</p><p id="bioSt" style="margin:0"></p><button class="btn pri" id="bioOn">Turn on fingerprint unlock</button><button class="btn red" id="bioOff">Turn off fingerprint unlock</button></section>
    <section class="card stack"><h3>PIN and security</h3><div class="grid g2"><label class="f">Current PIN<input class="in" id="op" type="password" inputmode="numeric"></label><label class="f">New PIN<input class="in" id="np" type="password" inputmode="numeric"></label></div>
     <button class="btn" id="chp">Change PIN</button><button class="btn" id="lk">Lock now</button><button class="btn red" id="wipe">Erase all data on this device</button>
     <p class="note" style="margin:0">The app locks itself after 10 minutes without use. Data is encrypted with AES-256 using your PIN.</p></section></div></div>`;
@@ -533,8 +579,11 @@ function viewSettings(){const S=DB.shop,ph=isPh();
     for(const b of[...DB.bills].sort((a,c)=>a.n-c.n))for(const l of b.lines){const c=lineCalc(l);rows.push([b.no,dl(b.date),b.cust?.name||'',b.cust?.phone||'',l.name,l.batch||'',expL(l.exp),l.hsn||'',l.qty,l.rate,l.disc||0,l.gst,r2(c.taxable),r2(c.tax),r2(c.amt),b.total,b.paid,modeL(b.mode)])}
     download('Sales-'+today()+'.csv',csv(rows),'text/csv')};
   $('#cs2').onclick=()=>{const rows=[['Item','Salt','Unit','Price','GST %','HSN','Rack','Batch','Expiry','Qty']];for(const i of DB.items)for(const b of(i.batches.length?i.batches:[{}]))rows.push([i.name,i.salt||'',i.unit||'',i.price,i.gst,i.hsn||'',i.rack||'',b.b||'',expL(b.exp),b.id?qB(i,b):0]);download('Stock-'+today()+'.csv',csv(rows),'text/csv')};
-  $('#chp').onclick=async()=>{const o=$('#op').value.trim(),n=$('#np').value.trim();if(o!==PIN){flash('Current PIN is wrong.',1);return}if(!/^\d{4,12}$/.test(n)){flash('New PIN must be 4 to 12 digits.',1);return}if(syncOn())await syncNow();clearTimeout(syncTimer);await setPin(n,true);if(syncOn())await syncNow();$('#op').value=$('#np').value='';flash('✓ PIN changed. Download a new backup file, because old backups still use the old PIN.')};
+  $('#chp').onclick=async()=>{const o=$('#op').value.trim(),n=$('#np').value.trim();if(o!==PIN){flash('Current PIN is wrong.',1);return}if(!/^\d{4,12}$/.test(n)){flash('New PIN must be 4 to 12 digits.',1);return}if(syncOn())await syncNow();clearTimeout(syncTimer);await setPin(n,true);if(syncOn())await syncNow();if(BIO.on('myshop')){try{await BIO.enable('myshop','My Shop',n)}catch(e){await BIO.off('myshop')}}$('#op').value=$('#np').value='';flash('✓ PIN changed. Download a new backup file, because old backups still use the old PIN.')};
   $('#lk').onclick=lockNow;showSync();
+  BIO.supported().then(ok=>{const c=$('#bioCard');if(!c||!ok)return;c.hidden=false;const on=BIO.on('myshop');$('#bioSt').innerHTML=on?'<span class="pill p-grn">On for this device</span>':'<span class="pill p-gry">Off</span>';$('#bioOn').hidden=on;$('#bioOff').hidden=!on});
+  $('#bioOn').onclick=async()=>{try{await BIO.enable('myshop','My Shop',PIN);flash('✓ Fingerprint unlock is on. Next time, just touch the sensor.');render()}catch(e){flash(BIO.why(e),1)}};
+  $('#bioOff').onclick=async()=>{await BIO.off('myshop');flash('Fingerprint unlock is off. Use your PIN.');render()};
   const sm=$('#sm');const busy=async(fn,ok)=>{sm.className='note';sm.textContent='Working…';try{await fn();sm.className='grn';sm.textContent=ok;render()}catch(e){sm.className='red';sm.textContent=e.message==='offline'?'No internet connection.':e.message}};
   $('#conB').onclick=()=>busy(()=>connectSync($('#tok').value),'✓ Connected. Your data is syncing.');
   if($('#syncB'))$('#syncB').onclick=()=>syncNow();

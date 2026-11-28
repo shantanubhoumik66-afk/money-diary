@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.4">
+<meta name="app-version" content="2026.11.28.5">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -267,6 +267,45 @@ nav.tabs a.nv:focus-visible,.menuonly:focus-visible,.lookbtn:focus-visible{outli
     <main id="view" class="stackv"></main>
   </div>
 </div>
+<script>
+/* Fingerprint / face unlock. The PIN still locks the data. Here the PIN is kept sealed on this device
+   and is only opened after the phone or laptop confirms your fingerprint, face or screen lock. */
+window.BIO=(()=>{
+  const te=new TextEncoder(),td=new TextDecoder(),rnd=n=>crypto.getRandomValues(new Uint8Array(n));
+  const b64=u=>{u=new Uint8Array(u);let s='';for(let i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);return btoa(s)};
+  const ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+  const K=app=>'bio.'+app;
+  function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('bio-keys',1);r.onupgradeneeded=()=>r.result.createObjectStore('k');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+  async function idbDo(mode,fn){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('k',mode);const q=fn(tx.objectStore('k'));tx.oncomplete=()=>res(q&&q.result);tx.onerror=()=>rej(tx.error)})}
+  async function deviceKey(app,make){let k=await idbDo('readonly',s=>s.get(app));
+    if(!k&&make){k=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);await idbDo('readwrite',s=>s.put(k,app))}
+    if(!k)throw new Error('nokey');return k}
+  async function prfKey(secret){const base=await crypto.subtle.importKey('raw',secret,'HKDF',false,['deriveKey']);
+    return crypto.subtle.deriveKey({name:'HKDF',hash:'SHA-256',salt:te.encode('bio-unlock'),info:new Uint8Array()},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+  async function assert(id,salt){const a=await navigator.credentials.get({publicKey:{challenge:rnd(32),allowCredentials:[{type:'public-key',id:ub64(id),transports:['internal','hybrid']}],userVerification:'required',timeout:60000,extensions:salt?{prf:{eval:{first:salt}}}:{}}});
+    const r=a.getClientExtensionResults&&a.getClientExtensionResults().prf;return r&&r.results&&r.results.first}
+  const api={
+    async supported(){try{return !!(window.PublicKeyCredential&&window.isSecureContext&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())}catch(e){return false}},
+    on(app){try{return !!JSON.parse(localStorage.getItem(K(app)))}catch(e){return false}},
+    async enable(app,label,pin){const salt=rnd(32);
+      const c=await navigator.credentials.create({publicKey:{challenge:rnd(32),rp:{name:label},user:{id:rnd(16),name:label+' unlock',displayName:label},
+        pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'},
+        timeout:60000,extensions:{prf:{eval:{first:salt}}}}});
+      const id=b64(c.rawId);const ext=(c.getClientExtensionResults&&c.getClientExtensionResults().prf)||{};
+      let secret=ext.results&&ext.results.first;
+      if(!secret&&ext.enabled){try{secret=await assert(id,salt)}catch(e){}}
+      const key=secret?await prfKey(secret):await deviceKey(app,true);const iv=rnd(12);
+      const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,te.encode(pin));
+      localStorage.setItem(K(app),JSON.stringify({id,salt:b64(salt),iv:b64(iv),ct:b64(ct),mode:secret?'prf':'device'}))},
+    async pin(app){const c=JSON.parse(localStorage.getItem(K(app))||'null');if(!c)throw new Error('off');
+      const secret=await assert(c.id,c.mode==='prf'?ub64(c.salt):null);
+      const key=c.mode==='prf'?(secret?await prfKey(secret):null):await deviceKey(app,false);if(!key)throw new Error('nokey');
+      return td.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(c.iv)},key,ub64(c.ct)))},
+    async off(app){localStorage.removeItem(K(app));try{await idbDo('readwrite',s=>s.delete(app))}catch(e){}},
+    why(e){const n=e&&e.name;return n==='NotAllowedError'||n==='AbortError'?'Fingerprint was cancelled. Try again or use your PIN.':n==='InvalidStateError'?'This device already has a fingerprint unlock for this app. Turn it off and on again.':'Fingerprint unlock did not work here. Use your PIN.'}
+  };
+  return api})();
+</script>
 <script>
 {
 const $=s=>document.querySelector(s);
@@ -1047,7 +1086,7 @@ const pinOk=p=>/^\d{6,12}$/.test(p);
 function pinForm(id,btn){return`<form id="${id}" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"><input type="password" inputmode="numeric" autocomplete="new-password" name="a" placeholder="New PIN, 6+ digits" aria-label="New PIN" style="flex:1 1 160px;min-height:44px;font-size:16px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><input type="password" inputmode="numeric" autocomplete="new-password" name="b" placeholder="Repeat PIN" aria-label="Repeat PIN" style="flex:1 1 160px;min-height:44px;font-size:16px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><button class="btn pri">${btn}</button></form><p class="note" id="${id}M" style="margin:6px 0 0"></p>`}
 function bindPinForm(id,done){const f=document.getElementById(id);if(!f)return;f.onsubmit=async e=>{e.preventDefault();const a=f.a.value,b=f.b.value,m=document.getElementById(id+'M');
   if(!pinOk(a)){m.textContent='Use 6 to 12 digits.';m.className='dnc';return}if(a!==b){m.textContent='The two PINs don’t match.';m.className='dnc';return}
-  m.textContent='Saving securely…';m.className='note';await changePin(a);done()}}
+  m.textContent='Saving securely…';m.className='note';await changePin(a);if(BIO.on('moneydiary')){try{await BIO.enable('moneydiary','Money Diary',a)}catch(e){await BIO.off('moneydiary')}}done()}}
 const needPin=()=>canCrypt&&!KEYOBJ&&!DB.demo&&!noSave&&hasData();
 function pinCard(){return`<section class="card" id="pinCard" style="border:2px solid var(--band)"><h2>Protect your data with a PIN</h2><p style="margin:0">Right now nothing is saved: your data disappears when you close this page. Set a PIN to keep it on this device, encrypted.</p>${pinForm('pf','Save with PIN')}<button class="btn" type="button" id="nosave" style="margin-top:8px">Don’t save, I’ll upload each time</button></section>`}
 function bindPinCard(){bindPinForm('pf',()=>{flash('Saved and encrypted with your PIN.');render()});const n=$('#nosave');if(n)n.onclick=()=>{noSave=true;render()}}
@@ -1395,9 +1434,12 @@ function viewCheck(){
   <li>If you turn on sync, only an encrypted copy goes to your own GitHub account. Without your PIN it is unreadable, even to GitHub.</li>
   <li>The app locks itself after 5 minutes away, and after 5 wrong PINs it makes you wait longer each time.</li>
   <li>If you forget your PIN, the saved data cannot be opened by anyone, including you. Clear it and upload your Excel again.</li></ul>
-  ${!canCrypt?'<p class="dnc">This browser can’t encrypt, so nothing is saved.</p>':KEYOBJ?`<p style="margin:0"><b class="upc">✓ Saved and encrypted with your PIN.</b></p><p style="margin:12px 0 0;font-weight:600">Change PIN</p>${pinForm('cp','Change PIN')}<div class="acts" style="margin-top:12px"><button class="btn" type="button" id="lk">Lock now</button><button class="btn" type="button" id="er">Clear all data</button></div>`:DB.demo?'<p class="note" style="margin:0">Sample data is never saved.</p>':hasData()?`<p style="margin:0" class="dnc">Not saved yet: set a PIN to keep this data.</p>${pinForm('pf2','Save with PIN')}<div class="acts" style="margin-top:12px"><button class="btn" type="button" id="er">Clear all data</button></div>`:`<p style="margin:0">Set a PIN to save your data on this device and to turn on sync.</p>${pinForm('pf2','Set PIN')}`}</section>`;
+  ${!canCrypt?'<p class="dnc">This browser can’t encrypt, so nothing is saved.</p>':KEYOBJ?`<p style="margin:0"><b class="upc">✓ Saved and encrypted with your PIN.</b></p><p style="margin:12px 0 0;font-weight:600">Change PIN</p>${pinForm('cp','Change PIN')}<div id="bioBox" hidden style="margin-top:14px"><p style="margin:0;font-weight:600">Fingerprint / face unlock</p><p class="note" style="margin:4px 0 8px">Open the app with your fingerprint instead of typing the PIN. Your PIN still works. Turn this on separately on your phone and laptop.</p><div class="acts"><button class="btn pri" type="button" id="bioOn">Turn on fingerprint unlock</button><button class="btn" type="button" id="bioOff">Turn off fingerprint unlock</button></div><p class="note" id="bioM" style="margin:8px 0 0"></p></div><div class="acts" style="margin-top:12px"><button class="btn" type="button" id="lk">Lock now</button><button class="btn" type="button" id="er">Clear all data</button></div>`:DB.demo?'<p class="note" style="margin:0">Sample data is never saved.</p>':hasData()?`<p style="margin:0" class="dnc">Not saved yet: set a PIN to keep this data.</p>${pinForm('pf2','Save with PIN')}<div class="acts" style="margin-top:12px"><button class="btn" type="button" id="er">Clear all data</button></div>`:`<p style="margin:0">Set a PIN to save your data on this device and to turn on sync.</p>${pinForm('pf2','Set PIN')}`}</section>`;
   h+=`<section class="card"><h2>App version</h2><p style="margin:0 0 10px">You are using version <b>${esc(APP_VERSION||'—')}</b>.</p><div class="acts"><button class="btn" type="button" id="chkUpd">Check for updates</button></div><p class="note" id="chkUpdM" style="margin:8px 0 0"></p></section>`;
   $('#view').innerHTML=syncSection()+backupSection()+h;bindSync();bindBackup();
+  if($('#bioBox'))BIO.supported().then(ok=>{const bx=$('#bioBox');if(!bx||!ok)return;bx.hidden=false;const on=BIO.on('moneydiary');$('#bioOn').hidden=on;$('#bioOff').hidden=!on;$('#bioM').textContent=on?'✓ On for this device.':'';
+    $('#bioOn').onclick=async()=>{try{await BIO.enable('moneydiary','Money Diary',PINMEM);render()}catch(e){$('#bioM').textContent=BIO.why(e)}};
+    $('#bioOff').onclick=async()=>{await BIO.off('moneydiary');render()}});
   {const c=$('#chkUpd');if(c)c.onclick=async()=>{const m=$('#chkUpdM');m.className='note';m.textContent='Checking…';const v=await checkUpdate();m.textContent=!v?'Couldn’t check right now (no internet?).':v!==APP_VERSION?'A new version ('+v+') is ready: tap “Update now” at the top.':'You have the latest version.'}}
   {const t=$('#impTog');if(t)t.onclick=()=>{try{localStorage.setItem('md.hideImport',impHidden()?'0':'1')}catch(e){}render()}}
   bindPinForm('cp',()=>{flash('PIN changed.');render()});bindPinForm('pf2',()=>{flash('Saved and encrypted with your PIN.');render()});
@@ -1413,14 +1455,20 @@ function viewCheck(){
 function lockView(){
   $('#view').innerHTML=`<section class="card" style="max-width:420px;width:100%;margin:24px auto;text-align:center"><h1 style="font-size:32px;margin:0 0 6px">Locked</h1><p class="note" style="margin:0 0 14px">Enter your PIN to open your money data.</p>
   <form id="unl"><input type="password" inputmode="numeric" autocomplete="current-password" id="up" aria-label="PIN" style="width:100%;min-height:52px;text-align:center;font-size:24px;letter-spacing:6px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><button class="btn pri" style="width:100%;margin-top:10px;justify-content:center">Unlock</button></form>
-  <p id="um" class="dnc" style="min-height:1.5em;margin:10px 0"></p><button class="btn" type="button" id="forgot">Forgot PIN</button></section>`;
+  ${BIO.on('moneydiary')?`<button class="btn pri" type="button" id="bioB" style="width:100%;margin-top:10px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 11v3a8 8 0 0 1-1.5 4.7"/><path d="M8.5 7.5A5 5 0 0 1 17 11v1.5"/><path d="M5 10a7 7 0 0 1 13.5-2.5"/><path d="M8 12v2a12 12 0 0 1-1 4.5"/><path d="M15.5 14.5a14 14 0 0 1-1.2 5"/></svg> Unlock with fingerprint</button>`:''}<p id="um" class="dnc" style="min-height:1.5em;margin:10px 0"></p><button class="btn" type="button" id="forgot">Forgot PIN</button></section>`;
   const f=$('#unl'),m=$('#um');$('#up').focus();
   f.onsubmit=async e=>{e.preventDefault();const left=Math.ceil((waitUntil-Date.now())/1000);if(left>0){m.textContent='Too many tries. Wait '+left+' seconds.';return}
     const btn=f.querySelector('button');btn.disabled=true;m.textContent='';
     try{await unlock($('#up').value);fails=0;$('#status').innerHTML='';render()}
     catch(err){fails++;if(fails>=5)waitUntil=Date.now()+30e3*2**(fails-5);m.textContent=fails>=5?'Wrong PIN. Wait '+Math.round(30*2**(fails-5))+' seconds before trying again.':'Wrong PIN.';btn.disabled=false;$('#up').value=''}};
   confirm2($('#forgot'),'Tap again: erase saved data',eraseAll);
+  const bb=$('#bioB');if(bb){const go=async auto=>{m.className='note';m.textContent='Touch the fingerprint sensor…';let p;
+      try{p=await BIO.pin('moneydiary')}catch(e){m.textContent=auto?'':BIO.why(e);return}
+      m.textContent='Unlocking…';try{await unlock(p);fails=0;$('#status').innerHTML='';render()}
+      catch(e){await BIO.off('moneydiary');bb.remove();m.className='dnc';m.textContent='Your PIN was changed. Unlock with your PIN, then turn on fingerprint again in Settings & sync.'}};
+    bb.onclick=()=>go(false);if(bioAuto){bioAuto=false;setTimeout(()=>go(true),250)}}
 }
+let bioAuto=true;
 function render(){
   ros.forEach(r=>r.disconnect());ros=[];const V=$('#view');V.oninput=V.onclick=V.onchange=null;
   const route=['overview','years','add','income','search','invest','check','tokens'].includes(location.hash.slice(1))?location.hash.slice(1):'overview';
