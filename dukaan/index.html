@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.24">
+<meta name="app-version" content="2026.11.28.25">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -817,7 +817,27 @@ function viewParty(id){const c=custById(id);if(!c){location.hash='#parties';retu
 let DLNS;(async()=>{try{if(window.claude&&claude.use)DLNS=await claude.use('downloads')}catch(e){}})();
 async function download(name,txt,type){if(DLNS){try{await DLNS.save({filename:name,data:txt});return}catch(e){flash('Download was cancelled.',1);return}}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 const csv=rows=>'﻿'+rows.map(r=>r.map(v=>{v=String(v??'');return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\n');
-function viewSettings(sub){const S=DB.shop,ph=isPh(),P=PS();
+/* ---------- recover from an earlier synced copy (GitHub keeps every version) ---------- */
+const dbStats=d=>({items:d.items.length,bills:d.bills.length,custs:d.custs.length,sups:d.sups.length});
+async function listCopies(){const L=await gh('/gists/'+DB.sync.gistId+'/commits?per_page=60');const out=[];let last='';
+  for(const c of L){try{const g=await gh('/gists/'+DB.sync.gistId+'/'+c.version);const t=await fileText(g.files&&g.files[SF]);if(!t||t===last)continue;last=t;
+      const got=await openRemote(t);const d=upgrade(got.db);out.push({sha:c.version,at:c.committed_at,d,st:dbStats(d)})}catch(e){}}
+  return out}
+function bringBack(old){let n=0;const now=Date.now();
+  for(const c of COLS){const have=new Set(DB[c].map(x=>x.id));for(const x of old[c]){if(have.has(x.id))continue;const y=JSON.parse(JSON.stringify(x));y.t=now;DB[c].push(y);delete DB.del[x.id];n++}}
+  STK=null;return n}
+function viewRecover(){if(!syncOn()){$('#view').innerHTML=`<div class="row"><a class="btn sm" href="#settings">← Settings</a></div><section class="card stack"><h2>Recover data</h2><p>Earlier copies are kept only when sync is on. Turn on sync in Settings, or use <b>Restore from backup file</b> if you downloaded one.</p></section>`;return}
+  const now=dbStats(DB);
+  $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#settings">← Settings</a></div><section class="card stack"><h2>Recover from an earlier copy</h2>
+   <p class="note" style="margin:0">Each time My Shop syncs, GitHub keeps a copy. Pick a copy from before the problem and tap <b>Bring back missing data</b>. Only things that are missing now are added back. Nothing you have now is removed.</p>
+   <p style="margin:0">Now: <b>${now.items}</b> items · <b>${now.bills}</b> invoices · <b>${now.custs}</b> customers · <b>${now.sups}</b> suppliers</p><div id="cpL"><p class="note">Loading earlier copies…</p></div></section>`;
+  listCopies().then(C=>{const el=$('#cpL');if(!el)return;if(!C.length){el.innerHTML='<p class="note">No earlier copies found.</p>';return}
+    el.innerHTML=`<div class="list">${C.map((c,i)=>{const miss=COLS.reduce((n,k)=>{const h=new Set(DB[k].map(x=>x.id));return n+c.d[k].filter(x=>!h.has(x.id)).length},0);
+      return`<div class="li" style="cursor:default"><span class="t"><b>${new Date(c.at).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</b><small>${c.st.items} items · ${c.st.bills} invoices · ${c.st.custs} customers</small></span>
+       ${miss?`<button class="btn pri sm" type="button" data-cp="${i}">Bring back ${miss} missing</button>`:'<span class="pill p-grn">Nothing missing</span>'}</div>`}).join('')}</div>`;
+    el.querySelectorAll('[data-cp]').forEach(b=>b.onclick=async()=>{b.disabled=true;b.textContent='Restoring…';const n=bringBack(C[+b.dataset.cp].d);await persist();location.hash='#stock';setTimeout(()=>flash('✓ Brought back '+n+' missing record'+(n===1?'':'s')+' (items, stock entries, invoices or customers).'),60)})})
+   .catch(e=>{const el=$('#cpL');if(el)el.innerHTML=`<p class="red">${esc(e.message==='offline'?'No internet. Connect and try again.':e.message)}</p>`})}
+function viewSettings(sub){if(sub==='recover')return viewRecover();const S=DB.shop,ph=isPh(),P=PS();
   $('#view').innerHTML=`<h2>Settings</h2><div class="two"><div class="stack"><form class="card stack" id="sf"><h3>Shop details (printed on invoices)</h3>
    <label class="f">Shop name<input class="in" id="s_name" value="${esc(S.name)}"></label><label class="f">Address<textarea class="in" id="s_addr" rows="2">${esc(S.addr)}</textarea></label>
    <div class="grid g2"><label class="f">Phone<input class="in" id="s_phone" inputmode="tel" value="${esc(S.phone)}"></label>
@@ -837,7 +857,7 @@ function viewSettings(sub){const S=DB.shop,ph=isPh(),P=PS();
     <div class="row"><button class="btn" type="button" id="prnTest">Print test invoice</button><button class="btn" type="button" id="prnForget">Forget printer</button></div><p id="prnM" class="note" style="margin:0"></p></section></div>
 
    <div class="stack"><section class="card stack"><h3>Backup</h3><p class="note" style="margin:0">Your data lives only on this device. Download a backup file regularly and keep it in Google Drive. The file is locked with your current PIN.</p>
-    <button class="btn pri" id="bk">Download backup file</button><label class="btn" for="rf">Restore from backup file</label><input type="file" id="rf" accept=".dukaan,.json" hidden>
+    <button class="btn pri" id="bk">Download backup file</button><a class="btn pri" href="#settings/recover">Recover missing data (earlier copies)</a><label class="btn" for="rf">Restore from backup file</label><input type="file" id="rf" accept=".dukaan,.json" hidden>
     <div class="row"><button class="btn" id="cs1">Sales report (Excel CSV)</button><button class="btn" id="cs2">Stock list (Excel CSV)</button></div></section>
    <section class="card stack"><h3>Sync phone &amp; laptop + Money Diary link</h3>
     ${syncOn()?`<p id="syncStatus" style="margin:0"></p>${syncSt.needPin?`<label class="f">PIN used on your other device<input class="in" id="npin" type="password" inputmode="numeric"></label><button class="btn pri" id="npinB">Use this PIN</button>`:''}
