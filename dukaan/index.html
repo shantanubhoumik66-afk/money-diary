@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.32">
+<meta name="app-version" content="2026.11.28.33">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -175,9 +175,29 @@ const b64=u=>{let s='';for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.ap
 const ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 async function deriveKey(pin,salt){const base=await crypto.subtle.importKey('raw',te.encode(pin),'PBKDF2',false,['deriveKey']);
   return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:600000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
-async function sealWith(key,salt,obj){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,te.encode(JSON.stringify(obj))));return JSON.stringify({app:'dukaan-bill',v:1,salt:b64(salt),iv:b64(iv),ct:b64(ct)})}
-async function openWith(pin,txt){const o=JSON.parse(txt);if(o.app!=='dukaan-bill')throw new Error('not ours');const k=await deriveKey(pin,ub64(o.salt));const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},k,ub64(o.ct));return{db:JSON.parse(td.decode(pt)),key:k,salt:ub64(o.salt)}}
-async function persist(noSync){STK=null;localStorage.setItem(STORE,await sealWith(KEYOBJ,SALT,DB));if(!noSync)syncSoon()}
+const gzOK=typeof CompressionStream!=='undefined'&&typeof DecompressionStream!=='undefined';
+const gz=async u=>new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+const gunz=async u=>new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+/* z: true = always compress (this device), 'auto' = compress only when large (sync and backup files, so older app versions can still read small files) */
+async function sealWith(key,salt,obj,z){let data=te.encode(JSON.stringify(obj));const use=gzOK&&(z===true||(z==='auto'&&data.length>600000));if(use)data=await gz(data);
+  const iv=crypto.getRandomValues(new Uint8Array(12));const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,data));return JSON.stringify({app:'dukaan-bill',v:1,z:use?1:0,at:Date.now(),salt:b64(salt),iv:b64(iv),ct:b64(ct)})}
+async function unpack(pt,o){let u=new Uint8Array(pt);if(o.z)u=await gunz(u);return JSON.parse(td.decode(u))}
+async function openWith(pin,txt){const o=JSON.parse(txt);if(o.app!=='dukaan-bill')throw new Error('not ours');const k=await deriveKey(pin,ub64(o.salt));const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},k,ub64(o.ct));return{db:await unpack(pt,o),key:k,salt:ub64(o.salt)}}
+/* where the encrypted data is kept: IndexedDB (large). The old copy in localStorage is kept as a spare for 30 days after the move. */
+const MIG='myshop.idb';let SAVED_T=null;
+function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open('myshop-data',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function idbDo(mode,fn){const db=await idbOpen();try{return await new Promise((res,rej)=>{const tx=db.transaction('kv',mode);const q=fn(tx.objectStore('kv'));tx.oncomplete=()=>res(q&&q.result);tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error||new Error('aborted'))})}finally{db.close()}}
+const savedAt=t=>{try{return JSON.parse(t).at||0}catch(e){return-1}};
+async function storeLoad(){let a=null;try{a=await idbDo('readonly',s=>s.get('main'))}catch(e){if(localStorage.getItem(MIG))throw new Error('store-blocked')}const b=localStorage.getItem(STORE);
+  if(a&&b)return savedAt(a)>=savedAt(b)?a:b;return a||b||null}
+async function storeSave(txt){let ok=false;
+  try{await idbDo('readwrite',s=>s.put(txt,'main'));const back=await idbDo('readonly',s=>s.get('main'));ok=back===txt}catch(e){ok=false}
+  if(ok){let m=null;try{m=JSON.parse(localStorage.getItem(MIG))}catch(e){}
+    if(!m){try{localStorage.setItem(MIG,JSON.stringify({at:Date.now()}))}catch(e){}}
+    else if(Date.now()-m.at>30*864e5&&localStorage.getItem(STORE)){localStorage.removeItem(STORE)}
+    SAVED_T=txt;return}
+  localStorage.setItem(STORE,txt);SAVED_T=txt}
+async function persist(noSync){STK=null;try{await storeSave(await sealWith(KEYOBJ,SALT,DB,true))}catch(e){flash('⚠ Could not save on this device (storage full or blocked). Please sync and download a backup now.',1);throw e}if(!noSync)syncSoon()}
 async function setPin(pin,noSync){SALT=crypto.getRandomValues(new Uint8Array(16));KEYOBJ=await deriveKey(pin,SALT);PIN=pin;await persist(noSync)}
 const newLink=()=>({key:b64(crypto.getRandomValues(new Uint8Array(32))),t:Date.now()});
 const blank=()=>({v:2,shop:{name:'',addr:'',phone:'',gstin:'',mode:'pharmacy',prefix:'INV-',taxIncl:true,upi:'',footer:'Thank you! Please visit again.',dl:'',t:0},items:[],bills:[],custs:[],pays:[],sups:[],spays:[],ins:[],del:{},seq:1,link:newLink()});
@@ -218,7 +238,7 @@ async function readRemote(tok,id){const g=await gh('/gists/'+id,{},tok);return f
 async function findGist(tok){let md=null;for(let p=1;p<=10;p++){const L=await gh('/gists?per_page=100&page='+p,{},tok);
   const g=L.find(x=>x.files&&x.files[SF]);if(g)return g.id;if(!md){const m=L.find(x=>x.files&&x.files[MDF]);if(m)md=m.id}if(L.length<100)break}return md}
 async function openRemote(txt,pin){const o=JSON.parse(txt);const same=SALT&&o.salt===b64(SALT)&&!pin;const key=same?KEYOBJ:await deriveKey(pin||PIN,ub64(o.salt));
-  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},key,ub64(o.ct));return{db:JSON.parse(td.decode(pt)),key,salt:ub64(o.salt)}}
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},key,ub64(o.ct));return{db:await unpack(pt,o),key,salt:ub64(o.salt)}}
 const COLS=['items','bills','custs','pays','sups','spays','ins'];
 function mergeDB(L,R){L=upgrade(L);R=upgrade(R);const o=Object.assign(blank(),L);o.del={...R.del};for(const k in L.del)o.del[k]=Math.max(L.del[k],o.del[k]||0);
   for(const c of COLS){const m=new Map();for(const x of[...L[c],...R[c]]){const y=m.get(x.id);if(!y||(x.t||0)>(y.t||0))m.set(x.id,x)}o[c]=[...m.values()].filter(x=>!(o.del[x.id]>=(x.t||0)))}
@@ -239,7 +259,7 @@ async function syncNow(){if(!syncOn())return;if(syncing){syncAgain=true;return}s
     if(DB.sync.gistId){try{R=await readRemote(DB.sync.token,DB.sync.gistId)}catch(e){if(e.message!=='notfound')throw e;DB.sync.gistId=null}}
     if(R){let got;try{got=await openRemote(R)}catch(e){syncSt.needPin=true;throw new Error('The PIN was changed on your other device. Enter that new PIN in Settings to keep syncing.')}
       if(b64(got.salt)!==b64(SALT)){SALT=got.salt;KEYOBJ=got.key}DB=Object.assign(mergeDB(DB,got.db),{sync:DB.sync});STK=null}
-    const files={[SF]:{content:await sealWith(KEYOBJ,SALT,shareable(DB))},[LF]:{content:await linkFile()}};
+    const files={[SF]:{content:await sealWith(KEYOBJ,SALT,shareable(DB),'auto')},[LF]:{content:await linkFile()}};
     if(DB.sync.gistId)await gh('/gists/'+DB.sync.gistId,{method:'PATCH',body:JSON.stringify({files})});
     else{const g=await gh('/gists',{method:'POST',body:JSON.stringify({description:'My Shop encrypted sync (do not edit)',public:false,files})});DB.sync.gistId=g.id}
     await persist(true);try{localStorage.setItem('dukaan.link',DB.link.key)}catch(e){}
@@ -285,7 +305,8 @@ function flash(t,err){const m=$('#flash');if(!m)return;m.className='msg'+(err?' 
 const FAIL='dukaan.fail';
 function failInfo(){try{return JSON.parse(localStorage.getItem(FAIL))||{n:0,until:0}}catch(e){return{n:0,until:0}}}
 let bioAuto=true;
-function viewLock(){const has=!!localStorage.getItem(STORE);
+async function fresh(){try{SAVED_T=await storeLoad()||SAVED_T}catch(e){throw new Error('store-blocked')}return SAVED_T}
+function viewLock(){const has=!!SAVED_T;
   $('#app').innerHTML=`<div class="lock"><form class="card stack" id="lf" autocomplete="off">
    <div class="row"><div class="logo">₹</div><div><h2>My Shop</h2><div class="note">${has?'Enter your PIN to open your shop data.':'Set up your shop. Your data stays on this device, locked with your PIN.'}</div></div></div>
    ${has?'':`<label class="f">Shop name<input class="in" id="sn" required placeholder="e.g. Maa Tara Medical"></label>
@@ -300,12 +321,12 @@ function viewLock(){const has=!!localStorage.getItem(STORE);
       $('#lgo').disabled=true;lm.textContent='Setting up…';DB=upgrade(blank());DB.shop.name=$('#sn').value.trim();DB.shop.mode=$('#sm').value;await setPin(p1);location.hash='#settings';boot();return}
     const f=failInfo();if(f.until>Date.now()){lm.textContent='Too many wrong PINs. Try again in '+Math.ceil((f.until-Date.now())/1000)+' seconds.';return}
     $('#lgo').disabled=true;lm.textContent='Unlocking…';
-    try{const o=await openWith(p1,localStorage.getItem(STORE));DB=upgrade(o.db);KEYOBJ=o.key;SALT=o.salt;PIN=p1;localStorage.removeItem(FAIL);boot()}
-    catch(err){f.n++;if(f.n>=5)f.until=Date.now()+30000*2**(f.n-5);localStorage.setItem(FAIL,JSON.stringify(f));$('#lgo').disabled=false;lm.textContent='Wrong PIN.'+(f.n>=5?' Locked for a while.':'')}};
+    try{const o=await openWith(p1,await fresh());DB=upgrade(o.db);KEYOBJ=o.key;SALT=o.salt;PIN=p1;localStorage.removeItem(FAIL);boot()}
+    catch(err){if(err&&err.message==='store-blocked'){$('#lgo').disabled=false;lm.textContent='Could not open saved data just now. Close the app fully and open it again. Your data is safe.';return}f.n++;if(f.n>=5)f.until=Date.now()+30000*2**(f.n-5);localStorage.setItem(FAIL,JSON.stringify(f));$('#lgo').disabled=false;lm.textContent='Wrong PIN.'+(f.n>=5?' Locked for a while.':'')}};
   const bb=$('#bioB');if(bb){const go=async auto=>{const lm=$('#lm');lm.textContent='Touch the fingerprint sensor…';let p;
       try{p=await BIO.pin('myshop')}catch(e){lm.textContent=auto?'':BIO.why(e);return}
-      lm.textContent='Unlocking…';try{const o=await openWith(p,localStorage.getItem(STORE));DB=upgrade(o.db);KEYOBJ=o.key;SALT=o.salt;PIN=p;localStorage.removeItem(FAIL);boot()}
-      catch(e){await BIO.off('myshop');bb.remove();lm.textContent='Your PIN was changed. Unlock with your PIN, then turn on fingerprint again in Settings.'}};
+      lm.textContent='Unlocking…';try{const o=await openWith(p,await fresh());DB=upgrade(o.db);KEYOBJ=o.key;SALT=o.salt;PIN=p;localStorage.removeItem(FAIL);boot()}
+      catch(e){if(e&&e.message==='store-blocked'){lm.textContent='Could not open saved data just now. Close the app fully and open it again. Your data is safe.';return}await BIO.off('myshop');bb.remove();lm.textContent='Your PIN was changed. Unlock with your PIN, then turn on fingerprint again in Settings.'}};
     bb.onclick=()=>go(false);if(bioAuto){bioAuto=false;setTimeout(()=>go(true),250)}}
 }
 let idleT;function idle(){clearTimeout(idleT);idleT=setTimeout(lockNow,10*60*1000)}
@@ -322,7 +343,7 @@ function boot(){
    <a class="btn hide-m" style="margin-top:auto" href="../" aria-label="Open Money Diary" title="Money Diary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h7M8 11h5"/></svg><span>Money Diary</span></a>
    <button class="btn hide-m" id="lockB">${ic('lock').replace('<svg','<svg width="18" height="18"')} Lock</button></header>
    <main><div id="flash" class="msg" hidden style="margin-bottom:12px"></div><div id="view" class="stack"></div></main></div>`;
-  $('#lockB').onclick=lockNow;idle();render();try{localStorage.setItem('dukaan.link',DB.link.key)}catch(e){}syncNow();
+  $('#lockB').onclick=lockNow;idle();render();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}try{localStorage.setItem('dukaan.link',DB.link.key)}catch(e){}syncNow();
 }
 addEventListener('hashchange',()=>{if(DB)render()});
 function route(){const h=location.hash.slice(1)||'home';const[r,a]=h.split('/');return{r,a}}
@@ -1007,7 +1028,7 @@ function viewSettings(sub){if(sub==='recover')return viewRecover();const S=DB.sh
     <p class="note" style="margin:0">The app locks itself after 10 minutes without use. Data is encrypted with AES-256 using your PIN.</p></section></div></div>`;
   $('#sf').onsubmit=async e=>{e.preventDefault();const v=k=>$('#s_'+k).value.trim();Object.assign(S,{name:v('name'),addr:v('addr'),phone:v('phone'),dl:v('dl'),upi:v('upi'),prefix:v('prefix'),mode:v('mode'),taxIncl:true,footer:v('footer')});
     const sq=parseInt(v('seq'));if(sq>0)DB.seq=sq;S.t=Date.now();await persist();render();flash('✓ Shop details saved.')};
-  $('#bk').onclick=async()=>{download('MyShop-backup-'+today()+'.dukaan',await sealWith(KEYOBJ,SALT,DB),'application/json');flash('✓ Backup downloaded. Save it to Google Drive. You need your current PIN to restore it.')};
+  $('#bk').onclick=async()=>{download('MyShop-backup-'+today()+'.dukaan',await sealWith(KEYOBJ,SALT,DB,'auto'),'application/json');flash('✓ Backup downloaded. Save it to Google Drive. You need your current PIN to restore it.')};
   $('#rf').onchange=async e=>{const f=e.target.files[0];if(!f)return;const pin=prompt('Type the PIN that was used when this backup was made');if(!pin)return;
     try{const o=await openWith(pin.trim(),await f.text());const keep=DB.sync;DB=upgrade(o.db);if(keep)DB.sync=keep;await persist();render();flash('✓ Backup restored: '+DB.bills.length+' invoices, '+DB.items.length+' items.')}catch(err){flash('Could not open this file. Check the PIN and that it is a My Shop backup.',1)}e.target.value=''};
   $('#cs1').onclick=()=>{const rows=[['Invoice no','Date','Customer','Mobile','Item','Batch','Expiry','Qty','MRP','Disc %','Amount','Invoice total','Received','Mode']];
@@ -1039,9 +1060,9 @@ function viewSettings(sub){if(sub==='recover')return viewRecover();const S=DB.sh
   if($('#tokB'))$('#tokB').onclick=()=>{$('#tokRow').hidden=false;$('#tok').focus()};
   if($('#offB'))twoTap($('#offB'),'Tap again to turn off',async()=>{DB.sync=null;syncSt.state='off';await persist(true);render();flash('Sync is off on this device. Your data stays here.')});
   if($('#npinB'))$('#npinB').onclick=()=>busy(()=>enterNewPin($('#npin').value.trim()),'✓ PIN updated. Syncing again.');
-  twoTap($('#wipe'),'Tap again: erase everything',()=>{localStorage.removeItem(STORE);lockNow()})}
+  twoTap($('#wipe'),'Tap again: erase everything',async()=>{localStorage.removeItem(STORE);localStorage.removeItem(MIG);try{await idbDo('readwrite',s=>s.delete('main'))}catch(e){}SAVED_T=null;lockNow()})}
 
-viewLock();
+storeLoad().then(t=>{SAVED_T=t;viewLock()}).catch(()=>{$('#app').innerHTML=`<div class="lock"><div class="card stack"><div class="logo">₹</div><h2>Could not open your saved data</h2><p class="note" style="margin:0">Your data is safe. The browser did not allow access just now. Close My Shop fully (remove it from recent apps) and open it again.</p><button class="btn pri" onclick="location.reload()">Try again</button></div></div>`});
 /* installable app + update button */
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js',{scope:'./'}).catch(()=>{});
 const MYV=document.querySelector('meta[name=app-version]').content;
