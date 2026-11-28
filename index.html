@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.27.9">
+<meta name="app-version" content="2026.11.28.1">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -201,9 +201,9 @@ nav.tabs a.nv:focus-visible,.menuonly:focus-visible,.lookbtn:focus-visible{outli
  nav.tabs a.fab .short{display:none}
  nav.tabs a.fab svg{width:28px;height:28px;stroke-width:2.6}
  nav.tabs a.fab.on{outline:3px solid var(--focus)}
- .acts{display:none;position:fixed;top:66px;right:12px;z-index:40;width:min(300px,calc(100vw - 24px));max-height:calc(100vh - 170px);overflow-y:auto;flex-direction:column;align-items:stretch;gap:8px;padding:12px;border-radius:20px;background:var(--menu);border:1px solid var(--menuB);box-shadow:0 20px 50px rgba(0,0,0,.35)}
- body.menu-open .acts{display:flex}
- .acts .btn{justify-content:center}
+ #acts{display:none;position:fixed;top:66px;right:12px;z-index:40;width:min(300px,calc(100vw - 24px));max-height:calc(100vh - 170px);overflow-y:auto;flex-direction:column;align-items:stretch;gap:8px;padding:12px;border-radius:20px;background:var(--menu);border:1px solid var(--menuB);box-shadow:0 20px 50px rgba(0,0,0,.35)}
+ body.menu-open #acts{display:flex}
+ #acts .btn{justify-content:center}
  .menuonly{display:flex;align-items:center;gap:12px;min-height:46px;padding:0 12px;border-radius:12px;color:var(--ink);text-decoration:none;font-weight:700}
  .backbtn,.lookbtn{padding:0 12px;color:var(--ink)}
  .menuonly.on{color:var(--accInk);background:var(--acc)}
@@ -216,10 +216,10 @@ nav.tabs a.nv:focus-visible,.menuonly:focus-visible,.lookbtn:focus-visible{outli
  nav.tabs{display:flex;flex-direction:column;gap:4px;overflow:visible}
  nav.tabs a.nv{min-height:46px;padding:0 14px;font-size:15px}
  nav.tabs a.nv .short{display:none}
- .acts{display:flex;flex:1;flex-direction:column;align-items:stretch;gap:8px;margin-top:-10px}
- .acts label[for=file]{margin-top:auto}
+ #acts{display:flex;flex:1;flex-direction:column;align-items:stretch;gap:8px;margin-top:-10px}
+ #acts label[for=file]{margin-top:auto}
  .backbtn,.lookbtn{padding:0 14px;font-size:15px}
- .acts .btn{justify-content:center}
+ #acts .btn{justify-content:center}
  .content{padding:26px 0 56px;min-width:0}
  .hero .big{font-size:clamp(44px,4.4vw,60px)!important}
 }
