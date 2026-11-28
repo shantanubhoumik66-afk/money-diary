@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.34">
+<meta name="app-version" content="2026.11.28.35">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -134,6 +134,7 @@ h1,h2{letter-spacing:-.02em;font-weight:800}
 .hero{background:var(--hero);border:var(--heroB);color:var(--heroInk);border-radius:calc(var(--radius) + 4px)}
 .hero .lbl,.hk span{color:var(--heroSub)}
 .hero .big{font-weight:800!important;letter-spacing:-.03em}
+.hk b.svgrn{display:inline-block;color:#06381f;background:#86efac;border-radius:8px;padding:0 8px}.hk b.mfhl{display:inline-block;color:#1e1b4b;background:#c7d2fe;border-radius:8px;padding:0 8px}
 .exred,.hk b.exred{display:inline-block;color:var(--exInk);background:var(--exBg);border-radius:8px;padding:0 8px}
 .btn{background:var(--glass);border:1px solid var(--btnB);color:var(--ink);border-radius:14px}
 .btn.pri{background:var(--pri);border:0;color:var(--priInk);box-shadow:var(--priShadow)}
@@ -803,8 +804,8 @@ function viewYears(){
   const modes={};for(const x of exp){const k=modeOf(x);modes[k]=(modes[k]||0)+x.amt}
   const span=YS.length?(YS.length===1?YS[0].y:YS[0].y+'–'+YS[YS.length-1].y):'';
   const pct=(a,b)=>b?Math.round(a/b*100)+'%':'—';
-  $('#view').innerHTML=`<section class="hero"><div><div class="lbl">Net saving, all years ${esc(span)}, after expenses and MF</div><div class="big num">${inr(net)}</div><div class="lbl" style="margin-top:6px">Saved before MF: ${inr(saved)} · you kept ${pct(saved,inc)} of everything you earned</div></div>
-  <div class="hk"><div><span>Total Credit</span><b>${inr(T.c)}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>MF invested</span><b>${inr(T.mf)}</b></div><div><span>Working / off days</span><b>${T.days} / ${T.off}</b></div></div></section>
+  $('#view').innerHTML=`<section class="hero"><div><div class="lbl">Net saving, all years ${esc(span)}, after expenses and MF</div><div class="big num">${inr(net)}</div><div class="lbl" style="margin-top:6px">You kept ${pct(saved,inc)} of everything you earned</div></div>
+  <div class="hk"><div><span>Total Credit</span><b>${inr(T.c)}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>Saved before MF</span><b class="svgrn">${inr(saved)}</b></div><div><span>MF invested</span><b class="mfhl">${inr(T.mf)}</b></div><div><span>Working / off days</span><b>${T.days} / ${T.off}</b></div></div></section>
   <div class="kpis"><div class="kpi"><span>Years recorded</span><b>${YS.length}</b><small>${T.months} months with data</small></div>
   <div class="kpi"><span>Average Nett income per month</span><b>${inr(T.months?inc/T.months:0)}</b></div>
   <div class="kpi"><span>Average expenses per month</span><b class="exc">${inr(T.months?T.x/T.months:0)}</b></div>
@@ -828,8 +829,8 @@ function viewOverview(){
   const inc=T.m+T.e+(T.u||0)+T.b,left=inc-T.x-T.mf,label=st.year==='all'?'all years':st.year;
   const top=itemTotals(exp).slice(0,10);const tmax=top[0]?.amt||1;
   const modes={};for(const x of exp){const k=x.mode||'Not set';modes[k]=(modes[k]||0)+x.amt}
-  $('#view').innerHTML=`<section class="hero"><div><div class="lbl">Net saving in ${esc(label)}, after expenses and MF</div><div class="big num">${inr(left)}</div><div class="lbl" style="margin-top:6px">Saved before MF: ${inr(inc-T.x)}</div></div>
-  <div class="hk"><div><span>Total Credit</span><b>${inr(T.m+T.e+(T.u||0))}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>MF invested</span><b>${inr(T.mf)}</b></div><div><span>Working days</span><b>${T.d}</b></div><div><span>Off days</span><b>${T.o}</b></div></div></section>
+  $('#view').innerHTML=`<section class="hero"><div><div class="lbl">Net saving in ${esc(label)}, after expenses and MF</div><div class="big num">${inr(left)}</div></div>
+  <div class="hk"><div><span>Total Credit</span><b>${inr(T.m+T.e+(T.u||0))}</b></div><div><span>Business</span><b>${inr(T.b)}</b></div><div><span>Nett income</span><b>${inr(inc)}</b></div><div><span>Expenses</span><b class="exred">${inr(T.x)}</b></div><div><span>Saved before MF</span><b class="svgrn">${inr(inc-T.x)}</b></div><div><span>MF invested</span><b class="mfhl">${inr(T.mf)}</b></div><div><span>Working days</span><b>${T.d}</b></div><div><span>Off days</span><b>${T.o}</b></div></div></section>
   <div class="grid2">
   <section class="card"><h2>Nett income vs expenses by month</h2>${leg([['var(--m)','Morning'],['var(--e)','Evening'],...(T.u?[['var(--u)','Total only (no split)']]:[]),['var(--b)','Business'],['var(--x)','Expenses']])}${fig('c1')}</section>
   <section class="card"><h2>Where the money goes</h2><p class="note" style="margin:0 0 8px">Tap an item to see its full history.</p>
