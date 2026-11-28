@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.9">
+<meta name="app-version" content="2026.11.28.10">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -265,8 +265,8 @@ const supById=id=>DB.sups.find(c=>c.id===id);
 const gone=(arr,id)=>{DB[arr]=DB[arr].filter(x=>x.id!==id);DB.del[id]=Date.now()};
 const qtyOf=it=>r2(it.batches.reduce((s,b)=>s+qB(it,b),0));
 function goodBatches(it){return it.batches.filter(b=>qB(it,b)>0).sort((a,b)=>(monthsLeft(a.exp)<0)-(monthsLeft(b.exp)<0)||String(a.exp||'9999').localeCompare(String(b.exp||'9999')))}
-function lineCalc(l){const g=+l.gst||0,gross=(+l.qty||0)*(+l.rate||0),d=gross*(+l.disc||0)/100;let amt=gross-d,taxable,tax;
-  if(DB.shop.taxIncl){taxable=amt/(1+g/100);tax=amt-taxable}else{taxable=amt;tax=amt*g/100;amt=taxable+tax}return{gross,d,taxable,tax,amt}}
+function lineCalc(l){const g=0,gross=(+l.qty||0)*(+l.rate||0),d=gross*(+l.disc||0)/100;let amt=gross-d,taxable,tax;
+  if(true){taxable=amt/(1+g/100);tax=amt-taxable}else{taxable=amt;tax=amt*g/100;amt=taxable+tax}return{gross,d,taxable,tax,amt}}
 function billCalc(lines){const t={taxable:0,tax:0,amt:0,disc:0,gross:0,byRate:{}};for(const l of lines){const c=lineCalc(l);t.gross+=c.gross;t.taxable+=c.taxable;t.tax+=c.tax;t.amt+=c.amt;t.disc+=c.d;
   const k=+l.gst||0;const r=t.byRate[k]||(t.byRate[k]={taxable:0,tax:0});r.taxable+=c.taxable;r.tax+=c.tax}t.total=Math.round(t.amt);t.round=t.total-t.amt;return t}
 function dueOf(cid){let d=0;for(const b of DB.bills)if(b.cust&&b.cust.id===cid)d+=b.total-b.paid;for(const p of DB.pays)if(p.cust===cid)d-=p.amt;return r2(d)}
@@ -351,12 +351,13 @@ function viewHome(){const t=today(),ym=t.slice(0,7);let sT=0,cashT=0,nT=0;
 function billLi(b){const bal=invNums(b).bal;return`<a class="li" href="#inv/${b.id}"><span class="t"><b>${esc(b.no)} · ${esc(b.cust?.name||'Walk-in customer')}</b><small>${dl(b.date)} · ${b.lines.length} item${b.lines.length===1?'':'s'} · ${esc(modeL(b.mode))}</small></span><span class="a">${inr(b.total)}${bal>0.5?`<br><span class="pill p-red">Due ${inr(bal)}</span>`:''}</span></a>`}
 
 /* ---------- sale invoice (new or edit) ---------- */
-const PDEF={addr:1,phone:1,gstin:1,dl:1,cust:1,custPhone:1,batch:1,hsn:1,gstCol:1,gstSum:1,prev:1,footer:1,upi:1,paper:'a4'};
+const PDEF={addr:1,phone:1,dl:1,cust:1,custPhone:1,batch:1,prev:1,footer:1,upi:1,paper:'a4'};
+const PS0=PDEF;
 const PS=()=>Object.assign({},PDEF,DB.shop.print||{});
 /* customer's balance before an invoice: due (+) or deposit (−). Only bills/payments made before it count. */
 function prevBal(cid,beforeT,exclId){if(!cid)return 0;let d=0;
   for(const b of DB.bills)if(b.cust&&b.cust.id===cid&&b.id!==exclId&&(b.t||0)<beforeT)d+=b.total-b.paid;
-  for(const p of DB.pays)if(p.cust===cid&&p.bill!==exclId&&(p.t||0)<beforeT)d-=p.amt;return r2(d)}
+  for(const p of DB.pays)if(p.cust===cid&&(!exclId||p.bill!==exclId)&&(p.t||0)<beforeT)d-=p.amt;return r2(d)}
 const custByName=n=>{n=(n||'').trim().toLowerCase();return n?DB.custs.find(c=>c.name.toLowerCase()===n):null};
 function draftPrev(){const D=st.draft;const c=custByName(D.cust.name);if(!c)return 0;
   if(D.editId){const b=DB.bills.find(x=>x.id===D.editId);if(b&&b.cust&&b.cust.id===c.id)return prevBal(c.id,b.t0||b.t,b.id)}return prevBal(c.id,Infinity,D.editId)}
@@ -388,15 +389,14 @@ function drawRes(q){const R=searchItems(q),el=$('#ires');
 function addLine(it){const D=st.draft;const ex=D.lines.find(l=>l.itemId===it.id);
   if(ex&&!isPh()){ex.qty=(+ex.qty||0)+1;drawLines();drawPay();return}
   const gb=goodBatches(it)[0]||it.batches[0];
-  D.lines.push({itemId:it.id,name:it.name,hsn:it.hsn||'',batchId:gb?gb.id:'',batch:gb?gb.b||'':'',exp:gb?gb.exp||'':'',qty:1,rate:it.price,disc:0,gst:it.gst||0,unit:it.unit||''});drawLines();drawPay()}
+  D.lines.push({itemId:it.id,name:it.name,hsn:it.hsn||'',batchId:gb?gb.id:'',batch:gb?gb.b||'':'',exp:gb?gb.exp||'':'',qty:1,rate:it.price,disc:0,gst:0,unit:it.unit||''});drawLines();drawPay()}
 function drawLines(){const D=st.draft,ph=isPh(),el=$('#lines');
   const own={};if(D.editId){const eb=DB.bills.find(x=>x.id===D.editId);if(eb)for(const l of eb.lines){const k=l.itemId+'|'+l.batchId;own[k]=(own[k]||0)+l.qty}}
   if(!D.lines.length){el.innerHTML='<p class="empty" style="padding:12px">Search above and tap an item to add it to the invoice.</p>';return}
   el.innerHTML=D.lines.map((l,i)=>{const it=itemById(l.itemId);const amt=num(l.qty)*num(l.rate);const bt=it?it.batches:[];const b=bt.find(x=>x.id===l.batchId);const left=(b?qB(it,b):it?qtyOf(it):0)+(own[l.itemId+'|'+l.batchId]||0);const warn=num(l.qty)>left;const m=monthsLeft(l.exp);
    return`<div class="bl" data-i="${i}"><div class="top"><b>${esc(l.name)}</b><span style="font-weight:800">${inr(amt)}</span><button type="button" class="x" data-del="${i}" aria-label="Remove ${esc(l.name)}">✕</button></div>
    ${ph&&bt.length?`<select class="in" data-k="batchId" style="min-height:38px">${bt.map(x=>`<option value="${x.id}" ${x.id===l.batchId?'selected':''}>Batch ${esc(x.b||'-')} · Exp ${expL(x.exp)||'-'} · ${qB(it,x)+(own[it.id+'|'+x.id]||0)} left${monthsLeft(x.exp)<0?' · EXPIRED':''}</option>`).join('')}</select>`:''}
-   <div class="nums" style="grid-template-columns:repeat(3,1fr)"><label>Qty<input class="in" data-k="qty" inputmode="decimal" value="${l.qty}"></label><label>MRP ₹<input class="in" data-k="rate" inputmode="decimal" value="${l.rate}"></label>
-   <label>GST %<select class="in" data-k="gst">${[0,5,12,18,28].map(g=>`<option ${g==l.gst?'selected':''}>${g}</option>`).join('')}</select></label></div>
+   <div class="nums" style="grid-template-columns:repeat(2,1fr)"><label>Qty<input class="in" data-k="qty" inputmode="decimal" value="${l.qty}"></label><label>MRP ₹<input class="in" data-k="rate" inputmode="decimal" value="${l.rate}"></label></div>
    ${warn?`<span class="pill p-amb">Only ${left} in stock</span>`:''}${ph&&l.exp&&m<0?' <span class="pill p-red">This batch is expired</span>':''}</div>`}).join('');
   el.oninput=el.onchange=e=>{const k=e.target.dataset.k;if(!k)return;if(e.type==='change'&&e.target.tagName!=='SELECT')return;const i=+e.target.closest('.bl').dataset.i,l=D.lines[i];
     if(k==='batchId'){const it=itemById(l.itemId),b=it.batches.find(x=>x.id===e.target.value);l.batchId=b.id;l.batch=b.b||'';l.exp=b.exp||'';drawLines();drawPay();return}
@@ -407,13 +407,12 @@ function payMsg(rest,name){return rest>0.5?`<span class="pill p-red">Due ${inr(r
 function payCalc(){const D=st.draft,L=cleanLines(),t=billCalc(L),pb=draftPrev();const nett=r2(t.total+pb);return{D,L,t,pb,pDue:Math.max(0,pb),pDep:Math.max(0,-pb),nett,dp:num(D.disc),recv:D.paid===''?Math.max(0,nett):num(D.paid)}}
 function totHTML(){const{t,pDue,pDep,nett,dp}=payCalc();
   return`<div class="tot"><span>Total amount (MRP × Qty)</span><span>${inr(t.gross)}</span>
-   ${t.disc?`<span>Discount (${r2(dp)}%)</span><span>−${inr(t.disc)}</span>`:''}
-   ${DB.shop.taxIncl?'':`<span>GST added</span><span>+${inr(t.tax)}</span>`}
+   ${t.disc?`<span>Discount ${r2(dp)}%</span><span>−${inr(t.disc)}</span>`:''}
    ${Math.abs(t.round)>=0.005?`<span>Round off</span><span>${t.round>0?'+':''}${r2(t.round)}</span>`:''}
    ${pDue||pDep?`<span>Invoice amount</span><span><b>${inr(t.total)}</b></span>`:''}
-   ${pDue?`<span>Prev. due</span><span class="red">+${inr(pDue)}</span>`:''}${pDep?`<span>Prev. dep. (advance)</span><span class="grn">−${inr(pDep)}</span>`:''}
+   ${pDue?`<span>Prev. due</span><span class="red">+${inr(pDue)}</span>`:''}${pDep?`<span>Prev. dep. (deposit)</span><span class="grn">−${inr(pDep)}</span>`:''}
    <span class="big">Nett total</span><span class="big">${inr(nett)}</span></div>
-   ${DB.shop.taxIncl&&t.tax?`<p class="note" style="margin:6px 0 0">Includes GST ${inr(t.tax)} (CGST ${inr(t.tax/2)} + SGST ${inr(t.tax/2)}).</p>`:''}`}
+`}
 function refreshTot(){const{D,nett,recv}=payCalc();if(!$('#totBox'))return;$('#totBox').innerHTML=totHTML();$('#pd').placeholder=Math.max(0,nett);$('#balL').innerHTML=payMsg(nett-recv,D.cust.name);
   $$('[data-dp]').forEach(x=>x.classList.toggle('on',+x.dataset.dp===num(D.disc)&&$('#dpc').value===''))}
 function drawPay(){const{D,L,dp}=payCalc(),el=$('#payBox');if(!el)return;const QUICK=[0,5,10,15,20];
@@ -453,13 +452,13 @@ function invNums(b){const t=billCalc(b.lines);const pDue=b.prevDue||0,pDep=b.pre
   const recv=b.recv!=null?b.recv:b.paid;return{t,pDue,pDep,nett,recv,bal:r2(nett-recv)}}
 function invHTML(b,thermal){const S=DB.shop,P=PS(),ph=isPh();const{t,pDue,pDep,nett,recv,bal}=invNums(b);
   const rates=Object.entries(t.byRate).filter(([g])=>+g>0);const dpc=b.disc||(b.lines[0]&&b.lines[0].disc)||0;
-  const showB=ph&&P.batch,showH=P.hsn&&b.lines.some(l=>l.hsn);
-  const head=`<div class="hd"><div><h1>${esc(S.name||'My Shop')}</h1>${P.addr&&S.addr?`<div>${esc(S.addr)}</div>`:''}${P.phone&&S.phone?`<div>Ph: ${esc(S.phone)}</div>`:''}${P.gstin&&S.gstin?`<div>GSTIN: ${esc(S.gstin)}</div>`:''}${P.dl&&ph&&S.dl?`<div>DL No: ${esc(S.dl)}</div>`:''}</div>
-   <div ${thermal?'':'style="text-align:right"'}><b>${S.gstin&&P.gstin?'TAX INVOICE':'SALE INVOICE'}</b><div>No: ${esc(b.no)}</div><div>Date: ${dl(b.date)}</div>${P.cust&&b.cust?`<div>To: ${esc(b.cust.name)}${P.custPhone&&b.cust.phone?' · '+esc(b.cust.phone):''}</div>`:''}</div></div>`;
+  const showB=ph&&P.batch,showH=false;P.gstCol=0;P.gstSum=0;P.gstin=0;
+  const head=`<div class="hd"><div><h1>${esc(S.name||'My Shop')}</h1>${P.addr&&S.addr?`<div>${esc(S.addr)}</div>`:''}${P.phone&&S.phone?`<div>Ph: ${esc(S.phone)}</div>`:''}${P.dl&&ph&&S.dl?`<div>DL No: ${esc(S.dl)}</div>`:''}</div>
+   <div ${thermal?'':'style="text-align:right"'}><b>SALE INVOICE</b><div>No: ${esc(b.no)}</div><div>Date: ${dl(b.date)}</div>${P.cust&&b.cust?`<div>To: ${esc(b.cust.name)}${P.custPhone&&b.cust.phone?' · '+esc(b.cust.phone):''}</div>`:''}</div></div>`;
   const rows=thermal?`<thead><tr><th>Item</th><th class="r">Qty</th><th class="r">MRP</th><th class="r">Amt</th></tr></thead><tbody>${b.lines.map(l=>`<tr><td>${esc(l.name)}${showB&&l.batch?`<br><small>B:${esc(l.batch)} E:${expL(l.exp)}</small>`:''}</td><td class="r">${l.qty}</td><td class="r">${r2(l.rate)}</td><td class="r">${r2(l.qty*l.rate).toFixed(2)}</td></tr>`).join('')}</tbody>`
    :`<thead><tr><th>#</th><th>Item</th>${showB?'<th>Batch</th><th>Exp</th>':''}${showH?'<th>HSN</th>':''}<th class="r">Qty</th><th class="r">MRP</th>${P.gstCol?'<th class="r">GST</th>':''}<th class="r">Amount</th></tr></thead><tbody>${b.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.name)}</td>${showB?`<td>${esc(l.batch||'')}</td><td>${expL(l.exp)}</td>`:''}${showH?`<td>${esc(l.hsn||'')}</td>`:''}<td class="r">${l.qty}</td><td class="r">${r2(l.rate).toFixed(2)}</td>${P.gstCol?`<td class="r">${l.gst}%</td>`:''}<td class="r">${r2(l.qty*l.rate).toFixed(2)}</td></tr>`).join('')}</tbody>`;
   const sum=`<div class="sum"><span>Total amount (MRP × Qty)</span><span>${r2(t.gross).toFixed(2)}</span>
-   ${t.disc?`<span>Discount (${r2(dpc)}%)</span><span>−${r2(t.disc).toFixed(2)}</span>`:''}${S.taxIncl?'':`<span>GST added</span><span>+${r2(t.tax).toFixed(2)}</span>`}
+   ${t.disc?`<span>Discount ${r2(dpc)}%</span><span>−${r2(t.disc).toFixed(2)}</span>`:''}
    ${Math.abs(t.round)>=0.005?`<span>Round off</span><span>${r2(t.round).toFixed(2)}</span>`:''}
    ${(P.prev&&(pDue||pDep))?`<span>Invoice amount</span><span>${b.total.toFixed(2)}</span>${pDue?`<span>Prev. due</span><span>+${r2(pDue).toFixed(2)}</span>`:''}${pDep?`<span>Prev. dep.</span><span>−${r2(pDep).toFixed(2)}</span>`:''}`:''}
    <span class="g">Nett total</span><span class="g">₹${(P.prev?nett:b.total).toLocaleString('en-IN')}</span>
@@ -470,7 +469,7 @@ function invHTML(b,thermal){const S=DB.shop,P=PS(),ph=isPh();const{t,pDue,pDep,n
   return`<div class="inv ${thermal?'th':''}">${head}<div class="tw"><table>${rows}</table></div>${sum}${gst}${ft}</div>`}
 function invText(b){const S=DB.shop,P=PS();const{t,pDue,pDep,nett,recv,bal}=invNums(b);const dpc=b.disc||(b.lines[0]&&b.lines[0].disc)||0;
   return`*${S.name||'Sale invoice'}*\nSale invoice ${b.no} · ${dl(b.date)}\n\n`+b.lines.map(l=>`${l.name} × ${l.qty} @ MRP ₹${r2(l.rate)} = ₹${r2(l.qty*l.rate)}`).join('\n')+
-   `\n\nTotal amount: ₹${r2(t.gross)}`+(t.disc?`\nDiscount (${r2(dpc)}%): −₹${r2(t.disc)}`:'')+(pDue?`\nPrev. due: +₹${r2(pDue)}`:'')+(pDep?`\nPrev. dep.: −₹${r2(pDep)}`:'')+
+   `\n\nTotal amount: ₹${r2(t.gross)}`+(t.disc?`\nDiscount ${r2(dpc)}%: −₹${r2(t.disc)}`:'')+(pDue?`\nPrev. due: +₹${r2(pDue)}`:'')+(pDep?`\nPrev. dep.: −₹${r2(pDep)}`:'')+
    `\n*Nett total: ₹${nett.toLocaleString('en-IN')}*\nReceived: ₹${r2(recv)}`+(bal>0.5?`\nBalance due: ₹${bal}`:'')+(S.upi&&bal>0.5?`\nPay by UPI: ${S.upi}`:'')+(P.footer&&S.footer?`\n\n${S.footer}`:'')}
 const waBill=b=>'https://wa.me/'+phoneWA(b.cust?.phone)+'?text='+encodeURIComponent(invText(b));
 function doPrint(html,thermal){$('#print').innerHTML=html;let ps=$('#pstyle');if(!ps){ps=document.createElement('style');ps.id='pstyle';document.head.appendChild(ps)}
@@ -497,10 +496,55 @@ function viewInv(id){const b=DB.bills.find(x=>x.id===id);if(!b){location.hash='#
    <div class="row"><button class="btn" id="pDef">Print ${P.paper==='th'?'3-inch':'A4'}</button><button class="btn" id="pOther">Print ${P.paper==='th'?'A4':'3-inch'}</button><a class="btn sm" href="#settings/print" style="margin-left:auto">Print settings</a></div>
    ${invHTML(b,false)}
    <div class="row"><button class="btn red" id="delB">Delete invoice</button><span class="note">Deleting puts the items back in stock.</span></div>`;
-  const th=P.paper==='th';$('#pDef').onclick=()=>doPrint(invHTML(b,th),th);$('#pOther').onclick=()=>doPrint(invHTML(b,!th),!th);
+  const th=P.paper==='th';const pr=x=>x?printThermal(b):doPrint(invHTML(b,false),false);$('#pDef').onclick=()=>pr(th);$('#pOther').onclick=()=>pr(!th);
   $('#shImg').onclick=()=>shareInv(b,'img');$('#shTxt').onclick=()=>shareInv(b,'text');
   $('#edB').onclick=()=>{const dp=b.disc!=null?b.disc:(b.lines[0]&&b.lines[0].disc)||0;st.draft={editId:b.id,date:b.date,cust:{name:b.cust?b.cust.name:'',phone:b.cust?b.cust.phone||'':''},lines:b.lines.map(l=>({...l})),disc:String(dp||0),paid:String(b.recv!=null?b.recv:b.paid),mode:b.mode==='Udhaar'?'Due':b.mode};location.hash='#new'};
   twoTap($('#delB'),'Tap again to delete',async()=>{gone('bills',b.id);for(const p of DB.pays.filter(p=>p.bill===b.id))gone('pays',p.id);await persist();location.hash='#bills';setTimeout(()=>flash('Sale invoice '+esc(b.no)+' deleted and stock restored.'),50)})}
+/* ---------- receipt printer (3-inch thermal, ESC/POS) by USB cable or COM port ---------- */
+const PRN={dev:null,port:null,kind:''};
+const prnCfg=()=>Object.assign({cols:48,cut:1,feed:4,how:'auto'},(()=>{try{return JSON.parse(localStorage.getItem('myshop.printer'))||{}}catch(e){return{}}})());
+const prnSave=o=>{try{localStorage.setItem('myshop.printer',JSON.stringify(Object.assign(prnCfg(),o)))}catch(e){}};
+const asc=t=>String(t??'').replace(/₹/g,'Rs.').replace(/[×]/g,'x').replace(/[−–—]/g,'-').replace(/[“”]/g,'"').replace(/[‘’]/g,"'").normalize('NFKD').replace(/[^\x20-\x7e\n]/g,'');
+function escpos(b){const S=DB.shop,P=PS(),ph=isPh(),W=prnCfg().cols;const{t,pDue,pDep,nett,recv,bal}=invNums(b);const dpc=b.disc||(b.lines[0]&&b.lines[0].disc)||0;
+  const out=[];const E=(...x)=>out.push(...x);const T=s=>{for(const ch of asc(s))out.push(ch.charCodeAt(0))};const NL=()=>E(10);
+  const line=(c='-')=>{T(c.repeat(W));NL()};
+  const wrap=(s,w)=>{s=asc(s);const r=[];while(s.length>w){let i=s.lastIndexOf(' ',w);if(i<w*0.5)i=w;r.push(s.slice(0,i));s=s.slice(i).trimStart()}r.push(s);return r};
+  const lr=(l,r)=>{l=asc(l);r=asc(r);const sp=W-l.length-r.length;if(sp<1){T(l);NL();T(' '.repeat(Math.max(0,W-r.length))+r)}else T(l+' '.repeat(sp)+r);NL()};
+  const center=s=>wrap(s,W).forEach(x=>{T(x);NL()});
+  E(27,64);E(27,116,0);                            // reset, plain code page
+  E(27,97,1);E(27,69,1);E(29,33,0x11);center(S.name||'My Shop');E(29,33,0);E(27,69,0);
+  if(P.addr&&S.addr)center(S.addr);if(P.phone&&S.phone)center('Ph: '+S.phone);if(P.dl&&ph&&S.dl)center('DL No: '+S.dl);
+  E(27,69,1);center('SALE INVOICE');E(27,69,0);E(27,97,0);
+  lr('No: '+b.no,'Date: '+dl(b.date));if(P.cust&&b.cust)lr('To: '+b.cust.name,P.custPhone&&b.cust.phone?b.cust.phone:'');
+  line();const q=6,m=9,a=10,n=W-q-m-a;T('Item'.padEnd(n)+'Qty'.padStart(q)+'MRP'.padStart(m)+'Amount'.padStart(a));NL();line();
+  for(const l of b.lines){const nm=wrap(l.name,n-1);const nums=String(l.qty).padStart(q)+r2(l.rate).toFixed(2).padStart(m)+r2(l.qty*l.rate).toFixed(2).padStart(a);
+    T(nm[0].padEnd(n)+nums);NL();for(const x of nm.slice(1)){T(x);NL()}
+    if(ph&&P.batch&&(l.batch||l.exp)){T('  Batch '+(l.batch||'-')+'  Exp '+(expL(l.exp)||'-'));NL()}}
+  line();lr('Total amount (MRP x Qty)',r2(t.gross).toFixed(2));if(t.disc)lr('Discount '+r2(dpc)+'%','-'+r2(t.disc).toFixed(2));
+  if(Math.abs(t.round)>=0.005)lr('Round off',r2(t.round).toFixed(2));
+  if(P.prev&&(pDue||pDep)){lr('Invoice amount',b.total.toFixed(2));if(pDue)lr('Prev. due','+'+r2(pDue).toFixed(2));if(pDep)lr('Prev. dep.','-'+r2(pDep).toFixed(2))}
+  E(27,69,1);E(29,33,0x01);lr('NETT TOTAL','Rs.'+(P.prev?nett:b.total).toFixed(2));E(29,33,0);E(27,69,0);
+  lr('Received ('+modeL(b.mode)+')',r2(recv).toFixed(2));if(P.prev&&bal>0.5)lr('Balance due',bal.toFixed(2));if(P.prev&&bal<-0.5)lr(b.cust?'Deposit kept':'Change',(-bal).toFixed(2));
+  line();E(27,97,1);if(P.footer&&S.footer)center(S.footer);if(P.upi&&S.upi&&bal>0.5)center('Pay by UPI: '+S.upi);E(27,97,0);
+  const c=prnCfg();E(27,100,Math.max(1,Math.min(10,+c.feed||4)));if(c.cut)E(29,86,66,0);
+  return new Uint8Array(out)}
+async function prnUSBopen(d){if(!d.opened)await d.open();if(d.configuration===null)await d.selectConfiguration(1);
+  for(const itf of d.configuration.interfaces){for(const alt of itf.alternates){const ep=alt.endpoints.find(e=>e.direction==='out'&&e.type==='bulk');
+      if(ep){try{await d.claimInterface(itf.interfaceNumber)}catch(e){if(!itf.claimed)throw e}if(alt.alternateSetting)await d.selectAlternateInterface(itf.interfaceNumber,alt.alternateSetting);PRN.ep=ep.endpointNumber;PRN.dev=d;PRN.kind='usb';return}}}
+  throw new Error('This USB device is not a printer.')}
+async function prnConnect(kind){if(kind==='usb'){if(!navigator.usb)throw new Error('USB printing needs Chrome on Android or a computer.');const d=await navigator.usb.requestDevice({filters:[]});await prnUSBopen(d);prnSave({how:'usb',name:d.productName||'USB printer'});return d.productName||'USB printer'}
+  if(!navigator.serial)throw new Error('COM port printing needs Chrome on a computer.');const p=await navigator.serial.requestPort();await p.open({baudRate:prnCfg().baud||9600});PRN.port=p;PRN.kind='serial';prnSave({how:'serial',name:'COM port printer'});return'COM port printer'}
+async function prnReady(){const c=prnCfg();if(PRN.kind==='usb'&&PRN.dev&&PRN.dev.opened)return true;if(PRN.kind==='serial'&&PRN.port&&PRN.port.writable)return true;
+  try{if(c.how==='usb'&&navigator.usb){const L=await navigator.usb.getDevices();if(L.length){await prnUSBopen(L.find(d=>d.productName===c.name)||L[0]);return true}}
+    if(c.how==='serial'&&navigator.serial){const L=await navigator.serial.getPorts();if(L.length){const p=L[0];if(!p.writable)await p.open({baudRate:c.baud||9600});PRN.port=p;PRN.kind='serial';return true}}}catch(e){}
+  return false}
+async function prnSend(bytes){for(let i=0;i<bytes.length;i+=4096){const ch=bytes.slice(i,i+4096);
+    if(PRN.kind==='usb')await PRN.dev.transferOut(PRN.ep,ch);else{const w=PRN.port.writable.getWriter();try{await w.write(ch)}finally{w.releaseLock()}}}}
+/* print a sale invoice on the 3-inch printer: direct if connected, otherwise the normal print window */
+async function printThermal(b){if(await prnReady()){try{await prnSend(escpos(b));flash('✓ Sent to the receipt printer.');return}catch(e){PRN.kind='';flash('Printer did not answer. Check the cable and power, then try again. Opening the normal print window instead.',1)}}
+  doPrint(invHTML(b,true),true)}
+function prnStatus(){const c=prnCfg();return PRN.kind?`<span class="pill p-grn">Connected: ${esc(c.name||'printer')}</span>`:c.how&&c.how!=='auto'?`<span class="pill p-gry">Saved: ${esc(c.name||'printer')} (connects when you print)</span>`:'<span class="pill p-gry">Not connected: prints through the normal print window</span>'}
+
 function twoTap(btn,txt,fn){const o=btn.textContent;let armed=false;btn.onclick=()=>{if(armed){fn();return}armed=true;btn.textContent=txt;setTimeout(()=>{armed=false;btn.textContent=o},3000)}}
 
 /* ---------- bills list ---------- */
@@ -529,8 +573,7 @@ function viewItem(id){const ph=isPh();const isNew=id==='new';const it=isNew?{id:
    <label class="f">${ph?'Medicine name':'Item name'}<input class="in" id="i_name" required value="${esc(it.name)}"></label>
    ${ph?`<label class="f">Salt / composition (optional)<input class="in" id="i_salt" value="${esc(it.salt||'')}" placeholder="e.g. Paracetamol 650mg"></label>`:''}
    <div class="grid g2"><label class="f">${ph?'MRP / sale price ₹':'Sale price ₹'}<input class="in" id="i_price" inputmode="decimal" required value="${esc(it.price)}"></label>
-   <label class="f">GST %<select class="in" id="i_gst">${[0,5,12,18,28].map(g=>`<option ${g==it.gst?'selected':''}>${g}</option>`).join('')}</select></label>
-   <label class="f">Unit<input class="in" id="i_unit" value="${esc(it.unit||'')}" placeholder="${ph?'strip, bottle':'pcs, kg'}"></label><label class="f">HSN code<input class="in" id="i_hsn" value="${esc(it.hsn||'')}" inputmode="numeric"></label>
+   <label class="f">Unit<input class="in" id="i_unit" value="${esc(it.unit||'')}" placeholder="${ph?'strip, bottle':'pcs, kg'}"></label>
    <label class="f">Low stock alert at<input class="in" id="i_low" inputmode="decimal" value="${esc(it.low||'')}" placeholder="e.g. 5"></label><label class="f">Rack / shelf<input class="in" id="i_rack" value="${esc(it.rack||'')}"></label></div>
    ${isNew?`<h3>Opening stock</h3><div class="grid ${ph?'g3':'g2'}">${ph?`<label class="f">Batch no.<input class="in" id="n_b"></label><label class="f">Expiry<input class="in" id="n_exp" type="month"></label>`:''}<label class="f">Quantity<input class="in" id="n_q" inputmode="decimal" placeholder="0"></label></div>`:''}
    <button class="btn pri">${isNew?'Save item':'Save changes'}</button><p id="im" class="note" style="margin:0"></p>
@@ -549,7 +592,7 @@ function viewItem(id){const ph=isPh();const isNew=id==='new';const it=isNew?{id:
   const val=k=>$('#i_'+k)?$('#i_'+k).value.trim():'';
   $('#itf').onsubmit=async e=>{e.preventDefault();const name=val('name');if(!name)return;
     if(DB.items.some(x=>x.id!==it.id&&x.name.toLowerCase()===name.toLowerCase())){$('#im').className='red';$('#im').textContent='An item with this name already exists.';return}
-    Object.assign(it,{name,salt:val('salt'),price:num(val('price')),gst:+val('gst'),unit:val('unit'),hsn:val('hsn'),low:num(val('low')),rack:val('rack'),t:Date.now()});
+    Object.assign(it,{name,salt:val('salt'),price:num(val('price')),gst:0,unit:val('unit'),hsn:it.hsn||'',low:num(val('low')),rack:val('rack'),t:Date.now()});
     if(isNew){const q=num($('#n_q').value);const bt={id:uid(),b:ph?$('#n_b').value.trim():'',exp:ph?$('#n_exp').value:''};it.batches.push(bt);DB.items.push(it);if(q)DB.ins.push({id:uid(),item:it.id,batch:bt.id,qty:q,date:today(),note:'Opening stock',t:Date.now()})}
     await persist();
     if(isNew&&st.draft){addLineAfter=it.id;location.hash='#new';setTimeout(()=>{addLine(itemById(addLineAfter));flash('✓ '+esc(it.name)+' added to stock and to this invoice.')},60);return}
@@ -614,12 +657,15 @@ function viewParty(id){const c=custById(id);if(!c){location.hash='#parties';retu
     <div style="text-align:right">${due>0.5?`<span class="note">To collect</span><br><b class="red" style="font-size:22px">${inr(due)}</b>`:due<-0.5?`<span class="note">Advance</span><br><b class="grn" style="font-size:22px">${inr(-due)}</b>`:'<span class="pill p-grn">Settled</span>'}</div></div>
     <div class="row">${due>0.5?`<a class="btn pri" target="_blank" rel="noopener" href="https://wa.me/${phoneWA(c.phone)}?text=${encodeURIComponent(msg)}">WhatsApp reminder</a>`:''}${c.phone?`<a class="btn" href="tel:${esc(c.phone)}">Call</a>`:''}<a class="btn" href="#new" id="billFor">New sale invoice</a></div>
     <h3>Account</h3>${ev.length?`<table class="t"><thead><tr><th>Date</th><th>Details</th><th class="r">Invoice</th><th class="r">Paid</th><th class="r">Balance</th></tr></thead><tbody>${ev.slice().reverse().map(e=>`<tr><td>${dl(e.d)}</td><td>${e.bill?`<a href="#inv/${e.bill}">${esc(e.txt)}</a>`:esc(e.txt)}${e.pay?` <button class="btn sm red" data-dp="${e.pay}" type="button" style="min-height:28px;padding:0 8px">✕</button>`:''}</td><td class="r">${e.dr?r2(e.dr):''}</td><td class="r">${e.cr?r2(e.cr):''}</td><td class="r">${r2(e.bal)}</td></tr>`).join('')}</tbody></table>`:'<p class="empty">No invoices or payments yet.</p>'}</section>
-   <section class="card stack"><h2>Receive payment</h2><div class="grid g2"><label class="f">Amount ₹<input class="in" id="ra" inputmode="decimal" placeholder="${due>0?r2(due):''}"></label><label class="f">Mode<select class="in" id="rm"><option>Cash</option><option>UPI</option><option>Card</option><option>Bank</option></select></label>
+   <section class="card stack"><h2>Receive money</h2>
+    <div class="chips" role="group" aria-label="Type of money received"><button type="button" class="chip on" data-rt="pay">Payment of due</button><button type="button" class="chip" data-rt="dep">Deposit (advance)</button></div>
+    <p class="note" id="rtNote" style="margin:0">Reduces what ${esc(c.name)} owes you.</p><div class="grid g2"><label class="f">Amount ₹<input class="in" id="ra" inputmode="decimal" placeholder="${due>0?r2(due):''}"></label><label class="f">Mode<select class="in" id="rm"><option>Cash</option><option>UPI</option><option>Card</option><option>Bank</option></select></label>
     <label class="f">Date<input class="in" type="date" id="rd" value="${today()}"></label><label class="f">Note<input class="in" id="rn" placeholder="optional"></label></div>
-    <button class="btn pri" id="rsave">Save payment</button>
+    <button class="btn pri" id="rsave">Save</button>
     <h3>Customer details</h3><div class="grid g2"><label class="f">Name<input class="in" id="cn2" value="${esc(c.name)}"></label><label class="f">Mobile<input class="in" id="cp2" inputmode="tel" value="${esc(c.phone||'')}"></label></div><button class="btn" id="csave">Save details</button></section></div>`;
   $('#billFor').onclick=()=>{st.draft=newDraft();st.draft.cust={name:c.name,phone:c.phone||''}};
-  $('#rsave').onclick=async()=>{const a=num($('#ra').value);if(!(a>0)){flash('Type the amount received.',1);return}DB.pays.push({id:uid(),cust:id,date:$('#rd').value||today(),amt:a,mode:$('#rm').value,note:$('#rn').value.trim(),t:Date.now()});await persist();render();flash('✓ Payment of '+inr(a)+' saved.')};
+  let rt='pay';$$('[data-rt]').forEach(b=>b.onclick=()=>{rt=b.dataset.rt;$$('[data-rt]').forEach(x=>x.classList.toggle('on',x===b));$('#rtNote').textContent=rt==='dep'?'Advance money kept with you. It is taken off '+c.name+'\'s next sale invoice as Prev. dep.':'Reduces what '+c.name+' owes you.';$('#ra').placeholder=rt==='dep'?'':(due>0?r2(due):'')});
+  $('#rsave').onclick=async()=>{const a=num($('#ra').value);if(!(a>0)){flash('Type the amount received.',1);return}const note=$('#rn').value.trim();DB.pays.push({id:uid(),cust:id,date:$('#rd').value||today(),amt:a,mode:$('#rm').value,kind:rt,note:rt==='dep'?('Deposit'+(note?' · '+note:'')):note,t:Date.now()});await persist();render();flash(rt==='dep'?'✓ Deposit of '+inr(a)+' saved. It comes off the next sale invoice.':'✓ Payment of '+inr(a)+' saved.')};
   $('#csave').onclick=async()=>{const n=$('#cn2').value.trim();if(!n)return;c.name=n;c.phone=$('#cp2').value.trim();c.t=Date.now();for(const b of DB.bills)if(b.cust&&b.cust.id===id){b.cust.name=c.name;b.cust.phone=c.phone}await persist();render();flash('✓ Saved.')};
   $$('[data-dp]').forEach(b=>twoTap(b,'Delete?',async()=>{gone('pays',b.dataset.dp);await persist();render();flash('Payment removed.')}))}
 
@@ -630,16 +676,21 @@ const csv=rows=>'﻿'+rows.map(r=>r.map(v=>{v=String(v??'');return/[",\n]/.test(
 function viewSettings(sub){const S=DB.shop,ph=isPh(),P=PS();
   $('#view').innerHTML=`<h2>Settings</h2><div class="two"><div class="stack"><form class="card stack" id="sf"><h3>Shop details (printed on invoices)</h3>
    <label class="f">Shop name<input class="in" id="s_name" value="${esc(S.name)}"></label><label class="f">Address<textarea class="in" id="s_addr" rows="2">${esc(S.addr)}</textarea></label>
-   <div class="grid g2"><label class="f">Phone<input class="in" id="s_phone" inputmode="tel" value="${esc(S.phone)}"></label><label class="f">GSTIN<input class="in" id="s_gstin" value="${esc(S.gstin)}" style="text-transform:uppercase"></label>
+   <div class="grid g2"><label class="f">Phone<input class="in" id="s_phone" inputmode="tel" value="${esc(S.phone)}"></label>
    <label class="f">Drug licence no. (pharmacy)<input class="in" id="s_dl" value="${esc(S.dl||'')}"></label><label class="f">UPI ID (for payment requests)<input class="in" id="s_upi" value="${esc(S.upi)}" placeholder="name@okaxis"></label>
    <label class="f">Invoice number prefix<input class="in" id="s_prefix" value="${esc(S.prefix)}"></label><label class="f">Next invoice number<input class="in" id="s_seq" inputmode="numeric" value="${DB.seq}"></label></div>
    <label class="f">Shop type<select class="in" id="s_mode"><option value="pharmacy" ${ph?'selected':''}>Pharmacy (batch no., expiry, salt search)</option><option value="general" ${ph?'':'selected'}>General shop</option></select></label>
-   <label class="f">Prices I type are<select class="in" id="s_tax"><option value="1" ${S.taxIncl?'selected':''}>Including GST (like MRP)</option><option value="0" ${S.taxIncl?'':'selected'}>Before GST (GST added on top)</option></select></label>
    <label class="f">Message at the bottom of invoices<input class="in" id="s_footer" value="${esc(S.footer)}"></label><button class="btn pri">Save shop details</button></form>
    <section class="card stack" id="printCard"><h3>Print settings</h3><p class="note" style="margin:0">Tick what you want on your printed and shared sale invoices.</p>
-    <div class="grid g2"><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="addr" ${P.addr?'checked':''} style="width:22px;height:22px;flex:none">Shop address</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="phone" ${P.phone?'checked':''} style="width:22px;height:22px;flex:none">Shop phone number</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="gstin" ${P.gstin?'checked':''} style="width:22px;height:22px;flex:none">GSTIN (prints “Tax invoice”)</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="dl" ${P.dl?'checked':''} style="width:22px;height:22px;flex:none">Drug licence no.</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="cust" ${P.cust?'checked':''} style="width:22px;height:22px;flex:none">Customer name</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="custPhone" ${P.custPhone?'checked':''} style="width:22px;height:22px;flex:none">Customer mobile</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="batch" ${P.batch?'checked':''} style="width:22px;height:22px;flex:none">Batch no. and expiry</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="hsn" ${P.hsn?'checked':''} style="width:22px;height:22px;flex:none">HSN code</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="gstCol" ${P.gstCol?'checked':''} style="width:22px;height:22px;flex:none">GST % column</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="gstSum" ${P.gstSum?'checked':''} style="width:22px;height:22px;flex:none">GST breakup (CGST / SGST)</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="prev" ${P.prev?'checked':''} style="width:22px;height:22px;flex:none">Prev. due, prev. dep. and balance</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="footer" ${P.footer?'checked':''} style="width:22px;height:22px;flex:none">Message at the bottom</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="upi" ${P.upi?'checked':''} style="width:22px;height:22px;flex:none">UPI ID when money is due</label></div>
+    <div class="grid g2"><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="addr" ${P.addr?'checked':''} style="width:22px;height:22px;flex:none">Shop address</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="phone" ${P.phone?'checked':''} style="width:22px;height:22px;flex:none">Shop phone number</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="dl" ${P.dl?'checked':''} style="width:22px;height:22px;flex:none">Drug licence no.</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="cust" ${P.cust?'checked':''} style="width:22px;height:22px;flex:none">Customer name</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="custPhone" ${P.custPhone?'checked':''} style="width:22px;height:22px;flex:none">Customer mobile</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="batch" ${P.batch?'checked':''} style="width:22px;height:22px;flex:none">Batch no. and expiry</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="prev" ${P.prev?'checked':''} style="width:22px;height:22px;flex:none">Prev. due, prev. dep. and balance</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="footer" ${P.footer?'checked':''} style="width:22px;height:22px;flex:none">Message at the bottom</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="upi" ${P.upi?'checked':''} style="width:22px;height:22px;flex:none">UPI ID when money is due</label></div>
     <label class="f">Default paper<select class="in" id="ppaper"><option value="a4" ${P.paper!=='th'?'selected':''}>A4 / normal printer</option><option value="th" ${P.paper==='th'?'selected':''}>3-inch thermal printer</option></select></label>
-    <div class="row"><button class="btn pri" id="psave" type="button">Save print settings</button><button class="btn" id="pprev" type="button">Preview</button></div><div id="pPrevBox"></div></section></div>
+    <div class="row"><button class="btn pri" id="psave" type="button">Save print settings</button><button class="btn" id="pprev" type="button">Preview</button></div><div id="pPrevBox"></div></section>
+   <section class="card stack" id="prnCard"><h3>Receipt printer (3-inch)</h3><p id="prnSt" style="margin:0">${prnStatus()}</p>
+    <p class="note" style="margin:0">Connect your 3-inch printer once on each device. After that, <b>Print 3-inch</b> prints straight away with no print window.</p>
+    <div class="row"><button class="btn pri" type="button" id="prnUsb">Connect USB printer</button>${navigator.serial?'<button class="btn" type="button" id="prnCom">Connect COM port printer</button>':''}</div>
+    <div class="grid g2"><label class="f">Letters per line<select class="in" id="prnCols">${[48,42,32].map(n=>`<option value="${n}" ${prnCfg().cols==n?'selected':''}>${n}${n==48?' (most 3-inch printers)':n==32?' (2-inch printers)':''}</option>`).join('')}</select></label>
+    <label class="f">After printing<select class="in" id="prnCut"><option value="1" ${prnCfg().cut?'selected':''}>Cut the paper</option><option value="0" ${prnCfg().cut?'':'selected'}>Do not cut</option></select></label></div>
+    <div class="row"><button class="btn" type="button" id="prnTest">Print test invoice</button><button class="btn" type="button" id="prnForget">Forget printer</button></div><p id="prnM" class="note" style="margin:0"></p></section></div>
 
    <div class="stack"><section class="card stack"><h3>Backup</h3><p class="note" style="margin:0">Your data lives only on this device. Download a backup file regularly and keep it in Google Drive. The file is locked with your current PIN.</p>
     <button class="btn pri" id="bk">Download backup file</button><label class="btn" for="rf">Restore from backup file</label><input type="file" id="rf" accept=".dukaan,.json" hidden>
@@ -658,21 +709,27 @@ function viewSettings(sub){const S=DB.shop,ph=isPh(),P=PS();
    <section class="card stack"><h3>PIN and security</h3><div class="grid g2"><label class="f">Current PIN<input class="in" id="op" type="password" inputmode="numeric"></label><label class="f">New PIN<input class="in" id="np" type="password" inputmode="numeric"></label></div>
     <button class="btn" id="chp">Change PIN</button><button class="btn" id="lk">Lock now</button><button class="btn red" id="wipe">Erase all data on this device</button>
     <p class="note" style="margin:0">The app locks itself after 10 minutes without use. Data is encrypted with AES-256 using your PIN.</p></section></div></div>`;
-  $('#sf').onsubmit=async e=>{e.preventDefault();const v=k=>$('#s_'+k).value.trim();Object.assign(S,{name:v('name'),addr:v('addr'),phone:v('phone'),gstin:v('gstin').toUpperCase(),dl:v('dl'),upi:v('upi'),prefix:v('prefix'),mode:v('mode'),taxIncl:v('tax')==='1',footer:v('footer')});
+  $('#sf').onsubmit=async e=>{e.preventDefault();const v=k=>$('#s_'+k).value.trim();Object.assign(S,{name:v('name'),addr:v('addr'),phone:v('phone'),dl:v('dl'),upi:v('upi'),prefix:v('prefix'),mode:v('mode'),taxIncl:true,footer:v('footer')});
     const sq=parseInt(v('seq'));if(sq>0)DB.seq=sq;S.t=Date.now();await persist();render();flash('✓ Shop details saved.')};
   $('#bk').onclick=async()=>{download('MyShop-backup-'+today()+'.dukaan',await sealWith(KEYOBJ,SALT,DB),'application/json');flash('✓ Backup downloaded. Save it to Google Drive. You need your current PIN to restore it.')};
   $('#rf').onchange=async e=>{const f=e.target.files[0];if(!f)return;const pin=prompt('Type the PIN that was used when this backup was made');if(!pin)return;
     try{const o=await openWith(pin.trim(),await f.text());const keep=DB.sync;DB=upgrade(o.db);if(keep)DB.sync=keep;await persist();render();flash('✓ Backup restored: '+DB.bills.length+' invoices, '+DB.items.length+' items.')}catch(err){flash('Could not open this file. Check the PIN and that it is a My Shop backup.',1)}e.target.value=''};
-  $('#cs1').onclick=()=>{const rows=[['Invoice no','Date','Customer','Mobile','Item','Batch','Expiry','HSN','Qty','MRP','Disc %','GST %','Taxable','GST','Amount','Invoice total','Paid','Mode']];
-    for(const b of[...DB.bills].sort((a,c)=>a.n-c.n))for(const l of b.lines){const c=lineCalc(l);rows.push([b.no,dl(b.date),b.cust?.name||'',b.cust?.phone||'',l.name,l.batch||'',expL(l.exp),l.hsn||'',l.qty,l.rate,l.disc||0,l.gst,r2(c.taxable),r2(c.tax),r2(c.amt),b.total,b.paid,modeL(b.mode)])}
+  $('#cs1').onclick=()=>{const rows=[['Invoice no','Date','Customer','Mobile','Item','Batch','Expiry','Qty','MRP','Disc %','Amount','Invoice total','Received','Mode']];
+    for(const b of[...DB.bills].sort((a,c)=>a.n-c.n))for(const l of b.lines){const c=lineCalc(l);rows.push([b.no,dl(b.date),b.cust?.name||'',b.cust?.phone||'',l.name,l.batch||'',expL(l.exp),l.qty,l.rate,l.disc||0,r2(c.amt),b.total,b.recv!=null?b.recv:b.paid,modeL(b.mode)])}
     download('Sales-'+today()+'.csv',csv(rows),'text/csv')};
-  $('#cs2').onclick=()=>{const rows=[['Item','Salt','Unit','Price','GST %','HSN','Rack','Batch','Expiry','Qty']];for(const i of DB.items)for(const b of(i.batches.length?i.batches:[{}]))rows.push([i.name,i.salt||'',i.unit||'',i.price,i.gst,i.hsn||'',i.rack||'',b.b||'',expL(b.exp),b.id?qB(i,b):0]);download('Stock-'+today()+'.csv',csv(rows),'text/csv')};
+  $('#cs2').onclick=()=>{const rows=[['Item','Salt','Unit','MRP','Rack','Batch','Expiry','Qty']];for(const i of DB.items)for(const b of(i.batches.length?i.batches:[{}]))rows.push([i.name,i.salt||'',i.unit||'',i.price,i.rack||'',b.b||'',expL(b.exp),b.id?qB(i,b):0]);download('Stock-'+today()+'.csv',csv(rows),'text/csv')};
   $('#chp').onclick=async()=>{const o=$('#op').value.trim(),n=$('#np').value.trim();if(o!==PIN){flash('Current PIN is wrong.',1);return}if(!/^\d{4,12}$/.test(n)){flash('New PIN must be 4 to 12 digits.',1);return}if(syncOn())await syncNow();clearTimeout(syncTimer);await setPin(n,true);if(syncOn())await syncNow();if(BIO.on('myshop')){try{await BIO.enable('myshop','My Shop',n)}catch(e){await BIO.off('myshop')}}$('#op').value=$('#np').value='';flash('✓ PIN changed. Download a new backup file, because old backups still use the old PIN.')};
   $('#lk').onclick=lockNow;showSync();
   $('#psave').onclick=async()=>{const o={};$$('[data-pk]').forEach(c=>o[c.dataset.pk]=c.checked?1:0);o.paper=$('#ppaper').value;S.print=o;S.t=Date.now();await persist();flash('✓ Print settings saved.')};
   $('#pprev').onclick=()=>{const o={};$$('[data-pk]').forEach(c=>o[c.dataset.pk]=c.checked?1:0);o.paper=$('#ppaper').value;const keep=S.print;S.print=o;
     const b=[...DB.bills].sort((x,y)=>(y.t||0)-(x.t||0))[0]||{no:(S.prefix||'')+'1',date:today(),cust:{name:'Sample customer',phone:'9800000000'},lines:[{name:'Sample medicine',batch:'B12',exp:'2027-06',hsn:'3004',qty:2,rate:100,gst:12,disc:10}],disc:10,total:180,paid:100,recv:100,prevDue:50,prevDep:0,mode:'Cash'};
     $('#pPrevBox').innerHTML=invHTML(b,o.paper==='th');S.print=keep};
+  const pm=$('#prnM'),pst=()=>{$('#prnSt').innerHTML=prnStatus()};
+  const pc=async k=>{pm.className='note';pm.textContent='Choose your printer in the box that opens…';try{const n=await prnConnect(k);pm.className='grn';pm.textContent='✓ Connected to '+n+'. Tap Print test invoice.';pst()}catch(e){pm.className='red';pm.textContent=e.name==='NotFoundError'?'No printer was chosen.':e.name==='SecurityError'||/Access denied|Unable to claim/i.test(e.message)?'This computer has a printer driver holding the USB port. Use Connect COM port printer, or print with the normal print window.':e.message}};
+  $('#prnUsb').onclick=()=>pc('usb');if($('#prnCom'))$('#prnCom').onclick=()=>pc('serial');
+  $('#prnCols').onchange=e=>prnSave({cols:+e.target.value});$('#prnCut').onchange=e=>prnSave({cut:+e.target.value});
+  $('#prnTest').onclick=()=>printThermal([...DB.bills].sort((x,y)=>(y.t||0)-(x.t||0))[0]||{no:'TEST-1',date:today(),cust:{name:'Test customer',phone:''},lines:[{name:'Test medicine 650mg',batch:'B12',exp:'2027-06',qty:2,rate:30,disc:10}],disc:10,total:54,paid:54,recv:54,mode:'Cash'});
+  $('#prnForget').onclick=async()=>{try{if(PRN.dev){await PRN.dev.close();if(PRN.dev.forget)await PRN.dev.forget()}if(PRN.port){await PRN.port.close();if(PRN.port.forget)await PRN.port.forget()}}catch(e){}PRN.dev=PRN.port=null;PRN.kind='';prnSave({how:'auto',name:''});pst();pm.textContent='Printer forgotten.'};
   if(sub==='print')setTimeout(()=>$('#printCard').scrollIntoView({behavior:'smooth',block:'start'}),50);
   $('#chkU').onclick=async()=>{const m=$('#chkM');m.textContent='Checking…';const v=await checkUpd(true);m.textContent=v===null?'Could not check right now (no internet?).':v!==MYV?'A new version ('+v+') is ready. Tap Update now.':'You have the latest version.'};
   $('#updNow').onclick=doUpdate;
