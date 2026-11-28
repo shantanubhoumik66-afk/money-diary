@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.33">
+<meta name="app-version" content="2026.11.28.34">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -341,7 +341,7 @@ async function setPin(pin,noSync){SALT=crypto.getRandomValues(new Uint8Array(16)
 async function unlock(pin){
   const o=stored();const salt=ub64(o.salt);const k=await deriveKey(pin,salt);
   const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},k,ub64(o.ct));
-  DB=Object.assign(blank(),JSON.parse(dec.decode(pt)));KEYOBJ=k;SALT=salt;PINMEM=pin;locked=false;setTimeout(syncNow,300);setTimeout(()=>runBackup(),9000);
+  DB=Object.assign(blank(),JSON.parse(dec.decode(pt)));KEYOBJ=k;SALT=salt;PINMEM=pin;locked=false;setTimeout(syncNow,300);setTimeout(()=>runBackup(),9000);setTimeout(()=>{try{autoOff()}catch(e){}},2500);
 }
 function lockNow(){if(!KEYOBJ)return;KEYOBJ=null;PINMEM=null;DB=blank();lastSheets=[];locked=true;render()}
 function eraseAll(){PINMEM=null;try{localStorage.removeItem(KEY);localStorage.removeItem(OLD)}catch(e){}KEYOBJ=null;SALT=null;DB=blank();lastSheets=[];locked=false;noSave=false;$('#status').innerHTML='';render()}
@@ -398,6 +398,7 @@ function pickNewest(L,R,LD,RD){
 }
 function mergeDB(L,R){
   const o=Object.assign(blank(),L);
+  if(L.autoOff||R.autoOff)o.autoOff=(R.autoOff&&(!L.autoOff||(R.autoOff.t||0)>(L.autoOff.t||0)))?R.autoOff:L.autoOff;
   if((R.impT||0)>(L.impT||0))for(const k of['months','mf','mfF','biz','funds','report','map','impT'])o[k]=R[k];
   [o.manual,o.del]=pickNewest(L.manual,R.manual,L.del,R.del);
   [o.manualM,o.delM]=pickNewest(L.manualM,R.manualM,L.delM,R.delM);
@@ -714,9 +715,17 @@ function allDays(){
   for(const ym in DB.months){const M=DB.months[ym];
     for(const d in M.inc){const o=g(d);o.m=M.inc[d].m;o.e=M.inc[d].e;o.u=M.inc[d].u||0;o.off=!!M.inc[d].off}
     for(const x of M.exp)g(x.d).exp.push(x.mode&&!/^online$/i.test(x.mode)?x:Object.assign({},x,{mode:fixMode(x.mode)}))}
-  for(const d in DB.manual){const x=DB.manual[d];D[d]={m:x.m,e:x.e,u:x.u||0,off:!!x.off,exp:x.exp.map(z=>({d,item:z.item,amt:z.amt,mode:fixMode(z.mode)})),app:true}}
+  for(const d in DB.manual){const x=DB.manual[d];if(x.auto&&!(x.m||x.e||x.u)&&D[d]&&(D[d].m||D[d].e||D[d].u))continue;D[d]={m:x.m,e:x.e,u:x.u||0,off:!!x.off,exp:x.exp.map(z=>({d,item:z.item,amt:z.amt,mode:fixMode(z.mode)})),app:true}}
   return D;
 }
+/* auto off day: after 10 PM, a day with no Morning and no Evening becomes an off day.
+   Runs from the day it was switched on; days missed while the app was closed are filled in next time it opens. */
+function autoOff(){if(locked||!KEYOBJ||DB.demo)return 0;if(!DB.autoOff)DB.autoOff={on:true,from:todayISO(),t:Date.now()};const ao=DB.autoOff;if(!ao.on)return 0;
+  const now=new Date(),t=todayISO(),last=now.getHours()>=22?t:addDays(t,-1);if(last<ao.from)return 0;const D=allDays();let n=0;
+  for(let d=ao.from;d<=last;d=addDays(d,1)){const o=D[d];if(o&&(o.m||o.e||o.u||o.off))continue;
+    DB.manual[d]={m:0,e:0,u:0,off:true,auto:1,exp:(o?o.exp:[]).map(z=>({item:z.item,amt:z.amt,mode:z.mode})),t:Date.now()};if(DB.del)delete DB.del[d];n++}
+  if(n){persist().then(()=>render()).catch(()=>{})}return n}
+setInterval(()=>{try{autoOff()}catch(e){}},60e3);
 function data(){
   const D=allDays(),inc=[],exp=[];
   for(const d in D){if(!inP(d))continue;const o=D[d];if(o.m||o.e||o.u||o.off)inc.push({d,m:o.m,e:o.e,u:o.u||0,off:o.off&&!(o.m+o.e+(o.u||0))});exp.push(...o.exp)}
@@ -875,7 +884,8 @@ function viewAdd(){
     return miss.length?`<div style="margin-top:12px"><p class="note" style="margin:0 0 6px">Days in ${ymLabel(ym)} with nothing entered yet. Tap one to fill it in:</p><div class="chips">${miss.map(x=>`<button class="chip" type="button" data-ed="${x}" ${x===d?'style="border-color:var(--band);font-weight:700"':''}>${+x.slice(8)} ${MON[+x.slice(5,7)-1]}</button>`).join('')}</div></div>`:''})()}
   ${xl&&!man?'<p class="note" style="margin:8px 0 0">This day came from your Excel file. If you save changes, the app uses your version for this day. Your Excel file is not changed.</p>':''}
   ${cur.u&&!cur.m&&!cur.e?`<p class="msg" style="margin:10px 0 0">This day has a total of <b>${inr(cur.u)}</b> without a morning/evening split. Leave Morning and Evening empty to keep it, or type them to replace it.</p>`:''}
-  <label class="tog"><input type="checkbox" id="foff" ${cur.off&&!(cur.m+cur.e+(cur.u||0))?'checked':''}> Off day (no credit today)</label>
+  <label class="tog"><input type="checkbox" id="foff" ${cur.off&&!(cur.m+cur.e+(cur.u||0))?'checked':''}> Off day (no credit today)${man&&man.auto&&cur.off?' <span class="note">· marked automatically at 10 PM</span>':''}</label>
+  <label class="tog"><input type="checkbox" id="aoff" ${!DB.autoOff||DB.autoOff.on?'checked':''}> Auto off day: after 10 PM, mark the day as off if Morning and Evening are empty</label>
   <div class="frow"><label>Morning ₹<input id="fm" class="in" inputmode="numeric" value="${cur.m||''}" placeholder="0"></label><label>Evening (night) ₹<input id="fe" class="in" inputmode="numeric" value="${cur.e||''}" placeholder="0"></label><div class="kpi" style="flex:1 1 140px"><span>Total Credit</span><b id="fc">₹0</b></div></div>
   <h3 style="margin:20px 0 8px;font-size:17px">Expenses</h3>
   <datalist id="items">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
@@ -896,6 +906,7 @@ function viewAdd(){
   const V=$('#view'),fm=$('#fm'),fe=$('#fe'),off=$('#foff');
   const sums=()=>{$('#fc').textContent=inr(num(fm.value)+num(fe.value)||(off.checked?0:cur.u||0));$('#fx').textContent=inr([...V.querySelectorAll('.xa')].reduce((s,i)=>s+num(i.value),0));fm.disabled=fe.disabled=off.checked};
   V.oninput=sums;off.onchange=sums;sums();
+  {const ao=$('#aoff');if(ao)ao.onchange=async()=>{const was=DB.autoOff||{};DB.autoOff={on:ao.checked,from:ao.checked&&!was.on?todayISO():(was.from||todayISO()),t:Date.now()};await persist();$('#fmsg')&&($('#fmsg').textContent='');if(ao.checked)autoOff()}}
   $('#fd').onchange=e=>{if(e.target.value){st.ed=e.target.value;render()}};
   $('#addx').onclick=()=>{$('#xrows').insertAdjacentHTML('beforeend',xrow());const r=V.querySelectorAll('.xi');r[r.length-1].focus()};
   V.onclick=async e=>{const t=e.target;
@@ -1471,7 +1482,9 @@ function lockView(){
     bb.onclick=()=>go(false);if(bioAuto){bioAuto=false;setTimeout(()=>go(true),250)}}
 }
 let bioAuto=true;
+let aoBusy=false;
 function render(){
+  if(!locked&&KEYOBJ&&!aoBusy){aoBusy=true;setTimeout(()=>{try{autoOff()}catch(e){}aoBusy=false},0)}
   ros.forEach(r=>r.disconnect());ros=[];const V=$('#view');V.oninput=V.onclick=V.onchange=null;
   const route=['overview','years','add','income','search','invest','check','tokens'].includes(location.hash.slice(1))?location.hash.slice(1):'overview';
   document.querySelectorAll('nav.tabs a,.menuonly').forEach(a=>a.classList.toggle('on',a.dataset.r===route));
