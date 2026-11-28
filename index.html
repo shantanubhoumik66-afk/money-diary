@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.21">
+<meta name="app-version" content="2026.11.28.22">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -884,8 +884,8 @@ function viewAdd(){
   <p style="margin:14px 0 0">Expenses this day: <b id="fx" class="exc">₹0</b></p>
   <div class="acts" style="margin-top:14px"><button class="btn pri" type="button" id="save">Save day</button>${man?'<button class="btn" type="button" id="undo">Remove my app entry for this day</button>':''}</div>
   <p id="fmsg" style="margin:10px 0 0;min-height:1.5em"></p></section>
-  <section class="card"><h2>Monthly business amount and MF</h2><p class="note" style="margin:0 0 8px">These are monthly, like in your yearly overview sheet.</p>${dkOf(st.em)?`<p class="msg" style="margin:0 0 10px">Business for ${ymLabel(st.em)} = your amount <b>${inr(bizBase(st.em))}</b> + My Shop nett <b>${inr(dkOf(st.em).nett)}</b> (sales ${inr(dkOf(st.em).sales)} − party payments ${inr(dkOf(st.em).party)} − due pending ${inr(dkOf(st.em).due)}) = <b>${inr(bizOf(st.em))}</b>. My Shop's part updates by itself; type only your own amount below.</p>`:''}
-  <div class="frow"><label>Month<select id="em" class="in">${yms.map(k=>`<option value="${k}" ${k===st.em?'selected':''}>${ymLabel(k)}</option>`).join('')}</select></label><label>${dkOf(st.em)?'Your business amount ₹ (without My Shop)':'Business amount ₹'}<input id="eb" class="in" inputmode="numeric" value="${bizBase(st.em)||''}" placeholder="0"></label>
+  <section class="card"><h2>Monthly business amount and MF</h2><p class="note" style="margin:0 0 8px">These are monthly, like in your yearly overview sheet.</p>
+  <div class="frow"><label>Month<select id="em" class="in">${yms.map(k=>`<option value="${k}" ${k===st.em?'selected':''}>${ymLabel(k)}</option>`).join('')}</select></label><label>Business amount ₹<input id="eb" class="in" inputmode="numeric" value="${bizOf(st.em)||''}" placeholder="0"></label>
   ${fundNames.map((f,i)=>`<label>${esc(f)} ₹<input class="in ef" data-f="${esc(f)}" inputmode="numeric" value="${F[f]||''}" placeholder="0"></label>`).join('')}</div>
   <div class="acts" style="margin-top:12px"><button class="btn pri" type="button" id="msave">Save month</button>${DB.manualM[st.em]?'<button class="btn" type="button" id="mundo">Use the Excel values again</button>':''}</div><p id="mmsg" style="margin:10px 0 0"></p></section>
   <section class="card"><h2>Days you added in the app</h2>
@@ -915,7 +915,7 @@ function viewAdd(){
   const u=$('#undo');if(u)confirm2(u,'Tap again to remove',async()=>{delete DB.manual[d];(DB.del||(DB.del={}))[d]=Date.now();await persist();render()});
   $('#em').onchange=e=>{st.em=e.target.value;render()};
   $('#msave').onclick=async()=>{if(DB.demo){DB=blank();st.year=null}const mf={};V.querySelectorAll('.ef').forEach(i=>{const v=num(i.value);if(v)mf[i.dataset.f]=v});
-    DB.manualM[st.em]={biz:num($('#eb').value),mf,t:Date.now()};if(DB.delM)delete DB.delM[st.em];await persist();render();$('#mmsg').className='upc';$('#mmsg').textContent='✓ Saved '+ymLabel(st.em)+'. The dashboard is updated.'};
+    DB.manualM[st.em]={biz:Math.round((num($("#eb").value)-(dkOf(st.em)?dkOf(st.em).nett:0))*100)/100,mf,t:Date.now()};if(DB.delM)delete DB.delM[st.em];await persist();render();$('#mmsg').className='upc';$('#mmsg').textContent='✓ Saved '+ymLabel(st.em)+'. The dashboard is updated.'};
   const mu=$('#mundo');if(mu)mu.onclick=async()=>{delete DB.manualM[st.em];(DB.delM||(DB.delM={}))[st.em]=Date.now();await persist();render()};
 }
 function empty(){
