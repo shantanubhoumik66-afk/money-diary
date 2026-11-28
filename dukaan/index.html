@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.16">
+<meta name="app-version" content="2026.11.28.17">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -475,8 +475,8 @@ function invNums(b){const t=billCalc(b.lines,b.ro);const pDue=b.prevDue||0,pDep=
 function invHTML(b,thermal){const S=DB.shop,P=PS(),ph=isPh();const{t,pDue,pDep,nett,recv,bal}=invNums(b);
   const rates=Object.entries(t.byRate).filter(([g])=>+g>0);const dpc=b.disc||(b.lines[0]&&b.lines[0].disc)||0;
   const showB=ph&&P.batch,showH=false;P.gstCol=0;P.gstSum=0;P.gstin=0;
-  const head=`<div class="hd"><div><h1>${rodOn()?rodInline():''}${esc(S.name||'My Shop')}${rodOn()?rodInline():''}</h1>${P.addr&&S.addr?`<div>${esc(S.addr)}</div>`:''}${P.phone&&S.phone?`<div>Ph: ${esc(S.phone)}</div>`:''}${P.dl&&ph&&S.dl?`<div>DL No: ${esc(S.dl)}</div>`:''}<div class="idate">Date: ${dl(b.date)}</div></div>
-   <div ${thermal?'':'style="text-align:right"'}><b>SALE INVOICE</b>${P.invno?`<div>No: ${esc(b.no)}</div>`:''}${P.cust&&b.cust?`<div>To: ${esc(b.cust.name)}${P.custPhone&&b.cust.phone?' · '+esc(b.cust.phone):''}</div>`:''}</div></div>`;
+  const head=`<div class="hd"><div><h1>${rodOn()?rodInline():''}${esc(S.name||'My Shop')}${rodOn()?rodInline():''}</h1>${P.addr&&S.addr?`<div>${esc(S.addr)}</div>`:''}${P.phone&&S.phone?`<div>Ph: ${esc(S.phone)}</div>`:''}${P.dl&&ph&&S.dl?`<div>DL No: ${esc(S.dl)}</div>`:''}</div>
+   <div ${thermal?'':'style="text-align:right"'}><b>SALE INVOICE</b>${P.invno?`<div>No: ${esc(b.no)}</div>`:''}<div>Date: ${dl(b.date)}</div>${P.cust&&b.cust?`<div>To: ${esc(b.cust.name)}${P.custPhone&&b.cust.phone?' · '+esc(b.cust.phone):''}</div>`:''}</div></div>`;
   const rows=thermal?`<thead><tr><th>Item</th><th class="r">Qty</th><th class="r">MRP</th><th class="r">Amt</th></tr></thead><tbody>${b.lines.map(l=>`<tr><td>${esc(l.name)}${showB&&l.batch?`<br><small>B:${esc(l.batch)} E:${expL(l.exp)}</small>`:''}</td><td class="r">${l.qty}</td><td class="r">${r2(l.rate)}</td><td class="r">${r2(l.qty*l.rate).toFixed(2)}</td></tr>`).join('')}</tbody>`
    :`<thead><tr><th>#</th><th>Item</th>${showB?'<th>Batch</th><th>Exp</th>':''}${showH?'<th>HSN</th>':''}<th class="r">Qty</th><th class="r">MRP</th>${P.gstCol?'<th class="r">GST</th>':''}<th class="r">Amount</th></tr></thead><tbody>${b.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.name)}</td>${showB?`<td>${esc(l.batch||'')}</td><td>${expL(l.exp)}</td>`:''}${showH?`<td>${esc(l.hsn||'')}</td>`:''}<td class="r">${l.qty}</td><td class="r">${r2(l.rate).toFixed(2)}</td>${P.gstCol?`<td class="r">${l.gst}%</td>`:''}<td class="r">${r2(l.qty*l.rate).toFixed(2)}</td></tr>`).join('')}</tbody>`;
   const sum=`<div class="sum"><span>Total amount</span><span>${r2(t.gross).toFixed(2)}</span>
@@ -551,8 +551,8 @@ async function escpos(b){const hdr=rodOn()?await headerRaster(S0name(),prnCfg().
   E(27,64);E(27,116,0);                            // reset, plain code page
   E(27,97,1);if(hdr){E(...hdr);NL()}else{E(27,69,1);E(29,33,0x11);center(S.name||'My Shop');E(29,33,0);E(27,69,0)}
   if(P.addr&&S.addr)center(S.addr);if(P.phone&&S.phone)center('Ph: '+S.phone);if(P.dl&&ph&&S.dl)center('DL No: '+S.dl);
-  E(27,97,0);if(P.invno)lr('Date: '+dl(b.date),'No: '+b.no);else{T('Date: '+dl(b.date));NL()}
-  E(27,97,1);E(27,69,1);center('SALE INVOICE');E(27,69,0);E(27,97,0);if(P.cust&&b.cust)lr('To: '+b.cust.name,P.custPhone&&b.cust.phone?b.cust.phone:'');
+  E(27,69,1);center('SALE INVOICE');E(27,69,0);E(27,97,0);
+  if(P.invno)lr('No: '+b.no,'');lr(P.cust&&b.cust?'To: '+b.cust.name+(P.custPhone&&b.cust.phone?'  '+b.cust.phone:''):'','Date: '+dl(b.date));
   line();const q=6,m=9,a=10,n=W-q-m-a;T('Item'.padEnd(n)+'Qty'.padStart(q)+'MRP'.padStart(m)+'Amount'.padStart(a));NL();line();
   for(const l of b.lines){const nm=wrap(l.name,n-1);const nums=String(l.qty).padStart(q)+r2(l.rate).toFixed(2).padStart(m)+r2(l.qty*l.rate).toFixed(2).padStart(a);
     T(nm[0].padEnd(n)+nums);NL();for(const x of nm.slice(1)){T(x);NL()}
