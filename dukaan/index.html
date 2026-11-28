@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.26">
+<meta name="app-version" content="2026.11.28.27">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -390,7 +390,9 @@ function viewNew(){if(!st.draft)st.draft=newDraft();const D=st.draft,ph=isPh();c
   const iq=$('#iq');iq.oninput=()=>drawRes(iq.value);iq.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const f=$('#ires button');if(f)f.click()}};
   drawLines();drawPay();
 }
-function searchItems(q){q=q.trim().toLowerCase();if(!q)return[];return DB.items.filter(i=>i.name.toLowerCase().includes(q)||(i.salt||'').toLowerCase().includes(q)).sort((a,b)=>a.name.toLowerCase().indexOf(q)-b.name.toLowerCase().indexOf(q)||a.name.localeCompare(b.name)).slice(0,12)}
+const sameProd=(i,name,price)=>i.name.toUpperCase()===name&&(!price||num(i.price)===num(price));
+const prodLabel=i=>i.name+' · MRP '+inr(i.price);
+function searchItems(q){q=q.trim().toLowerCase();if(!q)return[];return DB.items.filter(i=>i.name.toLowerCase().includes(q)||(i.salt||'').toLowerCase().includes(q)).sort((a,b)=>a.name.toLowerCase().indexOf(q)-b.name.toLowerCase().indexOf(q)||a.name.localeCompare(b.name)||num(a.price)-num(b.price)).slice(0,20)}
 function drawRes(q){const R=searchItems(q),el=$('#ires');
   if(!q.trim()){el.innerHTML='';return}
   el.innerHTML=`<div class="res">${R.map(i=>{const s=qtyOf(i);return`<button type="button" data-add="${i.id}"><span><b>${esc(i.name)}</b>${i.salt?`<br><small>${esc(i.salt)}</small>`:''}</span><span style="text-align:right">MRP ${inr(i.price)}<br><small class="${s>0?'':'red'}">${s>0?s+' in stock':'Out of stock'}</small></span></button>`}).join('')}
@@ -667,7 +669,7 @@ function expParse(v){if(v==null||v==='')return'';if(typeof v==='number'&&v>20000
 function impRows(){const I=st.imp,m=I.map;const g=(r,k)=>m[k]==null||m[k]===''?'':r[m[k]];const out=new Map();
   for(const r of I.rows.slice(I.hr+1)){if(!r)continue;const name=String(g(r,'name')??'').trim().replace(/\s+/g,' ').toUpperCase();if(!name||/^(grand\s*)?total\b/i.test(name))continue;
     const price=num(g(r,'price')),qty=num(g(r,'qty')),b=String(g(r,'batch')??'').trim(),exp=expParse(g(r,'exp')),salt=String(g(r,'salt')??'').trim();
-    const k=name+'|'+b+'|'+exp;const o=out.get(k);if(o){o.qty=r2(o.qty+qty);if(price)o.price=price}else out.set(k,{name,price,qty,b,exp,salt})}
+    const k=name+'|'+price+'|'+b+'|'+exp;const o=out.get(k);if(o){o.qty=r2(o.qty+qty)}else out.set(k,{name,price,qty,b,exp,salt})}
   return[...out.values()]}
 async function impFile(f){try{let rows;
     if(/\.csv$|\.txt$/i.test(f.name))rows=readCsvRows(await f.text());
@@ -679,21 +681,21 @@ async function impFile(f){try{let rows;
     const{hr,map}=impGuess(rows);st.imp={file:f.name,rows,hr,map,mode:'skip',price:false};location.hash='#stock/import';if(route().a==='import')render()}
   catch(e){flash('Could not read this file: '+esc(e.message||'unknown error'),1)}}
 function viewImport(){const I=st.imp;if(!I){location.hash='#stock';return}const ph=isPh();const hdr=I.hr>=0?I.rows[I.hr]:[];const W=Math.max(...I.rows.slice(0,20).map(r=>r.length));
-  const L=impRows();const byName=new Map(DB.items.map(i=>[i.name.toUpperCase(),i]));const ex=L.filter(x=>byName.has(x.name)).length;
+  const L=impRows();const findP=x=>DB.items.find(i=>sameProd(i,x.name,x.price));const byName={has:x=>!!findP(x),get:x=>findP(x)};const ex=L.filter(x=>byName.has(x)).length;
   const opt=k=>`<option value="">— not in file —</option>`+Array.from({length:W},(_,i)=>`<option value="${i}" ${String(I.map[k])===String(i)?'selected':''}>Column ${i+1}${hdr[i]!=null&&String(hdr[i]).trim()?': '+esc(String(hdr[i]).trim()):''}</option>`).join('');
   $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#stock">← Stock</a></div>
    <section class="card stack"><h2>Import stock</h2><p class="note" style="margin:0">File: <b>${esc(I.file)}</b> · ${L.length} item${L.length===1?'':'s'} found${ex?` · ${ex} already in your stock`:''}</p>
     <div class="grid g2">${IMPF.filter(([k])=>ph||!['batch','exp','salt'].includes(k)).map(([k,t])=>`<label class="f">${t}<select class="in" data-imap="${k}">${opt(k)}</select></label>`).join('')}</div>
     ${ex?`<label class="f">Items already in your stock<select class="in" id="impMode"><option value="skip" ${I.mode==='skip'?'selected':''}>Keep my stock and MRP as they are (only add new items)</option><option value="add" ${I.mode==='add'?'selected':''}>Add the file quantity to my current stock</option><option value="set" ${I.mode==='set'?'selected':''}>Replace my quantity with the file's quantity</option></select></label>
-     <label class="row" style="gap:10px;font-weight:600"><input type="checkbox" id="impPrice" ${I.price?'checked':''} style="width:22px;height:22px">Update their sales price from the file</label>`:''}
+`:''}
     <div style="overflow-x:auto"><table class="t"><thead><tr><th>Item name</th><th class="r">Sales price</th><th class="r">Stock qty</th>${ph?'<th>Batch</th><th>Exp</th>':''}<th></th></tr></thead><tbody>
-     ${L.slice(0,30).map(x=>`<tr><td>${esc(x.name)}</td><td class="r">${x.price?inr(x.price):'<span class="red">—</span>'}</td><td class="r">${x.qty}</td>${ph?`<td>${esc(x.b)}</td><td>${expL(x.exp)}</td>`:''}<td>${byName.has(x.name)?`<span class="pill p-gry">Have ${qtyOf(byName.get(x.name))} @ ${inr(byName.get(x.name).price)}</span>`:'<span class="pill p-grn">New</span>'}</td></tr>`).join('')}</tbody></table></div>
+     ${L.slice(0,30).map(x=>`<tr><td>${esc(x.name)}</td><td class="r">${x.price?inr(x.price):'<span class="red">—</span>'}</td><td class="r">${x.qty}</td>${ph?`<td>${esc(x.b)}</td><td>${expL(x.exp)}</td>`:''}<td>${byName.has(x)?`<span class="pill p-gry">Have ${qtyOf(byName.get(x))}</span>`:(DB.items.some(i=>i.name.toUpperCase()===x.name)?'<span class="pill p-amb">New MRP</span>':'<span class="pill p-grn">New</span>')}</td></tr>`).join('')}</tbody></table></div>
     ${L.length>30?`<p class="note" style="margin:0">…and ${L.length-30} more.</p>`:''}${!L.length?'<p class="msg err">No items found. Check that “Item name” points to the right column.</p>':''}
     <button class="btn pri" id="impGo" style="min-height:50px" ${L.length?'':'disabled'}>Import ${L.length} item${L.length===1?'':'s'} into Stock</button><p id="impM" class="note" style="margin:0"></p></section>`;
   $$('[data-imap]').forEach(s=>s.onchange=()=>{I.map[s.dataset.imap]=s.value===''?null:+s.value;viewImport()});
   if($('#impMode'))$('#impMode').onchange=e=>{I.mode=e.target.value};if($('#impPrice'))$('#impPrice').onchange=e=>{I.price=e.target.checked};
   $('#impGo').onclick=async()=>{$('#impGo').disabled=true;$('#impM').textContent='Importing…';let nNew=0,nUpd=0,nSkip=0;const now=Date.now(),imp=uid();
-    for(const x of impRows()){let it=DB.items.find(i=>i.name.toUpperCase()===x.name);let isNew=false,oldPrice=null;
+    for(const x of impRows()){let it=DB.items.find(i=>sameProd(i,x.name,x.price));let isNew=false,oldPrice=null;
       if(!it){it={id:uid(),name:x.name,salt:x.salt,hsn:'',gst:0,price:x.price,unit:'',low:'',rack:'',batches:[],t:now,imp};DB.items.push(it);nNew++;isNew=true}
       else{if(I.mode==='skip'){nSkip++;continue}oldPrice=it.price;if(I.price&&x.price){it.price=x.price}if(x.salt&&!it.salt)it.salt=x.salt;it.t=now;nUpd++}
       let bt=it.batches.find(b=>(b.b||'')===x.b&&(b.exp||'')===x.exp);if(!bt&&!x.b&&!x.exp&&it.batches.length===1)bt=it.batches[0];
@@ -706,14 +708,14 @@ function viewStock(sub){if(sub==='import')return viewImport();const ph=isPh(),A=
    <input class="in" id="sq" type="search" placeholder="${ph?'Search medicine or salt':'Search item'}" value="${esc(st.q)}">
    <div class="chips">${[['all','All · '+DB.items.length],['low','Low stock · '+loS.size],...(ph?[['soon','Expiring · '+soS.size],['ex','Expired · '+exS.size]]:[]),['out','Out of stock']].map(([k,n])=>`<button class="chip ${st.filter===k?'on':''}" data-f="${k}">${n}</button>`).join('')}</div>
    <section class="card" id="sl"></section>`;
-  const draw=()=>{const q=st.q.trim().toLowerCase();const L=DB.items.filter(i=>(!q||i.name.toLowerCase().includes(q)||(i.salt||'').toLowerCase().includes(q))&&(st.filter==='all'||(st.filter==='low'&&loS.has(i.id))||(st.filter==='soon'&&soS.has(i.id))||(st.filter==='ex'&&exS.has(i.id))||(st.filter==='out'&&qtyOf(i)<=0))).sort((a,b)=>a.name.localeCompare(b.name));
+  const draw=()=>{const q=st.q.trim().toLowerCase();const L=DB.items.filter(i=>(!q||i.name.toLowerCase().includes(q)||(i.salt||'').toLowerCase().includes(q))&&(st.filter==='all'||(st.filter==='low'&&loS.has(i.id))||(st.filter==='soon'&&soS.has(i.id))||(st.filter==='ex'&&exS.has(i.id))||(st.filter==='out'&&qtyOf(i)<=0))).sort((a,b)=>a.name.localeCompare(b.name)||num(a.price)-num(b.price));
     $('#sl').innerHTML=L.length?`<div class="list">${L.map(i=>{const s=qtyOf(i);const near=ph?goodBatches(i)[0]:null;return`<a class="li" href="#item/${i.id}"><span class="t"><b>${esc(i.name)}</b><small>${[i.salt,i.rack?'Rack '+i.rack:'',ph&&near&&near.exp?'Next exp '+expL(near.exp):''].filter(Boolean).map(esc).join(' · ')||esc(i.unit||'')}</small></span><span class="a">${inr(i.price)}<br><span class="pill ${s<=0?'p-red':loS.has(i.id)?'p-amb':'p-gry'}">${s} ${esc(i.unit||'')}</span>${exS.has(i.id)?' <span class="pill p-red">Expired</span>':soS.has(i.id)?' <span class="pill p-amb">Exp soon</span>':''}</span></a>`}).join('')}</div>`
      :`<p class="empty">${DB.items.length?'No items match.':'No items yet. Tap <b>+ Add item</b>, or <b>⇪ Import</b> your stock list from a CSV or Excel file.'}</p>`};
   $('#impF').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)impFile(f)};
   $('#sq').oninput=e=>{st.q=e.target.value;draw()};$$('[data-f]').forEach(b=>b.onclick=()=>{st.filter=b.dataset.f;viewStock()});draw()}
 function viewItem(id){const ph=isPh();const isNew=id==='new';const it=isNew?{id:uid(),name:(st.newName||'').toUpperCase(),salt:'',hsn:'',gst:ph?12:18,price:'',unit:ph?'strip':'pcs',low:'',rack:'',batches:[]}:itemById(id);st.newName='';
   if(!it){location.hash='#stock';return}
-  $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#stock">← Stock</a></div><div class="two"><form class="card stack" id="itf"><h2>${isNew?'Add item':'Edit item'}</h2>
+  $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#stock">← Stock</a></div><div class="two"><form class="card stack" id="itf"><h2>${isNew?'Add item':'Edit item · MRP '+inr(it.price)}</h2>
    <label class="f">${ph?'Medicine name':'Item name'}<input class="in" id="i_name" required value="${esc(it.name)}" autocapitalize="characters" style="text-transform:uppercase"></label>
    ${ph?`<label class="f">Salt / composition (optional)<input class="in" id="i_salt" value="${esc(it.salt||'')}" placeholder="e.g. Paracetamol 650mg"></label>`:''}
    <div class="grid g2"><label class="f">${ph?'MRP / sale price ₹':'Sale price ₹'}<input class="in" id="i_price" inputmode="decimal" required value="${esc(it.price)}"></label>
@@ -724,7 +726,8 @@ function viewItem(id){const ph=isPh();const isNew=id==='new';const it=isNew?{id:
    ${isNew?'':'<button type="button" class="btn red" id="delI">Delete item</button>'}</form>
    ${isNew?'':`<section class="card stack"><div class="row"><h2 class="sp">Stock</h2><span class="pill p-gry" style="font-size:14px">${qtyOf(it)} ${esc(it.unit||'')}</span></div>
     ${ph?`<table class="t"><thead><tr><th>Batch</th><th>Expiry</th><th class="r">Qty</th><th></th></tr></thead><tbody>${it.batches.map(b=>{const m=monthsLeft(b.exp);return`<tr><td>${esc(b.b||'-')}</td><td>${expL(b.exp)||'-'} ${qB(it,b)>0&&m<0?'<span class="pill p-red">Expired</span>':qB(it,b)>0&&m<=3?'<span class="pill p-amb">Soon</span>':''}</td><td class="r">${qB(it,b)}</td><td class="r"><button class="btn sm" data-adj="${b.id}" type="button">Edit</button></td></tr>`}).join('')||'<tr><td colspan="4" class="note">No batches yet.</td></tr>'}</tbody></table>`:''}
-    <h3>Add stock (purchase)</h3><div class="grid ${ph?'g3':'g2'}">${ph?`<label class="f">Batch no.<input class="in" id="a_b"></label><label class="f">Expiry<input class="in" id="a_exp" type="month"></label>`:''}<label class="f">Quantity<input class="in" id="a_q" inputmode="decimal"></label></div>
+    <h3>Add stock (purchase)</h3><div class="grid ${ph?'g3':'g2'}">${ph?`<label class="f">Batch no.<input class="in" id="a_b"></label><label class="f">Expiry<input class="in" id="a_exp" type="month"></label>`:''}<label class="f">Quantity<input class="in" id="a_q" inputmode="decimal"></label><label class="f">MRP ₹<input class="in" id="a_mrp" inputmode="decimal" value="${esc(it.price)}"></label></div>
+    <p class="note" style="margin:0">If the new stock has a different MRP, it is kept as a separate product with that MRP.</p>
     <button class="btn pri" type="button" id="addS">Add stock</button><p id="am" class="note" style="margin:0"></p>
     <h3>Reduce stock</h3><p class="note" style="margin:0">For damaged, expired or returned items, or when your count is less than the app shows. Sale invoices reduce stock by themselves.</p>
     <div class="grid g2">${ph&&it.batches.length>1?`<label class="f" style="grid-column:1/-1">Batch<select class="in" id="r_b">${it.batches.filter(b=>qB(it,b)>0).map(b=>`<option value="${b.id}">Batch ${esc(b.b||'-')} · Exp ${expL(b.exp)||'-'} · ${qB(it,b)} left</option>`).join('')||'<option value="">No stock left</option>'}</select></label>`:''}
@@ -735,7 +738,7 @@ function viewItem(id){const ph=isPh();const isNew=id==='new';const it=isNew?{id:
       return H.length?`<table class="t" style="margin-top:8px"><thead><tr><th>Date</th><th>What</th><th class="r">Qty</th><th></th></tr></thead><tbody>${H.map(h=>`<tr><td>${dl(h.d)}</td><td>${esc(h.w+bn(h.b))}</td><td class="r ${h.q<0?'red':'grn'}">${h.q>0?'+':''}${h.q}</td><td class="r">${h.id?`<button class="btn sm" type="button" data-undo="${h.id}" style="min-height:28px;padding:0 8px" aria-label="Undo this entry">Undo</button>`:''}</td></tr>`).join('')}</tbody></table>`:'<p class="note">No stock changes yet.</p>'})()}</details></section>`}</div>`;
   const val=k=>$('#i_'+k)?$('#i_'+k).value.trim():'';
   $('#itf').onsubmit=async e=>{e.preventDefault();const name=val('name').toUpperCase();if(!name)return;
-    if(DB.items.some(x=>x.id!==it.id&&x.name.toLowerCase()===name.toLowerCase())){$('#im').className='red';$('#im').textContent='An item with this name already exists.';return}
+    if(DB.items.some(x=>x.id!==it.id&&x.name.toLowerCase()===name.toLowerCase()&&num(x.price)===num(val('price')))){$('#im').className='red';$('#im').textContent='This item with the same MRP already exists. Use a different MRP, or open that item to add stock.';return}
     Object.assign(it,{name,salt:val('salt'),price:num(val('price')),gst:0,unit:val('unit'),hsn:it.hsn||'',low:num(val('low')),rack:val('rack'),t:Date.now()});
     if(isNew){const q=num($('#n_q').value);const bt={id:uid(),b:ph?$('#n_b').value.trim():'',exp:ph?$('#n_exp').value:''};it.batches.push(bt);DB.items.push(it);if(q)DB.ins.push({id:uid(),item:it.id,batch:bt.id,qty:q,date:today(),note:'Opening stock',t:Date.now()})}
     await persist();
@@ -744,6 +747,10 @@ function viewItem(id){const ph=isPh();const isNew=id==='new';const it=isNew?{id:
   if(isNew)return;
   twoTap($('#delI'),'Tap again to delete',async()=>{gone('items',it.id);await persist();location.hash='#stock';setTimeout(()=>flash('Item deleted. Old invoices still show it.'),50)});
   $('#addS').onclick=async()=>{const q=num($('#a_q').value);if(!q){$('#am').className='red';$('#am').textContent='Type the quantity.';return}
+    const mrp=num($('#a_mrp').value);if(mrp&&mrp!==num(it.price)){let o=DB.items.find(i=>i.id!==it.id&&sameProd(i,it.name.toUpperCase(),mrp));
+      if(!o){o={id:uid(),name:it.name,salt:it.salt||'',hsn:'',gst:0,price:mrp,unit:it.unit||'',low:it.low||'',rack:it.rack||'',batches:[],t:Date.now()};DB.items.push(o)}
+      const bn=ph?$('#a_b').value.trim():'',ex=ph?$('#a_exp').value:'';let b=o.batches.find(x=>(x.b||'')===bn&&(x.exp||'')===ex);if(!b){b={id:uid(),b:bn,exp:ex};o.batches.push(b);o.t=Date.now()}
+      DB.ins.push({id:uid(),item:o.id,batch:b.id,qty:q,date:today(),note:'Stock added',t:Date.now()});await persist();location.hash='#item/'+o.id;setTimeout(()=>flash('✓ Added '+q+' to '+esc(o.name)+' at MRP '+inr(mrp)+' (separate product).'),60);return}
     const bn=ph?$('#a_b').value.trim():'',ex=ph?$('#a_exp').value:'';
     let b=it.batches.find(x=>(x.b||'')===bn&&(x.exp||'')===ex);if(!b){b={id:uid(),b:bn,exp:ex};it.batches.push(b);it.t=Date.now()}DB.ins.push({id:uid(),item:it.id,batch:b.id,qty:q,date:today(),note:'Stock added',t:Date.now()});await persist();render();flash('✓ Added '+q+' to '+esc(it.name)+'.')};
   $('#redS').onclick=async()=>{const rm=$('#rm');const q=num($('#r_q').value);if(!(q>0)){rm.className='red';rm.textContent='Type how many to remove.';return}
