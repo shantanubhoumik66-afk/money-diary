@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.37">
+<meta name="app-version" content="2026.11.28.38">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -846,12 +846,12 @@ function lineSm(title,col,vals,S,tf){const W=300,H=96,pl=4,pr=4,pt=14,pb=18;if(!
    <div class="ovv"><b style="color:${col}">${inr(last)}</b><small>${esc(S.lab(S.ks[n-1]))}${prev!=null&&d?` · ${d>0?'▲':'▼'} ${inr(Math.abs(d))}`:''}</small></div>
    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" role="img" aria-label="${title}">
     ${mn<0?`<line x1="0" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="3 3"/>`:''}
-    <polygon points="${X(0)},${Y(Math.max(mn,0))} ${pts} ${X(n-1)},${Y(Math.max(mn,0))}" fill="${col}" fill-opacity=".16"/>
-    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-    ${vals.map((v,i)=>`<circle cx="${X(i)}" cy="${Y(v)}" r="${n>30?2:3}" fill="${col}"><title>${esc(S.lab(S.ks[i]))}: ${inr(v)}</title></circle>`).join('')}
+    
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    ${vals.map((v,i)=>`<circle cx="${X(i)}" cy="${Y(v)}" r="${n>30?2.4:3.6}" fill="${col}"><title>${esc(S.lab(S.ks[i]))}: ${inr(v)}</title></circle>`).join('')}
     <text x="0" y="${H-3}" font-size="10" fill="currentColor" fill-opacity=".75">${esc(S.lab(S.ks[0]))}</text><text x="${W}" y="${H-3}" font-size="10" text-anchor="end" fill="currentColor" fill-opacity=".75">${esc(S.lab(S.ks[n-1]))}</text></svg></div>`}
 const tfSel=tf=>`<select class="ovtf" aria-label="Time frame"><option value="week" ${tf==='week'?'selected':''}>Weekly</option><option value="month" ${tf==='month'?'selected':''}>Monthly</option></select>`;
-function ovCharts(){const tf=ovTf(),S=ovSeries(tf);return lineSm('Total credit + business','currentColor',S.c,S,tf)+lineSm('Total expenses','#fda4af',S.x,S,tf)+lineSm('Saved after expenses','#86efac',S.s,S,tf)}
+function ovCharts(){const tf=ovTf(),S=ovSeries(tf);return lineSm('Total credit + business','#ffd60a',S.c,S,tf)+lineSm('Total expenses','#ff4d6d',S.x,S,tf)+lineSm('Saved after expenses','#2ee59d',S.s,S,tf)}
 function bindOv(){const box=$('#ovCharts');if(!box)return;box.onchange=e=>{if(!e.target.classList.contains('ovtf'))return;try{localStorage.setItem('md.ovtf',e.target.value)}catch(_){}box.innerHTML=ovCharts()}}
 function viewOverview(){
   const rows=monthRows();const{exp}=data();
