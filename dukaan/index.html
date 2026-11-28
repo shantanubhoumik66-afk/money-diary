@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.47">
+<meta name="app-version" content="2026.11.28.48">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -204,7 +204,7 @@ async function askSeal(){const key=await crypto.subtle.importKey('raw',ub64(DB.l
   let data=te.encode(JSON.stringify(shareable(DB)));const z=gzOK;if(z)data=await gz(data);
   const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,data));return JSON.stringify({app:'myshop-ask',v:1,z,iv:b64(iv),ct:b64(ct),at})}
 function askIdb(){return new Promise((res,rej)=>{const r=indexedDB.open('myshop-ask',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
-function askSave(){clearTimeout(askT);askT=setTimeout(async()=>{try{if(!DB||!DB.link||!DB.link.key)return;const v=await askSeal();const d=await askIdb();await new Promise((res,rej)=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,'snap');t.oncomplete=res;t.onerror=()=>rej(t.error)});d.close()}catch(e){}},1500)}
+function askSave(){clearTimeout(askT);askT=setTimeout(async()=>{try{if(!DB||!DB.link||!DB.link.key)return;try{localStorage.setItem('dukaan.linkfile',await linkFile())}catch(e){}const v=await askSeal();const d=await askIdb();await new Promise((res,rej)=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,'snap');t.oncomplete=res;t.onerror=()=>rej(t.error)});d.close()}catch(e){}},1500)}
 async function persist(noSync){STK=null;askSave();try{await storeSave(await sealWith(KEYOBJ,SALT,DB,true))}catch(e){flash('⚠ Could not save on this device (storage full or blocked). Please sync and download a backup now.',1);throw e}if(!noSync)syncSoon()}
 async function setPin(pin,noSync){SALT=crypto.getRandomValues(new Uint8Array(16));KEYOBJ=await deriveKey(pin,SALT);PIN=pin;await persist(noSync)}
 const newLink=()=>({key:b64(crypto.getRandomValues(new Uint8Array(32))),t:Date.now()});
