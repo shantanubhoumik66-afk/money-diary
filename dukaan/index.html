@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.3">
+<meta name="app-version" content="2026.11.28.4">
 <title>My Shop</title>
 <link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -259,9 +259,10 @@ function lockNow(){clearTimeout(syncTimer);DB=null;KEYOBJ=null;PIN=null;st.draft
 const NAV=[['home','Home','home'],['bills','Bills','bills'],['new','New bill','plus','fab'],['stock','Stock','stock'],['parties','Parties','parties'],['settings','Settings','set','dsk']];
 function boot(){
   $('#app').innerHTML=`<div class="shell"><header class="side"><div class="top"><div class="brand"><div class="logo">₹</div><span id="shopName"></span><span id="syncDot" class="pill" hidden></span></div>
-   <a class="btn sm hide-d" href="#settings" aria-label="Settings">${ic('set').replace('<svg','<svg width="20" height="20"')}</a></div>
+   <div class="row" style="gap:8px;flex-wrap:nowrap"><a class="btn sm hide-d" href="../" aria-label="Open Money Diary" title="Money Diary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h7M8 11h5"/></svg><span>Money Diary</span></a><a class="btn sm hide-d" href="#settings" aria-label="Settings">${ic('set').replace('<svg','<svg width="20" height="20"')}</a></div></div>
    <nav class="nav" aria-label="Pages">${NAV.map(([r,t,i,c])=>`<a href="#${r}" data-r="${r}" class="${c||''}">${ic(i)}<span>${t}</span></a>`).join('')}</nav>
-   <button class="btn hide-m" id="lockB" style="margin-top:auto">${ic('lock').replace('<svg','<svg width="18" height="18"')} Lock</button></header>
+   <a class="btn hide-m" style="margin-top:auto" href="../" aria-label="Open Money Diary" title="Money Diary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h7M8 11h5"/></svg><span>Money Diary</span></a>
+   <button class="btn hide-m" id="lockB">${ic('lock').replace('<svg','<svg width="18" height="18"')} Lock</button></header>
    <main><div id="flash" class="msg" hidden style="margin-bottom:12px"></div><div id="view" class="stack"></div></main></div>`;
   $('#lockB').onclick=lockNow;idle();render();try{localStorage.setItem('dukaan.link',DB.link.key)}catch(e){}syncNow();
 }
