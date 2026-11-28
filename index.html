@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.2">
+<meta name="app-version" content="2026.11.28.3">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -367,7 +367,7 @@ function mergeDB(L,R){
   return o;
 }
 const sig=db=>JSON.stringify([db.impT||0,db.manual,db.manualM,db.del,db.delM,db.dk&&db.dk.at]);
-/* Dukaan Bill link: its monthly nett becomes the Business amount here */
+/* My Shop link: its monthly nett becomes the Business amount here */
 async function applyLink(){try{const k=localStorage.getItem('dukaan.link');if(k&&(!DB.link||DB.link.key!==k))DB.link={key:k,t:Date.now()}}catch(e){}
   if(!DB.link||!lastLink)return;try{let t=lastLink.content;if(lastLink.truncated)t=await (await fetch(lastLink.raw_url,{cache:'no-store'})).text();const o=JSON.parse(t);
     const key=await crypto.subtle.importKey('raw',ub64(DB.link.key),'AES-GCM',false,['decrypt']);const d=JSON.parse(dec.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},key,ub64(o.ct))));
@@ -841,8 +841,8 @@ function viewAdd(){
   <p style="margin:14px 0 0">Expenses this day: <b id="fx" class="exc">₹0</b></p>
   <div class="acts" style="margin-top:14px"><button class="btn pri" type="button" id="save">Save day</button>${man?'<button class="btn" type="button" id="undo">Remove my app entry for this day</button>':''}</div>
   <p id="fmsg" style="margin:10px 0 0;min-height:1.5em"></p></section>
-  <section class="card"><h2>Monthly business amount and MF</h2><p class="note" style="margin:0 0 8px">These are monthly, like in your yearly overview sheet.</p>${dkOf(st.em)?`<p class="msg" style="margin:0 0 10px">Business amount for ${ymLabel(st.em)} comes from <b>Dukaan Bill</b> automatically: sales ${inr(dkOf(st.em).sales)} − party payments ${inr(dkOf(st.em).party)} − due pending ${inr(dkOf(st.em).due)} = <b>${inr(dkOf(st.em).nett)}</b>.</p>`:''}
-  <div class="frow"><label>Month<select id="em" class="in">${yms.map(k=>`<option value="${k}" ${k===st.em?'selected':''}>${ymLabel(k)}</option>`).join('')}</select></label><label>Business amount ₹<input id="eb" class="in" inputmode="numeric" value="${bizOf(st.em)||''}" placeholder="0" ${dkOf(st.em)?'disabled title="Comes from Dukaan Bill"':''}></label>
+  <section class="card"><h2>Monthly business amount and MF</h2><p class="note" style="margin:0 0 8px">These are monthly, like in your yearly overview sheet.</p>${dkOf(st.em)?`<p class="msg" style="margin:0 0 10px">Business amount for ${ymLabel(st.em)} comes from <b>My Shop</b> automatically: sales ${inr(dkOf(st.em).sales)} − party payments ${inr(dkOf(st.em).party)} − due pending ${inr(dkOf(st.em).due)} = <b>${inr(dkOf(st.em).nett)}</b>.</p>`:''}
+  <div class="frow"><label>Month<select id="em" class="in">${yms.map(k=>`<option value="${k}" ${k===st.em?'selected':''}>${ymLabel(k)}</option>`).join('')}</select></label><label>Business amount ₹<input id="eb" class="in" inputmode="numeric" value="${bizOf(st.em)||''}" placeholder="0" ${dkOf(st.em)?'disabled title="Comes from My Shop"':''}></label>
   ${fundNames.map((f,i)=>`<label>${esc(f)} ₹<input class="in ef" data-f="${esc(f)}" inputmode="numeric" value="${F[f]||''}" placeholder="0"></label>`).join('')}</div>
   <div class="acts" style="margin-top:12px"><button class="btn pri" type="button" id="msave">Save month</button>${DB.manualM[st.em]?'<button class="btn" type="button" id="mundo">Use the Excel values again</button>':''}</div><p id="mmsg" style="margin:10px 0 0"></p></section>
   <section class="card"><h2>Days you added in the app</h2>

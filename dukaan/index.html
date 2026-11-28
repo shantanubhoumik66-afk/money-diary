@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.2">
-<title>Dukaan Bill</title>
+<meta name="app-version" content="2026.11.28.3">
+<title>My Shop</title>
 <link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -102,7 +102,7 @@ nav.nav svg{width:22px;height:22px;flex:none}
 </style>
 </head>
 <body>
-<div id="updBar" class="msg" hidden style="position:fixed;left:12px;right:12px;top:12px;z-index:60;display:flex;gap:10px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.15)"><span class="sp">A new version of Dukaan Bill is ready.</span><button class="btn pri sm" id="updBtn">Update now</button></div>
+<div id="updBar" class="msg" hidden style="position:fixed;left:12px;right:12px;top:12px;z-index:60;display:flex;gap:10px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.15)"><span class="sp">A new version of My Shop is ready.</span><button class="btn pri sm" id="updBtn">Update now</button></div>
 <div id="app"></div>
 <div id="print"></div>
 <script>
@@ -155,6 +155,7 @@ function nettByMonth(){const M={};const g=ym=>M[ym]||(M[ym]={sales:0,party:0,due
     for(const[b,o]of byC[cid].sort((x,y)=>x[0].date.localeCompare(y[0].date)||x[0].n-y[0].n)){const use=Math.min(pool,o);pool-=use;if(o-use>0.005)g(b.date.slice(0,7)).due+=o-use}}
   for(const k in M){const x=M[k];x.sales=r2(x.sales);x.party=r2(x.party);x.due=r2(x.due);x.nett=r2(x.sales-x.party-x.due)}return M}
 const nextYM=()=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+1);return d.getFullYear()+'-'+pad(d.getMonth()+1)};
+const modeL=m=>m==='Udhaar'?'Due':m;
 const ymL=ym=>new Date(ym+'-01T00:00').toLocaleDateString('en-IN',{month:'short',year:'numeric'});
 
 
@@ -195,7 +196,7 @@ async function syncNow(){if(!syncOn())return;if(syncing){syncAgain=true;return}s
       if(b64(got.salt)!==b64(SALT)){SALT=got.salt;KEYOBJ=got.key}DB=Object.assign(mergeDB(DB,got.db),{sync:DB.sync});STK=null}
     const files={[SF]:{content:await sealWith(KEYOBJ,SALT,shareable(DB))},[LF]:{content:await linkFile()}};
     if(DB.sync.gistId)await gh('/gists/'+DB.sync.gistId,{method:'PATCH',body:JSON.stringify({files})});
-    else{const g=await gh('/gists',{method:'POST',body:JSON.stringify({description:'Dukaan Bill encrypted sync (do not edit)',public:false,files})});DB.sync.gistId=g.id}
+    else{const g=await gh('/gists',{method:'POST',body:JSON.stringify({description:'My Shop encrypted sync (do not edit)',public:false,files})});DB.sync.gistId=g.id}
     await persist(true);try{localStorage.setItem('dukaan.link',DB.link.key)}catch(e){}
     syncSt.state='ok';syncSt.at=Date.now();syncSt.msg='';syncSt.needPin=false;if(sig(DB)!==before&&!/^#(new|item)/.test(location.hash))render();else showSync()}
   catch(e){syncSt.state=e.message==='offline'?'offline':'err';syncSt.msg=e.message==='offline'?'No internet. Your work is saved on this device and will sync later.':e.message;showSync();if(syncSt.needPin&&location.hash==='#settings')render()}
@@ -234,7 +235,7 @@ const FAIL='dukaan.fail';
 function failInfo(){try{return JSON.parse(localStorage.getItem(FAIL))||{n:0,until:0}}catch(e){return{n:0,until:0}}}
 function viewLock(){const has=!!localStorage.getItem(STORE);
   $('#app').innerHTML=`<div class="lock"><form class="card stack" id="lf" autocomplete="off">
-   <div class="row"><div class="logo">₹</div><div><h2>Dukaan Bill</h2><div class="note">${has?'Enter your PIN to open your shop data.':'Set up your shop. Your data stays on this device, locked with your PIN.'}</div></div></div>
+   <div class="row"><div class="logo">₹</div><div><h2>My Shop</h2><div class="note">${has?'Enter your PIN to open your shop data.':'Set up your shop. Your data stays on this device, locked with your PIN.'}</div></div></div>
    ${has?'':`<label class="f">Shop name<input class="in" id="sn" required placeholder="e.g. Maa Tara Medical"></label>
    <label class="f">Type of shop<select class="in" id="sm"><option value="pharmacy">Pharmacy / medical store (batch + expiry)</option><option value="general">General shop</option></select></label>`}
    <label class="f">${has?'PIN':'Choose a PIN (4 to 12 digits)'}<input class="in" id="p1" type="password" inputmode="numeric" pattern="[0-9]{4,12}" required autofocus></label>
@@ -266,7 +267,7 @@ function boot(){
 }
 addEventListener('hashchange',()=>{if(DB)render()});
 function route(){const h=location.hash.slice(1)||'home';const[r,a]=h.split('/');return{r,a}}
-function render(){const{r,a}=route();$('#shopName').textContent=DB.shop.name||'Dukaan Bill';
+function render(){const{r,a}=route();$('#shopName').textContent=DB.shop.name||'My Shop';
   const nr=r==='inv'?'bills':r==='party'||r==='sup'?'parties':r==='item'?'stock':r;$$('nav.nav a').forEach(x=>x.classList.toggle('on',x.dataset.r===nr));
   ({home:viewHome,new:viewNew,bills:viewBills,inv:()=>viewInv(a),stock:viewStock,item:()=>viewItem(a),parties:()=>viewParties(a),party:()=>viewParty(a),sup:()=>viewSup(a),settings:viewSettings}[r]||viewHome)();scrollTo(0,0)}
 
@@ -283,7 +284,7 @@ function viewHome(){const t=today(),ym=t.slice(0,7);let sT=0,cashT=0,nT=0;
   const recent=[...DB.bills].sort((a,b)=>b.n-a.n).slice(0,6);
   $('#view').innerHTML=`<div class="kpis"><div class="kpi hero"><span>Today's sales · ${nT} bill${nT===1?'':'s'}</span><b>${inr(sT)}</b></div>
    <div class="kpi"><span>Money received today</span><b class="grn">${inr(cashT)}</b></div><div class="kpi"><span>This month's nett</span><b>${inr((NM[ym]||{nett:0}).nett)}</b></div>
-   <div class="kpi"><a href="#parties" style="text-decoration:none;color:inherit"><span>Udhaar to collect</span><b class="red">${inr(udh)}</b></a></div></div>
+   <div class="kpi"><a href="#parties" style="text-decoration:none;color:inherit"><span>Due to collect</span><b class="red">${inr(udh)}</b></a></div></div>
    <a class="btn pri" href="#new" style="min-height:52px;font-size:16px">${ic('plus').replace('<svg','<svg width="22" height="22"')} New bill</a>
    <section class="card stack"><div class="row"><h2 class="sp">Nett amount by month</h2><a href="#parties/sup">Pay a party</a></div>
     <p class="note" style="margin:0">Nett = sales − (party payments + customer due still unpaid). When a customer pays, their oldest bills are cleared first and that month's nett goes up. ${DB.sync&&DB.sync.token?'From '+ymL(DB.shop.linkFrom)+', this nett goes to Money Diary as your Business amount.':'Turn on sync in Settings to send this nett to Money Diary as your Business amount.'}</p>
@@ -295,7 +296,7 @@ function viewHome(){const t=today(),ym=t.slice(0,7);let sT=0,cashT=0,nT=0;
     ${A.low.length?`<h3 style="margin-top:10px">Low stock · ${A.low.length}</h3><div class="list">${A.low.map(it=>`<a class="li" href="#item/${it.id}"><span class="t"><b>${esc(it.name)}</b><small>Alert at ${it.low}</small></span><span class="pill p-amb">${qtyOf(it)} left</span></a>`).join('')}</div>`:''}
    </section><section class="card"><div class="row"><h2 class="sp">Recent bills</h2><a href="#bills">All bills</a></div>
     ${recent.length?`<div class="list">${recent.map(billLi).join('')}</div>`:'<p class="empty">No bills yet. Tap New bill to make your first one.</p>'}</section></div>`}
-function billLi(b){const bal=b.total-b.paid;return`<a class="li" href="#inv/${b.id}"><span class="t"><b>${esc(b.no)} · ${esc(b.cust?.name||'Walk-in customer')}</b><small>${dl(b.date)} · ${b.lines.length} item${b.lines.length===1?'':'s'} · ${esc(b.mode)}</small></span><span class="a">${inr(b.total)}${bal>0.5?`<br><span class="pill p-red">Due ${inr(bal)}</span>`:''}</span></a>`}
+function billLi(b){const bal=b.total-b.paid;return`<a class="li" href="#inv/${b.id}"><span class="t"><b>${esc(b.no)} · ${esc(b.cust?.name||'Walk-in customer')}</b><small>${dl(b.date)} · ${b.lines.length} item${b.lines.length===1?'':'s'} · ${esc(modeL(b.mode))}</small></span><span class="a">${inr(b.total)}${bal>0.5?`<br><span class="pill p-red">Due ${inr(bal)}</span>`:''}</span></a>`}
 
 /* ---------- new bill ---------- */
 function viewNew(){if(!st.draft)st.draft=newDraft();const D=st.draft,ph=isPh();
@@ -342,22 +343,22 @@ function drawPay(){const D=st.draft,L=cleanLines(),t=billCalc(L),el=$('#payBox')
   el.innerHTML=`<h2>Payment</h2><div class="tot"><span>Items</span><span>${L.length}</span>${t.disc?`<span>Discount</span><span>-${inr(t.disc)}</span>`:''}
    <span>Taxable value</span><span>${inr(t.taxable)}</span><span>CGST</span><span>${inr(t.tax/2)}</span><span>SGST</span><span>${inr(t.tax/2)}</span>
    ${Math.abs(t.round)>=0.005?`<span>Round off</span><span>${t.round>0?'+':''}${r2(t.round)}</span>`:''}<span class="big">Total</span><span class="big">${inr(t.total)}</span></div>
-   <div class="chips" role="group" aria-label="Payment mode">${['Cash','UPI','Card','Udhaar'].map(m=>`<button type="button" class="chip ${D.mode===m?'on':''}" data-mode="${m}">${m}</button>`).join('')}</div>
+   <div class="chips" role="group" aria-label="Payment mode">${['Cash','UPI','Card','Due'].map(m=>`<button type="button" class="chip ${D.mode===m?'on':''}" data-mode="${m}">${m}</button>`).join('')}</div>
    <label class="f">Amount received ₹<input class="in" id="pd" inputmode="decimal" value="${D.paid===''?'':esc(D.paid)}" placeholder="${t.total}"></label>
-   <p style="margin:0" id="balL">${bal>0.5?`<span class="pill p-red">Udhaar ${inr(bal)}</span> will be added to ${esc(D.cust.name||'the customer')}'s account`:bal<-0.5?`Return change: <b>${inr(-bal)}</b>`:'<span class="pill p-grn">Fully paid</span>'}</p>
+   <p style="margin:0" id="balL">${bal>0.5?`<span class="pill p-red">Due ${inr(bal)}</span> will be added to ${esc(D.cust.name||'the customer')}'s account`:bal<-0.5?`Return change: <b>${inr(-bal)}</b>`:'<span class="pill p-grn">Fully paid</span>'}</p>
    <label class="f">Bill date<input class="in" id="bd" type="date" value="${D.date}"></label>
    <button class="btn pri" id="saveB" style="min-height:50px;font-size:16px" ${L.length?'':'disabled'}>Save bill</button><p id="bm" class="note" style="margin:0"></p>`;
-  el.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{D.mode=b.dataset.mode;if(D.mode==='Udhaar')D.paid='0';else if(D.paid==='0')D.paid='';drawPay()});
-  const pd=$('#pd');pd.oninput=()=>{D.paid=pd.value;const p=pd.value===''?t.total:num(pd.value),b=t.total-p;$('#balL').innerHTML=b>0.5?`<span class="pill p-red">Udhaar ${inr(b)}</span> will be added to ${esc(D.cust.name||'the customer')}'s account`:b<-0.5?`Return change: <b>${inr(-b)}</b>`:'<span class="pill p-grn">Fully paid</span>'};
+  el.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{D.mode=b.dataset.mode;if(D.mode==='Due')D.paid='0';else if(D.paid==='0')D.paid='';drawPay()});
+  const pd=$('#pd');pd.oninput=()=>{D.paid=pd.value;const p=pd.value===''?t.total:num(pd.value),b=t.total-p;$('#balL').innerHTML=b>0.5?`<span class="pill p-red">Due ${inr(b)}</span> will be added to ${esc(D.cust.name||'the customer')}'s account`:b<-0.5?`Return change: <b>${inr(-b)}</b>`:'<span class="pill p-grn">Fully paid</span>'};
   $('#bd').onchange=e=>{D.date=e.target.value||today()};
   $('#saveB').onclick=saveBill}
 async function saveBill(){const D=st.draft,L=cleanLines(),t=billCalc(L),bm=$('#bm');if(!L.length)return;
   let paid=D.paid===''?t.total:num(D.paid);paid=Math.min(paid,t.total);const name=D.cust.name.trim(),phone=D.cust.phone.trim();
-  if(t.total-paid>0.5&&!name){bm.className='red';bm.textContent='Type the customer name to keep udhaar on their account.';$('#cn').focus();return}
+  if(t.total-paid>0.5&&!name){bm.className='red';bm.textContent='Type the customer name to keep due on their account.';$('#cn').focus();return}
   let cust=null;if(name){cust=DB.custs.find(c=>c.name.toLowerCase()===name.toLowerCase()&&(!phone||!c.phone||c.phone===phone));
     if(!cust){cust={id:uid(),name,phone,addr:'',t:Date.now()};DB.custs.push(cust)}else if(phone&&!cust.phone){cust.phone=phone;cust.t=Date.now()}}
   for(const l of L){const it=itemById(l.itemId);if(!it)continue;if(!it.batches.find(x=>x.id===l.batchId)){const b={id:uid(),b:'',exp:''};it.batches.push(b);it.t=Date.now();l.batchId=b.id}}
-  const bill={id:uid(),n:DB.seq,no:DB.shop.prefix+DB.seq,date:D.date||today(),cust:cust?{id:cust.id,name:cust.name,phone:cust.phone}:null,lines:L,total:t.total,paid:r2(paid),mode:t.total-paid>0.5&&paid<=0?'Udhaar':D.mode,t:Date.now()};
+  const bill={id:uid(),n:DB.seq,no:DB.shop.prefix+DB.seq,date:D.date||today(),cust:cust?{id:cust.id,name:cust.name,phone:cust.phone}:null,lines:L,total:t.total,paid:r2(paid),mode:t.total-paid>0.5&&paid<=0?'Due':D.mode,t:Date.now()};
   DB.bills.push(bill);DB.seq++;await persist();st.draft=null;location.hash='#inv/'+bill.id;setTimeout(()=>flash('✓ Bill '+esc(bill.no)+' saved. Stock is updated.'),50)}
 
 /* ---------- invoice ---------- */
@@ -370,7 +371,7 @@ function invHTML(b,thermal){const S=DB.shop,t=billCalc(b.lines),ph=isPh();const 
      :`<tr><td>${i+1}</td><td>${esc(l.name)}</td>${ph?`<td>${esc(l.batch||'')}</td><td>${expL(l.exp)}</td>`:''}<td>${esc(l.hsn||'')}</td><td class="r">${l.qty}</td><td class="r">${r2(l.rate).toFixed(2)}</td><td class="r">${l.disc?l.disc+'%':''}</td><td class="r">${l.gst}%</td><td class="r">${r2(c.amt).toFixed(2)}</td></tr>`}).join('')}</tbody></table></div>
    <div class="sum">${t.disc?`<span>Discount</span><span>-${r2(t.disc).toFixed(2)}</span>`:''}<span>Taxable value</span><span>${r2(t.taxable).toFixed(2)}</span><span>CGST</span><span>${r2(t.tax/2).toFixed(2)}</span><span>SGST</span><span>${r2(t.tax/2).toFixed(2)}</span>
    ${Math.abs(t.round)>=0.005?`<span>Round off</span><span>${r2(t.round).toFixed(2)}</span>`:''}<span class="g">Total</span><span class="g">₹${b.total.toLocaleString('en-IN')}</span>
-   <span>Paid (${esc(b.mode)})</span><span>${r2(b.paid).toFixed(2)}</span>${bal>0.5?`<span><b>Balance due</b></span><span><b>${r2(bal).toFixed(2)}</b></span>`:''}</div>
+   <span>Paid (${esc(modeL(b.mode))})</span><span>${r2(b.paid).toFixed(2)}</span>${bal>0.5?`<span><b>Balance due</b></span><span><b>${r2(bal).toFixed(2)}</b></span>`:''}</div>
    ${rates.length&&!thermal?`<table style="width:auto;margin-top:10px"><thead><tr><th>GST rate</th><th class="r">Taxable</th><th class="r">CGST</th><th class="r">SGST</th></tr></thead><tbody>${rates.map(([g,r])=>`<tr><td>${g}%</td><td class="r">${r2(r.taxable).toFixed(2)}</td><td class="r">${r2(r.tax/2).toFixed(2)}</td><td class="r">${r2(r.tax/2).toFixed(2)}</td></tr>`).join('')}</tbody></table>`:''}
    <div class="ft">${esc(S.footer||'')}${S.upi&&bal>0.5?`<br>Pay by UPI: ${esc(S.upi)}`:''}</div></div>`}
 function waBill(b){const S=DB.shop,bal=b.total-b.paid;
@@ -442,10 +443,10 @@ function viewItem(id){const ph=isPh();const isNew=id==='new';const it=isNew?{id:
       if(diff)DB.ins.push({id:uid(),item:it.id,batch:b.id,qty:diff,date:today(),note:'Stock correction',t:Date.now()});await persist();render();flash('✓ Batch updated.')}})}
 let addLineAfter=null;
 
-/* ---------- udhaar / parties ---------- */
+/* ---------- due / parties ---------- */
 function viewParties(tab){tab=tab==='sup'?'sup':'cust';
   $('#view').innerHTML=`<div class="row"><h2 class="sp">Parties</h2></div>
-   <div class="chips"><a class="chip ${tab==='cust'?'on':''}" href="#parties" style="display:flex;align-items:center;text-decoration:none">Customers (udhaar)</a><a class="chip ${tab==='sup'?'on':''}" href="#parties/sup" style="display:flex;align-items:center;text-decoration:none">Suppliers (party payment)</a></div>
+   <div class="chips"><a class="chip ${tab==='cust'?'on':''}" href="#parties" style="display:flex;align-items:center;text-decoration:none">Customers (due)</a><a class="chip ${tab==='sup'?'on':''}" href="#parties/sup" style="display:flex;align-items:center;text-decoration:none">Suppliers (party payment)</a></div>
    <input class="in" id="pq" type="search" placeholder="Search ${tab==='sup'?'supplier':'customer'}" value="${esc(st.pq)}"><section class="card" id="pl"></section>
    <details class="card" ${tab==='sup'&&!DB.sups.length?'open':''}><summary style="font-weight:800;cursor:pointer">+ Add a ${tab==='sup'?'supplier / distributor':'customer'}</summary><form id="pf" class="grid g2" style="margin-top:12px"><label class="f">Name<input class="in" id="pn" required></label><label class="f">Mobile<input class="in" id="pp" inputmode="tel"></label><button class="btn pri">Add ${tab==='sup'?'supplier':'customer'}</button></form></details>`;
   const ym=today().slice(0,7);
@@ -480,7 +481,7 @@ function viewSup(id){const c=supById(id);if(!c){location.hash='#parties/sup';ret
 function viewParty(id){const c=custById(id);if(!c){location.hash='#parties';return}const S=DB.shop;
   const ev=[...DB.bills.filter(b=>b.cust&&b.cust.id===id).map(b=>({d:b.date,t:b.t,txt:'Bill '+b.no,dr:b.total,cr:b.paid,bill:b.id})),...DB.pays.filter(p=>p.cust===id).map(p=>({d:p.date,t:p.t,txt:'Payment received ('+p.mode+')'+(p.note?' · '+p.note:''),dr:0,cr:p.amt,pay:p.id}))].sort((a,b)=>a.d.localeCompare(b.d)||a.t-b.t);
   let run=0;ev.forEach(e=>{run+=e.dr-e.cr;e.bal=run});const due=dueOf(id);
-  const msg=`Namaste ${c.name} ji,\nYour pending amount at *${S.name||'our shop'}* is *₹${r2(due).toLocaleString('en-IN')}*.${S.upi?`\nPay by UPI: ${S.upi}`:''}\nPlease pay at your convenience. Thank you!`;
+  const msg=`Hello ${c.name},\nYour pending amount at *${S.name||'our shop'}* is *₹${r2(due).toLocaleString('en-IN')}*.${S.upi?`\nPay by UPI: ${S.upi}`:''}\nPlease pay at your convenience. Thank you!`;
   $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#parties">← Customers</a></div>
    <div class="two"><section class="card stack"><div class="row"><div class="sp"><h2>${esc(c.name)}</h2><span class="note">${esc(c.phone||'No mobile number')}</span></div>
     <div style="text-align:right">${due>0.5?`<span class="note">To collect</span><br><b class="red" style="font-size:22px">${inr(due)}</b>`:due<-0.5?`<span class="note">Advance</span><br><b class="grn" style="font-size:22px">${inr(-due)}</b>`:'<span class="pill p-grn">Settled</span>'}</div></div>
@@ -524,11 +525,11 @@ function viewSettings(){const S=DB.shop,ph=isPh();
     <p class="note" style="margin:0">The app locks itself after 10 minutes without use. Data is encrypted with AES-256 using your PIN.</p></section></div></div>`;
   $('#sf').onsubmit=async e=>{e.preventDefault();const v=k=>$('#s_'+k).value.trim();Object.assign(S,{name:v('name'),addr:v('addr'),phone:v('phone'),gstin:v('gstin').toUpperCase(),dl:v('dl'),upi:v('upi'),prefix:v('prefix'),mode:v('mode'),taxIncl:v('tax')==='1',footer:v('footer')});
     const sq=parseInt(v('seq'));if(sq>0)DB.seq=sq;S.t=Date.now();await persist();render();flash('✓ Shop details saved.')};
-  $('#bk').onclick=async()=>{download('Dukaan-backup-'+today()+'.dukaan',await sealWith(KEYOBJ,SALT,DB),'application/json');flash('✓ Backup downloaded. Save it to Google Drive. You need your current PIN to restore it.')};
+  $('#bk').onclick=async()=>{download('MyShop-backup-'+today()+'.dukaan',await sealWith(KEYOBJ,SALT,DB),'application/json');flash('✓ Backup downloaded. Save it to Google Drive. You need your current PIN to restore it.')};
   $('#rf').onchange=async e=>{const f=e.target.files[0];if(!f)return;const pin=prompt('Type the PIN that was used when this backup was made');if(!pin)return;
-    try{const o=await openWith(pin.trim(),await f.text());const keep=DB.sync;DB=upgrade(o.db);if(keep)DB.sync=keep;await persist();render();flash('✓ Backup restored: '+DB.bills.length+' bills, '+DB.items.length+' items.')}catch(err){flash('Could not open this file. Check the PIN and that it is a Dukaan Bill backup.',1)}e.target.value=''};
+    try{const o=await openWith(pin.trim(),await f.text());const keep=DB.sync;DB=upgrade(o.db);if(keep)DB.sync=keep;await persist();render();flash('✓ Backup restored: '+DB.bills.length+' bills, '+DB.items.length+' items.')}catch(err){flash('Could not open this file. Check the PIN and that it is a My Shop backup.',1)}e.target.value=''};
   $('#cs1').onclick=()=>{const rows=[['Bill no','Date','Customer','Mobile','Item','Batch','Expiry','HSN','Qty','Rate','Disc %','GST %','Taxable','GST','Amount','Bill total','Paid','Mode']];
-    for(const b of[...DB.bills].sort((a,c)=>a.n-c.n))for(const l of b.lines){const c=lineCalc(l);rows.push([b.no,dl(b.date),b.cust?.name||'',b.cust?.phone||'',l.name,l.batch||'',expL(l.exp),l.hsn||'',l.qty,l.rate,l.disc||0,l.gst,r2(c.taxable),r2(c.tax),r2(c.amt),b.total,b.paid,b.mode])}
+    for(const b of[...DB.bills].sort((a,c)=>a.n-c.n))for(const l of b.lines){const c=lineCalc(l);rows.push([b.no,dl(b.date),b.cust?.name||'',b.cust?.phone||'',l.name,l.batch||'',expL(l.exp),l.hsn||'',l.qty,l.rate,l.disc||0,l.gst,r2(c.taxable),r2(c.tax),r2(c.amt),b.total,b.paid,modeL(b.mode)])}
     download('Sales-'+today()+'.csv',csv(rows),'text/csv')};
   $('#cs2').onclick=()=>{const rows=[['Item','Salt','Unit','Price','GST %','HSN','Rack','Batch','Expiry','Qty']];for(const i of DB.items)for(const b of(i.batches.length?i.batches:[{}]))rows.push([i.name,i.salt||'',i.unit||'',i.price,i.gst,i.hsn||'',i.rack||'',b.b||'',expL(b.exp),b.id?qB(i,b):0]);download('Stock-'+today()+'.csv',csv(rows),'text/csv')};
   $('#chp').onclick=async()=>{const o=$('#op').value.trim(),n=$('#np').value.trim();if(o!==PIN){flash('Current PIN is wrong.',1);return}if(!/^\d{4,12}$/.test(n)){flash('New PIN must be 4 to 12 digits.',1);return}if(syncOn())await syncNow();clearTimeout(syncTimer);await setPin(n,true);if(syncOn())await syncNow();$('#op').value=$('#np').value='';flash('✓ PIN changed. Download a new backup file, because old backups still use the old PIN.')};
