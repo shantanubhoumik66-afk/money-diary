@@ -45,6 +45,7 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:70
 .li:last-child{border-bottom:0}
 .lirow{display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line)}.lirow:last-child{border-bottom:0}.lirow .li{border-bottom:0;flex:1;min-width:0}
 .dbox{display:flex;gap:6px;align-items:center}.dbox .in{flex:1;min-width:0}.dstep{flex:none;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:14px;color:var(--acc);cursor:pointer}.dstep:active{background:var(--acc);color:#fff}.dbox .chip{min-height:44px}
+a.askgo{color:var(--acc);font-weight:800;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}a.askgo:hover{text-decoration-style:solid}.askbox{background:var(--mist);border-radius:14px;padding:12px 14px}
 .prnb{flex:none;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--acc);display:flex;align-items:center;justify-content:center;cursor:pointer}.prnb:hover{background:var(--soft)}.prnb.on,.prnb:active{background:var(--acc);color:#fff;border-color:var(--acc)}.li .t{flex:1;min-width:0}.li .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.li .t small{color:var(--muted);font-size:12.5px}
 .li .a{text-align:right;font-weight:800;white-space:nowrap}
 .chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
@@ -448,6 +449,116 @@ function pairChart(A,B){const cur=today().slice(0,7);const M=Array.from({length:
   return`<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:250px" role="img" aria-label="Monthly sales of two customers"><line x1="0" x2="${W}" y1="${top+ph}" y2="${top+ph}" stroke="var(--line)"/>${bars}</svg></div>
    <div style="overflow-x:auto"><table class="t"><thead><tr><th></th><th class="r">${esc(custName(A))}</th><th class="r">${esc(custName(B))}</th><th class="r">Difference</th></tr></thead><tbody>
    ${P.map(([t,f])=>{const x=sum(A,f),y=sum(B,f),d=x-y;return`<tr><td>${t}</td><td class="r"><b>${inr(x)}</b></td><td class="r"><b>${inr(y)}</b></td><td class="r">${d?`${esc(d>0?custName(A):custName(B))} +${inr(Math.abs(d))}`:'Same'}</td></tr>`}).join('')}</tbody></table></div>`}
+/* ---------- Ask about your shop: exact answers worked out from your data (no AI). Answers link to the records. ---------- */
+const sAdd=(d,n)=>{const x=new Date(d+'T00:00');x.setDate(x.getDate()+n);return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate())};
+const sMon=d=>{const x=new Date(d+'T00:00');return sAdd(d,-((x.getDay()+6)%7))};
+const sEnd=(y,m)=>y+'-'+pad(m)+'-'+pad(new Date(y,m,0).getDate());
+const SM=[['jan','january'],['feb','february'],['mar','march'],['apr','april'],['may'],['jun','june'],['jul','july'],['aug','august'],['sep','sept','september'],['oct','october'],['nov','november'],['dec','december']];
+function sPeriods(q){const t=today(),cy=+t.slice(0,4),cm=+t.slice(5,7),selY=homeYear()!==t.slice(0,4)?+homeYear():null;const P=[];const add=(i,label,from,to,unit)=>P.push({i,label,from,to,unit});
+  const R=[[/\btoday\b/g,()=>['today ('+dl(t)+')',t,t,'day']],[/\byesterday\b/g,()=>{const y=sAdd(t,-1);return['yesterday ('+dl(y)+')',y,y,'day']}],
+    [/\bthis week\b/g,()=>['this week',sMon(t),sAdd(sMon(t),6),'week']],[/\blast week\b/g,()=>{const s=sAdd(sMon(t),-7);return['last week ('+dl(s)+' – '+dl(sAdd(s,6))+')',s,sAdd(s,6),'week']}],
+    [/\bthis month\b/g,()=>['this month ('+ymL(t.slice(0,7))+')',t.slice(0,8)+'01',sEnd(cy,cm),'month']],
+    [/\blast month\b/g,()=>{const y=cm===1?cy-1:cy,m=cm===1?12:cm-1;return['last month ('+ymL(y+'-'+pad(m))+')',y+'-'+pad(m)+'-01',sEnd(y,m),'month']}],
+    [/\bthis year\b/g,()=>['this year ('+cy+')',cy+'-01-01',cy+'-12-31','year']],[/\blast year\b/g,()=>['last year ('+(cy-1)+')',(cy-1)+'-01-01',(cy-1)+'-12-31','year']],
+    [/\b(all time|overall|ever|all years|so far)\b/g,()=>['all time','0000-01-01','9999-12-31','all']]];
+  for(const[re,f]of R){let m;while((m=re.exec(q))){const[l,a,b,u]=f();add(m.index,l,a,b,u)}}
+  const mre=new RegExp('\\b('+SM.flat().join('|')+')\\b(?:[\\s\'’-]*(\\d{4}|\\d{2})\\b)?','g');let m;
+  while((m=mre.exec(q))){const mi=SM.findIndex(a=>a.includes(m[1]))+1;const y=m[2]?(m[2].length===2?2000+ +m[2]:+m[2]):selY||(mi>cm?cy-1:cy);add(m.index,ymL(y+'-'+pad(mi)),y+'-'+pad(mi)+'-01',sEnd(y,mi),'month')}
+  const yre=/\b(20\d{2})\b/g;while((m=yre.exec(q))){if(P.some(p=>p.unit==='month'&&p.i<m.index&&m.index-p.i<14))continue;add(m.index,m[1],m[1]+'-01-01',m[1]+'-12-31','year')}
+  return P.sort((a,b)=>a.i-b.i)}
+/* links */
+const sGo=(g,v,txt)=>`<a href="#" class="askgo" data-sgo="${g}" data-v="${esc(v)}">${txt}</a>`;
+const sRange=(p,txt)=>sGo('range',JSON.stringify({from:p.from,to:p.to,label:p.label}),txt||esc(p.label));
+const sDayP=d=>({from:d,to:d,label:dl(d)}),sMonP=ym=>({from:ym+'-01',to:sEnd(+ym.slice(0,4),+ym.slice(5,7)),label:ymL(ym)});
+document.addEventListener('click',e=>{const a=e.target.closest('[data-sgo]');if(!a||!DB)return;e.preventDefault();const g=a.dataset.sgo,v=a.dataset.v;
+  if(g==='range'){st.bf='range';st.br=JSON.parse(v);st.bq='';location.hash==='#bills'?render():location.hash='#bills'}
+  else if(g==='stock'){st.filter=v;st.q='';location.hash==='#stock'?render():location.hash='#stock'}
+  else location.hash='#'+g+'/'+v});
+/* name matching: longest name found in the question */
+function sFind(q,list){let best=null;for(const x of list){const n=String(x.name||'').toLowerCase().trim();if(n.length>=3&&q.includes(n)&&(!best||n.length>best.n.length))best={...x,n}}
+  if(best)return best;const words=q.replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w.length>=4&&!SSTOP.has(w));
+  for(const w of words){const h=list.filter(x=>String(x.name||'').toLowerCase().split(/\s+/).includes(w));if(h.length===1)return{...h[0],n:w}}return null}
+const SSTOP=new Set('how much many what when which who where sale sales sold sell selling invoice invoices bill bills customer customers medicine medicines item items product products stock left today yesterday week month year this last total amount money discount average daily party supplier suppliers paid payment payments due owe owes pending balance cash online received expiry expired expiring compare with from best worst highest lowest most least top biggest number count does have give show tell please nett profit'.split(' '));
+const lineVal=l=>lineCalc(l).amt;
+function sRecv(from,to){const r={cash:0,online:0};const add=(mode,amt)=>{if(!(amt>0))return;if(/^cash$/i.test(mode||'Cash'))r.cash+=amt;else r.online+=amt};
+  for(const b of DB.bills)if(b.date>=from&&b.date<=to&&!/^(due|deposit|udhaar)$/i.test(b.mode||''))add(b.mode,b.paid);
+  for(const p of DB.pays)if(p.date>=from&&p.date<=to&&p.kind!=='adj'&&p.mode!=='Adjust')add(p.mode,p.amt);return r}
+function shAnswer(raw){const q=' '+raw.toLowerCase().replace(/[’']/g,"'").replace(/\s+/g,' ').trim()+' ';if(q.trim().length<2)return null;
+  const t=today(),P=sPeriods(q),Y=homeYear();const defP={label:Y,from:Y+'-01-01',to:Y+'-12-31',unit:'year'};const per=P[0]||defP;
+  const cust=sFind(q,DB.custs.map(c=>({id:c.id,name:c.name}))),sup=sFind(q,DB.sups.map(c=>({id:c.id,name:c.name})));
+  const itemsBy=new Map();for(const i of DB.items){const k=i.name.toUpperCase();(itemsBy.get(k)||itemsBy.set(k,[]).get(k)).push(i)}
+  const itm=sFind(q,[...itemsBy.keys()].map(k=>({name:k})));const its=itm?itemsBy.get(itm.name.toUpperCase())||[]:[];
+  const inPer=(d,p)=>d>=p.from&&d<=p.to;const bills=p=>DB.bills.filter(b=>inPer(b.date,p));
+  const iLink=i=>sGo('item',i.id,esc(i.name)+(its.length>1||DB.items.filter(x=>x.name===i.name).length>1?' · MRP '+inr(i.price):''));
+  const has=re=>re.test(q);const hi=has(/\b(best|highest|most|max|maximum|biggest|top)\b/),lo=has(/\b(worst|lowest|least|min|minimum|smallest)\b/);
+  // expiry
+  if(has(/\bexpir/)){const A=alerts();const L=has(/\bexpired\b/)&&!has(/\bexpiring|soon\b/)?A.ex:A.ex.concat(A.soon);
+    if(!L.length)return{head:'No expired or expiring stock. 👍',lines:[]};
+    return{head:`${A.ex.length} batch${A.ex.length===1?'':'es'} expired, ${A.soon.length} expiring within 3 months. ${sGo('stock',A.ex.length?'ex':'soon','See them in Stock')}`,lines:L.slice(0,8).map(([i,b])=>`${sGo('item',i.id,esc(i.name))}: batch ${esc(b.b||'-')}, exp ${expL(b.exp)}, ${qB(i,b)} left${monthsLeft(b.exp)<0?' · <b>expired</b>':''}`)}}
+  // low / out of stock
+  if(has(/\b(low stock|running low|out of stock|finished|no stock|zero stock)\b/)){const out=has(/\b(out of stock|finished|no stock|zero stock)\b/);const L=out?DB.items.filter(i=>qtyOf(i)<=0):alerts().low;
+    return{head:`${L.length} item${L.length===1?'':'s'} ${out?'out of stock':'low on stock'}. ${sGo('stock',out?'out':'low','See them in Stock')}`,lines:L.slice(0,8).map(i=>`${iLink(i)}: ${qtyOf(i)} left`)}}
+  // stock of an item
+  if(its.length&&has(/\b(stock|left|available|have|qty|quantity|how many)\b/)&&!has(/\b(sold|sale|sales|sell)\b/)){const tot=its.reduce((s,i)=>s+qtyOf(i),0);
+    return{head:`${esc(its[0].name)}: <b>${tot}</b> in stock.`,lines:its.map(i=>`${sGo('item',i.id,'MRP '+inr(i.price))}: ${qtyOf(i)} left · value ${inr(qtyOf(i)*num(i.price))}`)}}
+  // dues
+  if(has(/\b(due|dues|owe|owes|udhaar|pending|balance|outstanding)\b/)){if(cust){const d=dueOf(cust.id);return{head:`${sGo('party',cust.id,esc(cust.name))} ${d>0.5?`owes you <b>${inr(d)}</b>`:d<-0.5?`has a deposit of <b>${inr(-d)}</b>`:'has <b>no due</b>'}.`,lines:[]}}
+    const L=DB.custs.map(c=>({c,d:dueOf(c.id)})).filter(x=>x.d>0.5).sort((a,b)=>b.d-a.d);const tot=L.reduce((s,x)=>s+x.d,0);
+    return{head:`Total due to collect: <b>${inr(tot)}</b> from ${L.length} customer${L.length===1?'':'s'}.`,lines:L.slice(0,6).map((x,i)=>`${i+1}. ${sGo('party',x.c.id,esc(x.c.name))}: ${inr(x.d)}`)}}
+  // party (supplier) payments
+  if(sup||has(/\b(party|parties|supplier|suppliers|distributor|distributors)\b/)){const L=DB.spays.filter(p=>inPer(p.date,per)&&(!sup||p.sup===sup.id));const tot=L.reduce((s,p)=>s+p.amt,0);
+    if(sup)return{head:`Paid to ${sGo('sup',sup.id,esc(sup.name))} in ${esc(per.label)}: <b>${inr(tot)}</b> (${L.length} payment${L.length===1?'':'s'}).`,lines:L.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4).map(p=>`${dl(p.date)}: ${inr(p.amt)} · ${esc(p.mode)}${p.ref?' · bill '+esc(p.ref):''}`)};
+    const by={};for(const p of L)by[p.sup]=(by[p.sup]||0)+p.amt;return{head:`Party payments in ${esc(per.label)}: <b>${inr(tot)}</b>.`,lines:Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>`${sGo('sup',k,esc((supById(k)||{}).name||'Supplier'))}: ${inr(v)}`)}}
+  // cash / online received
+  if(has(/\b(cash|online|upi|card|received|receive|collection|collected)\b/)&&!its.length){const r=sRecv(per.from,per.to);
+    const which=has(/\bcash\b/)&&!has(/\b(online|upi|card)\b/)?'cash':has(/\b(online|upi|card)\b/)&&!has(/\bcash\b/)?'online':null;
+    return{head:which?`${which==='cash'?'💵 Cash':'📱 Online'} received in ${sRange(per)}: <b>${inr(r[which])}</b>.`:`Received in ${sRange(per)}: <b>${inr(r.cash+r.online)}</b>.`,lines:[`Cash ${inr(r.cash)} · Online ${inr(r.online)} (UPI, card, bank).`]}}
+  // nett
+  if(has(/\b(nett|net|profit)\b/)){const NM=nettByMonth();let x={sales:0,party:0,due:0,nett:0};for(const k in NM){if(k+'-01'>per.to||sEnd(+k.slice(0,4),+k.slice(5,7))<per.from)continue;for(const f in x)x[f]+=NM[k][f]}
+    return{head:`Nett in ${esc(per.label)}: <b>${inr(x.nett)}</b>.`,lines:[`Sales ${inr(x.sales)} − party payments ${inr(x.party)} − due pending ${inr(x.due)}.`,...(per.unit==='day'||per.unit==='week'?['Nett is worked out by month, so this covers the whole month.']:[])]}}
+  // top customers
+  if((hi||lo)&&has(/\bcustomers?\b/)){const by={};for(const b of bills(per)){const k=custKey(b);by[k]=(by[k]||0)+b.total}const L=Object.entries(by).sort((a,b)=>lo?a[1]-b[1]:b[1]-a[1]).slice(0,+(q.match(/\btop (\d+)/)||[])[1]||5);
+    if(!L.length)return{head:`No sales in ${esc(per.label)}.`,lines:[]};return{head:`${lo?'Lowest':'Top'} customers in ${sRange(per)}:`,lines:L.map(([k,v],i)=>`${i+1}. ${k==='walkin'?'Walk-in customers':sGo('party',k,esc(custName(k)))}: <b>${inr(v)}</b>`)}}
+  // best-selling items
+  if((hi||lo)&&has(/\b(item|items|medicine|medicines|product|products|selling|seller|sold)\b/)){const by={};for(const b of bills(per))for(const l of b.lines){const o=by[l.itemId]||(by[l.itemId]={name:l.name,id:l.itemId,qty:0,v:0});o.qty+=num(l.qty);o.v+=lineVal(l)}
+    const byQty=has(/\b(qty|quantity|units|pieces|strips|count)\b/);const L=Object.values(by).sort((a,b)=>(lo?1:-1)*((byQty?a.qty-b.qty:a.v-b.v))).slice(0,+(q.match(/\btop (\d+)/)||[])[1]||5);
+    if(!L.length)return{head:`No sales in ${esc(per.label)}.`,lines:[]};return{head:`${lo?'Slowest':'Best'}-selling items in ${sRange(per)} (by ${byQty?'quantity':'sale value'}):`,lines:L.map((x,i)=>{const it=itemById(x.id);const two=it&&DB.items.filter(y=>y.name===it.name).length>1;return`${i+1}. ${it?sGo('item',x.id,esc(x.name)+(two?' · MRP '+inr(it.price):'')):esc(x.name)}: <b>${inr(x.v)}</b> · ${r2(x.qty)} sold`})}}
+  // best / worst day, week or month for sales
+  const um=q.match(/\b(day|week|month)\b/);if((hi||lo)&&um){const u=um[1];const big={day:['week','month','year','all'],week:['month','year','all'],month:['year','all']}[u];const rp=P.find(p=>big.includes(p.unit))||defP;const by={};
+    for(const b of DB.bills){if(!inPer(b.date,rp))continue;const k=u==='month'?b.date.slice(0,7):u==='week'?sMon(b.date):b.date;by[k]=(by[k]||0)+b.total}
+    const L=Object.entries(by).sort((a,b)=>lo?a[1]-b[1]:b[1]-a[1]);if(!L.length)return{head:`No sales in ${esc(rp.label)}.`,lines:[]};/*range*/
+    const lnk=k=>u==='month'?sRange(sMonP(k)):u==='week'?sRange({from:k,to:sAdd(k,6),label:dl(k)+' – '+dl(sAdd(k,6))}):sRange(sDayP(k));
+    return{head:`${lo?'Lowest':'Highest'} sales ${u} in ${esc(rp.label)}: <b>${lnk(L[0][0])}</b>, ${inr(L[0][1])}.`,lines:L.slice(1,4).map(([k,v],i)=>`${i+2}. ${lnk(k)}: ${inr(v)}`)}}
+  // compare two periods
+  if(has(/\b(compare|compared|vs|versus|difference|against)\b/)&&P.length>=2){const f=b=>(!cust||(b.cust&&b.cust.id===cust.id));const va=bills(P[0]).filter(f).reduce((s,b)=>s+b.total,0),vb=bills(P[1]).filter(f).reduce((s,b)=>s+b.total,0),d=vb-va;
+    return{head:`Sales${cust?' to '+esc(cust.name):''}: ${sRange(P[0])} <b>${inr(va)}</b> vs ${sRange(P[1])} <b>${inr(vb)}</b>.`,lines:[d?`${esc(P[1].label)} is ${d>0?'▲ higher':'▼ lower'} by <b>${inr(Math.abs(d))}</b>${va?` (${d>0?'+':'−'}${Math.abs(Math.round(d/va*100))}%)`:''}.`:'Both are the same.']}}
+  // last invoice / last sale
+  if(has(/\b(last|latest|recent)\b/)&&has(/\b(invoice|bill|sale|sold|bought|buy|purchase|visit)\b/)){const L=DB.bills.filter(b=>(!cust||(b.cust&&b.cust.id===cust.id))&&(!its.length||b.lines.some(l=>its.some(i=>i.id===l.itemId)))).sort((a,b)=>b.date.localeCompare(a.date)||b.n-a.n);
+    if(!L.length)return{head:'No matching sale invoice found.',lines:[]};const b=L[0];return{head:`Last sale invoice${cust?' to '+esc(cust.name):''}${its.length?' with '+esc(its[0].name):''}: ${sGo('inv',b.id,esc(b.no)+' on '+dl(b.date))}, <b>${inr(b.total)}</b>.`,lines:[`${esc(b.cust?.name||'Walk-in customer')} · ${b.lines.length} item${b.lines.length===1?'':'s'}`]}}
+  // how many invoices
+  if(has(/\b(how many|number of|count)\b/)&&has(/\b(invoice|invoices|bill|bills|sale|sales)\b/)){const L=bills(per);return{head:`${sRange(per,L.length+' sale invoice'+(L.length===1?'':'s'))} in ${esc(per.label)}.`,lines:[`Total ${inr(L.reduce((s,b)=>s+b.total,0))}.`]}}
+  // an item's sales
+  if(its.length){let qty=0,v=0,n=0;for(const b of bills(per))for(const l of b.lines)if(its.some(i=>i.id===l.itemId)){qty+=num(l.qty);v+=lineVal(l);n++}
+    return{head:`${its.length===1?iLink(its[0]):esc(its[0].name)} sold in ${sRange(per)}: <b>${r2(qty)}</b> for <b>${inr(v)}</b>.`,lines:[`On ${n} sale line${n===1?'':'s'} · now ${its.reduce((s,i)=>s+qtyOf(i),0)} in stock.`,...(its.length>1?[its.map(i=>sGo('item',i.id,'MRP '+inr(i.price))).join(' · ')]:[])]}}
+  // a customer's purchases
+  if(cust){const L=bills(per).filter(b=>b.cust&&b.cust.id===cust.id);const v=L.reduce((s,b)=>s+b.total,0),d=dueOf(cust.id);
+    return{head:`${sGo('party',cust.id,esc(cust.name))} bought <b>${inr(v)}</b> in ${esc(per.label)} (${L.length} invoice${L.length===1?'':'s'}).`,lines:[d>0.5?`Due now: ${inr(d)}.`:d<-0.5?`Deposit: ${inr(-d)}.`:'No due.']}}
+  // averages
+  if(has(/\b(average|avg|per day|daily|per invoice)\b/)){const L=bills(per),v=L.reduce((s,b)=>s+b.total,0);const days=new Set(L.map(b=>b.date)).size;
+    return{head:has(/\bper invoice\b/)?`Average sale invoice in ${esc(per.label)}: <b>${inr(L.length?v/L.length:0)}</b>.`:`Average sales per selling day in ${esc(per.label)}: <b>${inr(days?v/days:0)}</b>.`,lines:[`${inr(v)} from ${L.length} invoices on ${days} day${days===1?'':'s'}.`]}}
+  // discount given
+  if(has(/\bdiscount/)){let dsc=0;for(const b of bills(per))dsc+=billCalc(b.lines,b.ro).disc;return{head:`Discount given in ${sRange(per)}: <b>${inr(dsc)}</b>.`,lines:[]}}
+  // sales total (default)
+  if(has(/\b(sale|sales|sold|sell|revenue|turnover|business|earn|earned|income)\b/)||P.length){const L=bills(per),v=L.reduce((s,b)=>s+b.total,0),r=sRecv(per.from,per.to);
+    return{head:`Sales in ${sRange(per)}: <b>${inr(v)}</b> from ${L.length} invoice${L.length===1?'':'s'}.`,lines:[`Received: cash ${inr(r.cash)} · online ${inr(r.online)}.`]}}
+  return{head:'I can answer questions about your sales, invoices, customers, dues, stock, expiry, party payments, cash and online.',lines:['Try: “Sales this month”, “Top customers this year”, “Stock of Dolo 650”, “Who owes me most?”.']}}
+const SHEX=['Sales this month','Which day highest sales this month?','Top 5 selling medicines this year','Top customers this year','Who owes me most?','Expiring medicines','Low stock items','Cash received today','Compare sales Oct vs Nov','Party payments this month'];
+function shAskHTML(){return`<section class="card stack" id="shAsk"><h2>💬 Ask about your shop</h2><form id="askF" class="row" style="flex-wrap:nowrap" autocomplete="off"><input class="in" id="askQ" placeholder="e.g. Which day had the highest sales?" aria-label="Your question"><button class="btn pri" type="submit">Ask</button></form>
+  <div class="chips">${SHEX.map(x=>`<button type="button" class="chip" data-shask="${esc(x)}">${esc(x)}</button>`).join('')}</div><div id="askA" aria-live="polite"></div>
+  <p class="note" style="margin:0">Answers are worked out from your own data, on this device. Tap an underlined name, date or invoice to open it.</p></section>`}
+function bindShAsk(){const f=$('#askF');if(!f)return;const go=q=>{const a=shAnswer(q),el=$('#askA');el.innerHTML=a?`<div class="askbox"><p class="note" style="margin:0 0 4px">“${esc(q)}”</p><p style="margin:0 0 4px;font-size:15.5px;line-height:1.5">${a.head}</p>${a.lines.map(l=>`<p style="margin:2px 0;font-size:14px">${l}</p>`).join('')}</div>`:''};
+  f.onsubmit=e=>{e.preventDefault();go($('#askQ').value)};$$('[data-shask]').forEach(b=>b.onclick=()=>{$('#askQ').value=b.dataset.shask;go(b.dataset.shask)})}
+
 function viewHome(){const t=today(),ym=t.slice(0,7),Y=homeYear();let sT=0,cashT=0,nT=0,sY=0,nY=0;
   for(const b of DB.bills){if(b.date===t){sT+=b.total;nT++;cashT+=b.paid}if(b.date.startsWith(Y)){sY+=b.total;nY++}}
   for(const p of DB.pays)if(p.date===t)cashT+=p.amt;
@@ -462,6 +573,7 @@ function viewHome(){const t=today(),ym=t.slice(0,7),Y=homeYear();let sT=0,cashT=
    <div class="kpi"><span>Money received today</span><b class="grn">${inr(cashT)}</b></div><div class="kpi"><span>This month's nett</span><b>${inr((NM[ym]||{nett:0}).nett)}</b></div>
    <div class="kpi"><a href="#parties" style="text-decoration:none;color:inherit"><span>Due to collect</span><b class="red">${inr(udh)}</b></a></div></div>
    <a class="btn pri" href="#new" style="min-height:52px;font-size:16px">${ic('plus').replace('<svg','<svg width="22" height="22"')} New sale invoice</a>
+   ${shAskHTML()}
    ${cmpHTML()}
    <section class="card stack"><div class="row"><h2 class="sp">Nett amount by month</h2><a href="#parties/sup">Pay a party</a></div>
     <p class="note" style="margin:0">Nett = sales − (party payments + customer due still unpaid). When a customer pays, their oldest invoices are cleared first and that month's nett goes up. ${DB.sync&&DB.sync.token?'From '+ymL(DB.shop.linkFrom)+', this nett is added to your Business amount in Money Diary.':'Turn on sync in Settings to send this nett to Money Diary as your Business amount.'}</p>
@@ -476,7 +588,7 @@ function viewHome(){const t=today(),ym=t.slice(0,7),Y=homeYear();let sT=0,cashT=
     ${A.soon.length?`<h3 style="margin-top:10px">Expiring within 3 months · ${A.soon.length}</h3><div class="list">${A.soon.slice(0,12).map(([it,b])=>`<a class="li" href="#item/${it.id}"><span class="t"><b>${esc(it.name)}</b><small>Batch ${esc(b.b||'-')} · ${qB(it,b)} left</small></span><span class="pill p-amb">Exp ${expL(b.exp)}</span></a>`).join('')}</div>`:''}
     ${A.low.length?`<h3 style="margin-top:10px">Low stock · ${A.low.length}</h3><div class="list">${A.low.map(it=>`<a class="li" href="#item/${it.id}"><span class="t"><b>${esc(it.name)}</b><small>Alert at ${it.low}</small></span><span class="pill p-amb">${qtyOf(it)} left</span></a>`).join('')}</div>`:''}
    </section><section class="card"><div class="row"><h2 class="sp">Recent sale invoices</h2><a href="#bills">All invoices</a></div>
-    ${recent.length?`<div class="list">${recent.map(billLi).join('')}</div>`:'<p class="empty">No sale invoices yet. Tap New sale invoice to make your first one.</p>'}</section></div>`;bindCmp();$('#hy').onchange=e=>{st.hy=e.target.value;viewHome()}}
+    ${recent.length?`<div class="list">${recent.map(billLi).join('')}</div>`:'<p class="empty">No sale invoices yet. Tap New sale invoice to make your first one.</p>'}</section></div>`;bindCmp();bindShAsk();$('#hy').onchange=e=>{st.hy=e.target.value;viewHome()}}
 const PICON='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>';
 function printInv(b){const th=PS().paper==='th';return th?printThermal(b):doPrint(invHTML(b,false),false)}
 document.addEventListener('click',e=>{const x=e.target.closest('[data-prn]');if(!x||!DB)return;e.preventDefault();const b=DB.bills.find(y=>y.id===x.dataset.prn);if(!b)return;x.classList.add('on');setTimeout(()=>x.classList.remove('on'),600);printInv(b)});
@@ -719,9 +831,9 @@ function twoTap(btn,txt,fn){const o=btn.textContent;let armed=false;btn.onclick=
 function viewBills(){const t=today();
   $('#view').innerHTML=`<div class="row"><h2 class="sp">Sale invoices</h2><a class="btn pri sm" href="#new">+ New sale invoice</a></div>
    <input class="in" id="bq" type="search" placeholder="Search invoice no, customer or item" value="${esc(st.bq)}">
-   <div class="chips">${[['today','Today'],['month','This month'],['all','All']].map(([k,n])=>`<button class="chip ${st.bf===k?'on':''}" data-bf="${k}">${n}</button>`).join('')}</div>
+   <div class="chips">${[['today','Today'],['month','This month'],['all','All'],...(st.br?[['range',st.br.label]]:[])].map(([k,n])=>`<button class="chip ${st.bf===k?'on':''}" data-bf="${k}">${esc(n)}</button>`).join('')}</div>
    <section class="card" id="bl"></section>`;
-  const draw=()=>{const q=st.bq.trim().toLowerCase();const L=DB.bills.filter(b=>(st.bf==='all'||(st.bf==='today'?b.date===t:b.date.startsWith(t.slice(0,7))))&&(!q||b.no.toLowerCase().includes(q)||(b.cust?.name||'').toLowerCase().includes(q)||b.lines.some(l=>l.name.toLowerCase().includes(q)))).sort((a,b)=>b.date.localeCompare(a.date)||b.n-a.n);
+  const draw=()=>{const q=st.bq.trim().toLowerCase();const L=DB.bills.filter(b=>(st.bf==='all'||(st.bf==='range'&&st.br?b.date>=st.br.from&&b.date<=st.br.to:st.bf==='today'?b.date===t:b.date.startsWith(t.slice(0,7))))&&(!q||b.no.toLowerCase().includes(q)||(b.cust?.name||'').toLowerCase().includes(q)||b.lines.some(l=>l.name.toLowerCase().includes(q)))).sort((a,b)=>b.date.localeCompare(a.date)||b.n-a.n);
     const sum=L.reduce((s,b)=>s+b.total,0);$('#bl').innerHTML=L.length?`<p class="note" style="margin:0 0 4px">${L.length} invoice${L.length===1?'':'s'} · total <b style="color:var(--ink)">${inr(sum)}</b></p><div class="list">${L.map(billLi).join('')}</div>`:'<p class="empty">No sale invoices here.</p>'};
   $('#bq').oninput=e=>{st.bq=e.target.value;draw()};$$('[data-bf]').forEach(b=>b.onclick=()=>{st.bf=b.dataset.bf;viewBills()});draw()}
 

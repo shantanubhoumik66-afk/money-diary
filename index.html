@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.40">
+<meta name="app-version" content="2026.11.28.41">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -54,6 +54,7 @@ select,input[type=search]{min-height:44px;font:16px Inter,sans-serif;padding:0 1
 #askF{display:flex;gap:8px}#askF .in{flex:1;min-width:0;min-height:42px}#askF .btn{min-height:42px;padding:0 16px}
 .askchips{display:flex;gap:6px;overflow-x:auto;margin-top:8px;scrollbar-width:none}.askchips::-webkit-scrollbar{display:none}
 .hero .askchips .chip{flex:none;font-size:12px;padding:6px 10px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:inherit;border-radius:999px;cursor:pointer;white-space:nowrap}
+a.askgo{color:inherit;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;font-weight:800;cursor:pointer}a.askgo:hover{text-decoration-style:solid}
 #askA:not(:empty){margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.2)}
 .askq{margin:0 0 4px;font-size:12px;opacity:.75}.askr{margin:0 0 4px;font-size:15px;line-height:1.45}.askr b{font-size:17px}.askl{margin:2px 0;font-size:13px;opacity:.92;line-height:1.45}
 .ovl{display:flex;flex-direction:column;gap:12px;min-width:0}.ovnet span{font-size:13px;font-weight:600;display:block}.ovnet b{display:block;font:700 22px 'Space Grotesk',sans-serif;white-space:nowrap}
@@ -918,39 +919,50 @@ function askAnswer(raw){const q=' '+raw.toLowerCase().replace(/[’']/g,"'").rep
   if(met==='x'&&it&&!it.term&&!/\b(top|biggest|most|highest|where|which item|items)\b/.test(q)&&it.miss&&!mode)return{head:`I couldn’t find “${esc(it.miss)}” in your expenses.`,lines:['Check the spelling, or try a word from the item name (for example “petrol” or “fish”).']};
   // last time
   if(/\b(last time|when did i|last bought|last paid|last spent|last purchase)\b/.test(q)&&f.item){const r=askAgg(D,'0000-01-01',t,f);if(!r.last)return{head:`No expense found for ${esc(it.label)}.`,lines:[]};
-    return{head:`Last ${esc(r.last.item)}: <b>${dl(r.last.d)}</b>, ${inr(r.last.amt)}.`,lines:[`${r.xn} time${r.xn===1?'':'s'} in total · ${inr(r.x)} altogether.`]}}
+    return{head:`Last ${goItem(r.last.item)}: <b>${goDay(r.last.d)}</b>, ${inr(r.last.amt)}.`,lines:[`${r.xn} time${r.xn===1?'':'s'} in total · ${inr(r.x)} altogether.`]}}
   // compare two periods
   if(/\b(compare|compared|vs|versus|difference|against)\b/.test(q)&&P.length>=2){const a=askAgg(D,P[0].from,P[0].to,f),b=askAgg(D,P[1].from,P[1].to,f);const va=askVal(a,met),vb=askVal(b,met),d=vb-va;
-    return{head:`${esc(mlab)}: ${esc(P[0].label)} <b>${askFmt(met,va)}</b> vs ${esc(P[1].label)} <b>${askFmt(met,vb)}</b>.`,lines:[d?`${esc(P[1].label)} is ${d>0?'▲ higher':'▼ lower'} by <b>${askFmt(met,Math.abs(d))}</b>${va&&met!=='off'&&met!=='days'?` (${d>0?'+':'−'}${Math.abs(Math.round(d/va*100))}%)`:''}.`:'Both are the same.']}}
+    return{head:`${esc(mlab)}: ${goPer(P[0])} <b>${askFmt(met,va)}</b> vs ${goPer(P[1])} <b>${askFmt(met,vb)}</b>.`,lines:[d?`${esc(P[1].label)} is ${d>0?'▲ higher':'▼ lower'} by <b>${askFmt(met,Math.abs(d))}</b>${va&&met!=='off'&&met!=='days'?` (${d>0?'+':'−'}${Math.abs(Math.round(d/va*100))}%)`:''}.`:'Both are the same.']}}
   // top items
   if(/\b(top|biggest|highest|most|where)\b/.test(q)&&/\b(item|items|expense|expenses|spend|spending|spent|money go|money goes)\b/.test(q)&&!/\b(month|week|day)\b/.test(q.replace(/\bthis month|last month|this week|last week|today|yesterday\b/g,''))){
     const n=Math.min(20,+(q.match(/\btop (\d+)/)||[])[1]||5);const r=askAgg(D,per.from,per.to,{mode});const L=Object.values(r.items).sort((a,b)=>b.amt-a.amt).slice(0,n);
-    if(!L.length)return{head:`No expenses in ${esc(per.label)}.`,lines:[]};return{head:`Top ${L.length} expenses in ${esc(per.label)} (total ${inr(r.x)}):`,lines:L.map((x,i)=>`${i+1}. ${esc(x.name)}: <b>${inr(x.amt)}</b> (${x.n} time${x.n===1?'':'s'})`)}}
+    if(!L.length)return{head:`No expenses in ${esc(per.label)}.`,lines:[]};return{head:`Top ${L.length} expenses in ${goPer(per)} (total ${inr(r.x)}):`,lines:L.map((x,i)=>`${i+1}. ${goItem(x.name)}: <b>${inr(x.amt)}</b> (${x.n} time${x.n===1?'':'s'})`)}}
   // best / worst month or week
   const hi=/\b(best|highest|most|max|maximum|biggest|top)\b/.test(q),lo=/\b(worst|lowest|least|min|minimum|smallest)\b/.test(q);const unitM=q.match(/\b(month|week|day)\b/);
   if((hi||lo)&&unitM){const u=unitM[1];const rangeP=P.find(p=>p.unit==='year'||p.unit==='all')||defP;const keys=new Set();
     for(const d in D)if(d>=rangeP.from&&d<=rangeP.to&&d<=t)keys.add(u==='month'?d.slice(0,7):u==='week'?mondayOf(d):d);
     if(u==='month')for(const ym of Object.keys(DB.biz||{}))if(ym+'-01'>=rangeP.from&&ym+'-01'<=rangeP.to)keys.add(ym);
     const rows=[...keys].map(k=>{const from=u==='month'?k+'-01':k,to=u==='month'?mEnd(+k.slice(0,4),+k.slice(5,7)):u==='week'?addDays(k,6):k;return{k,v:askVal(askAgg(D,from,to,f),met)}}).filter(r=>met==='x'||r.v!==0||u!=='day');
-    if(!rows.length)return{head:`No data in ${esc(rangeP.label)}.`,lines:[]};rows.sort((a,b)=>lo?a.v-b.v:b.v-a.v);const lab=k=>u==='month'?ymLabel(k):u==='week'?wkLabel(k):dl(k);
-    return{head:`${lo?'Lowest':'Highest'} ${u} for ${esc(mlab.toLowerCase())} in ${esc(rangeP.label)}: <b>${esc(lab(rows[0].k))}</b>, ${askFmt(met,rows[0].v)}.`,lines:rows.slice(1,4).map((r,i)=>`${i+2}. ${esc(lab(r.k))}: ${askFmt(met,r.v)}`)}}
+    if(!rows.length)return{head:`No data in ${esc(rangeP.label)}.`,lines:[]};rows.sort((a,b)=>lo?a.v-b.v:b.v-a.v);const lab=k=>u==='month'?ymLabel(k):u==='week'?wkLabel(k):dl(k);const lnk=k=>u==='month'?goMon(k):u==='week'?goMon(k.slice(0,7),esc(wkLabel(k))):goDay(k);
+    return{head:`${lo?'Lowest':'Highest'} ${u} for ${esc(mlab.toLowerCase())} in ${esc(rangeP.label)}: <b>${lnk(rows[0].k)}</b>, ${askFmt(met,rows[0].v)}.`,lines:rows.slice(1,4).map((r,i)=>`${i+2}. ${lnk(r.k)}: ${askFmt(met,r.v)}`)}}
   // averages
   if(/\b(average|avg|per day|daily|per month|monthly|per week|weekly)\b/.test(q)&&met!=='off'&&met!=='days'){const r=askAgg(D,per.from,per.to,f);const end=per.to<t?per.to:t;
     const calDays=Math.max(1,(new Date(end+'T00:00')-new Date((per.from<'1990'?Object.keys(D).sort()[0]||t:per.from)+'T00:00'))/864e5+1);
-    const v=askVal(r,met);if(/\b(per month|monthly|average month)\b/.test(q)){const months=Math.max(1,new Set(Object.keys(D).filter(d=>d>=per.from&&d<=end).map(d=>d.slice(0,7))).size);return{head:`Average ${esc(mlab.toLowerCase())} per month in ${esc(per.label)}: <b>${inr(v/months)}</b>.`,lines:[`Total ${inr(v)} over ${months} month${months===1?'':'s'}.`]}}
-    if(/\b(per week|weekly)\b/.test(q)){const w=Math.max(1,calDays/7);return{head:`Average ${esc(mlab.toLowerCase())} per week in ${esc(per.label)}: <b>${inr(v/w)}</b>.`,lines:[`Total ${inr(v)} over ${Math.round(calDays)} days.`]}}
-    const base=['credit','m','e','nett'].includes(met)?r.days:calDays;return{head:`Average ${esc(mlab.toLowerCase())} per ${['credit','m','e','nett'].includes(met)?'working day':'day'} in ${esc(per.label)}: <b>${inr(base?v/base:0)}</b>.`,lines:[`Total ${inr(v)} over ${Math.round(base)} ${['credit','m','e','nett'].includes(met)?'working days':'days'}.`]}}
+    const v=askVal(r,met);if(/\b(per month|monthly|average month)\b/.test(q)){const months=Math.max(1,new Set(Object.keys(D).filter(d=>d>=per.from&&d<=end).map(d=>d.slice(0,7))).size);return{head:`Average ${esc(mlab.toLowerCase())} per month in ${goPer(per)}: <b>${inr(v/months)}</b>.`,lines:[`Total ${inr(v)} over ${months} month${months===1?'':'s'}.`]}}
+    if(/\b(per week|weekly)\b/.test(q)){const w=Math.max(1,calDays/7);return{head:`Average ${esc(mlab.toLowerCase())} per week in ${goPer(per)}: <b>${inr(v/w)}</b>.`,lines:[`Total ${inr(v)} over ${Math.round(calDays)} days.`]}}
+    const base=['credit','m','e','nett'].includes(met)?r.days:calDays;return{head:`Average ${esc(mlab.toLowerCase())} per ${['credit','m','e','nett'].includes(met)?'working day':'day'} in ${goPer(per)}: <b>${inr(base?v/base:0)}</b>.`,lines:[`Total ${inr(v)} over ${Math.round(base)} ${['credit','m','e','nett'].includes(met)?'working days':'days'}.`]}}
   // plain total for one period
-  const r=askAgg(D,per.from,per.to,f);const v=askVal(r,met);head=`${esc(mlab)}, ${esc(per.label)}: <b>${askFmt(met,v)}</b>.`;
-  if(met==='x'&&r.xn)lines.push(`${r.xn} payment${r.xn===1?'':'s'}${f.item&&r.last?` · last on ${dl(r.last.d)} (${inr(r.last.amt)})`:''}.`);
-  if(met==='x'&&!f.item&&!f.mode&&r.x){const top=Object.values(r.items).sort((a,b)=>b.amt-a.amt).slice(0,3);lines.push('Biggest: '+top.map(x=>`${esc(x.name)} ${inr(x.amt)}`).join(', ')+'.')}
+  const r=askAgg(D,per.from,per.to,f);const v=askVal(r,met);head=`${f.item?esc(mlab).replace(esc(it.label||f.item.toUpperCase()),goItem(it.label||f.item.toUpperCase(),esc(it.label||f.item.toUpperCase()))):esc(mlab)}, ${goPer(per)}: <b>${askFmt(met,v)}</b>.`;
+  if(met==='x'&&r.xn)lines.push(`${r.xn} payment${r.xn===1?'':'s'}${f.item&&r.last?` · last on ${goDay(r.last.d)} (${inr(r.last.amt)})`:''}.`);
+  if(met==='x'&&!f.item&&!f.mode&&r.x){const top=Object.values(r.items).sort((a,b)=>b.amt-a.amt).slice(0,3);lines.push('Biggest: '+top.map(x=>`${goItem(x.name)} ${inr(x.amt)}`).join(', ')+'.')}
   if(met==='credit')lines.push(`Morning ${inr(r.m)} · Evening ${inr(r.e)}${r.u?` · Total-only ${inr(r.u)}`:''} · ${r.days} working day${r.days===1?'':'s'}, ${r.off} off.`);
   if(met==='saved'||met==='net')lines.push(`Credit ${inr(r.credit)} + Business ${inr(Math.round(r.biz))} − Expenses ${inr(r.x)}${met==='net'?` − MF ${inr(Math.round(r.mf))}`:''}.`);
   if((met==='biz'||met==='mf'||met==='nett'||met==='saved'||met==='net')&&(per.unit==='day'||per.unit==='week'))lines.push('Business and MF are monthly, so they are spread evenly over the days.');
   return{head,lines}}
+/* answers link to the exact records so you can check them */
+const goA=(go,v,txt)=>`<a href="#" class="askgo" data-go="${go}" data-v="${esc(v)}">${txt}</a>`;
+const goDay=(d,txt)=>goA('day',d,txt||esc(dl(d)));
+const goMon=(ym,txt)=>goA('month',ym,txt||esc(ymLabel(ym)));
+const goItem=(name,txt)=>goA('item',name,txt||esc(name));
+const goPer=p=>p.unit==='day'?goDay(p.from,esc(p.label)):p.unit==='month'?goMon(p.from.slice(0,7),esc(p.label)):p.unit==='week'?goMon(p.from.slice(0,7),esc(p.label)):esc(p.label);
+document.addEventListener('click',e=>{const a=e.target.closest('[data-go]');if(!a)return;e.preventDefault();const v=a.dataset.v,g=a.dataset.go;
+  if(g==='day'){st.ed=v;location.hash==='#add'?render():location.hash='add'}
+  else if(g==='month'){st.iv='daily';st.month=v;location.hash==='#income'?render():location.hash='income'}
+  else if(g==='item'){st.q=v;location.hash==='#search'?render():location.hash='search'}
+  setTimeout(()=>scrollTo({top:0,behavior:'smooth'}),60)});
 const ASKEX=['How much spent on petrol this month?','Compare credit Oct vs Nov','Which month I saved most?','Top 5 expenses this year','Average daily credit last month','How many off days in October?','When did I last buy fish?','Cash expenses last week'];
 function askHTML(){return`<div class="ask"><div class="askh">💬 Ask about your money</div><form id="askF" autocomplete="off"><input class="in" id="askQ" placeholder="e.g. How much spent on fish in October?" aria-label="Your question"><button class="btn pri" type="submit">Ask</button></form>
-  <div class="askchips">${ASKEX.map(x=>`<button type="button" class="chip" data-ask="${esc(x)}">${esc(x)}</button>`).join('')}</div><div id="askA" aria-live="polite"></div></div>`}
+  <div class="askchips">${ASKEX.map(x=>`<button type="button" class="chip" data-ask="${esc(x)}">${esc(x)}</button>`).join('')}</div><div id="askA" aria-live="polite"></div><p class="askl" style="opacity:.7;margin-top:6px">Tap an underlined date, month or item to open that exact record.</p></div>`}
 function bindAsk(){const f=$('#askF');if(!f)return;const go=q=>{const a=askAnswer(q),el=$('#askA');el.innerHTML=a?`<p class="askq">“${esc(q)}”</p><p class="askr">${a.head}</p>${a.lines.map(l=>`<p class="askl">${l}</p>`).join('')}`:'<p class="askl">Type a question first.</p>'};
   f.onsubmit=e=>{e.preventDefault();go($('#askQ').value)};document.querySelectorAll('[data-ask]').forEach(b=>b.onclick=()=>{$('#askQ').value=b.dataset.ask;go(b.dataset.ask)})}
 
