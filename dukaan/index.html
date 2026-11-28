@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.46">
+<meta name="app-version" content="2026.11.28.47">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -351,7 +351,9 @@ function boot(){
    <a class="btn hide-m" style="margin-top:auto" href="../" aria-label="Open Money Diary" title="Money Diary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h7M8 11h5"/></svg><span>Money Diary</span></a>
    <button class="btn hide-m" id="lockB">${ic('lock').replace('<svg','<svg width="18" height="18"')} Lock</button></header>
    <main><div id="flash" class="msg" hidden style="margin-bottom:12px"></div><div id="view" class="stack"></div></main></div>`;
-  $('#lockB').onclick=lockNow;idle();render();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}try{localStorage.setItem('dukaan.link',DB.link.key)}catch(e){}askSave();syncNow();
+  $('#lockB').onclick=lockNow;idle();render();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}try{localStorage.setItem('dukaan.link',DB.link.key)}catch(e){}askSave();
+  {const e=DB.bills.filter(b=>b.imp).map(b=>b.date.slice(0,7)).sort()[0];if(e&&!DB.shop.impLinkFix&&DB.shop.linkFrom&&e<DB.shop.linkFrom){DB.shop.linkFrom=e;DB.shop.impLinkFix=1;DB.shop.t=Date.now();persist(true).catch(()=>{});setTimeout(()=>flash('✓ Your imported sales now go to Money Diary: nett is sent from '+ymL(e)+'. You can change this in Settings.'),400)}}
+  syncNow();
 }
 addEventListener('hashchange',()=>{if(DB)render()});
 function route(){const h=location.hash.slice(1)||'home';const[r,a]=h.split('/');return{r,a}}
@@ -819,7 +821,7 @@ async function invImpFile(f){try{let rows;
   catch(e){flash('Could not read this file: '+esc(e.message||'unknown error'),1)}}
 function viewInvImport(){const I=st.bimp;if(!I){location.hash='#bills';return}const hdr=I.hr>=0?I.rows[I.hr]:[];const W=Math.max(...I.rows.slice(0,20).map(r=>r.length));
   const{L,bad}=invImpRows();const nd=L.filter(x=>x.dup).length;const use=L.filter(x=>I.dup==='add'||!x.dup);
-  const T=use.reduce((a,x)=>({b:a.b+x.bill,p:a.p+x.pay,d:a.d+x.due}),{b:0,p:0,d:0});const lf=DB.shop.linkFrom||'';const md=lf?use.filter(x=>x.date.slice(0,7)>=lf):[];
+  const T=use.reduce((a,x)=>({b:a.b+x.bill,p:a.p+x.pay,d:a.d+x.due}),{b:0,p:0,d:0});const lf=DB.shop.linkFrom||'';const md=lf?use.filter(x=>x.date.slice(0,7)>=lf):[];const early=use.map(x=>x.date.slice(0,7)).filter(m=>lf&&m<lf).sort()[0]||'';
   const newC=new Set(use.filter(x=>x.name&&!DB.custs.some(c=>c.name.toLowerCase()===x.name.toLowerCase())).map(x=>x.name.toLowerCase())).size;
   const opt=k=>`<option value="">— not in file —</option>`+Array.from({length:W},(_,i)=>`<option value="${i}" ${String(I.map[k])===String(i)?'selected':''}>Column ${i+1}${hdr[i]!=null&&String(hdr[i]).trim()?': '+esc(String(hdr[i]).trim()):''}</option>`).join('');
   $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#bills">← Sale invoices</a></div>
@@ -834,16 +836,18 @@ function viewInvImport(){const I=st.bimp;if(!I){location.hash='#bills';return}co
     <ul class="note" style="margin:0;padding-left:18px">
      <li>Discount = Bill amount − Payable amount. Received = Payable − Due. Each due goes on that client’s account${newC?` (${newC} new client${newC===1?'':'s'} will be added to Parties)`:''}.</li>
      <li>These invoices have only totals, so <b>stock is not changed</b>.</li>
-     ${md.length?`<li class="red"><b>${md.length} invoice${md.length===1?' is':'s are'} from ${ymL(lf)} or later.</b> Their sales will also go into Money Diary’s Business amount for those months (you send nett from ${ymL(lf)}).</li>`:`<li>Money Diary is not affected (all dates are before ${lf?ymL(lf):'the link month'}).</li>`}</ul>
+     ${md.length?`<li class="red"><b>${md.length} invoice${md.length===1?' is':'s are'} from ${ymL(lf)} or later.</b> Their sales will also go into Money Diary’s Business amount for those months (you send nett from ${ymL(lf)}).</li>`:''}</ul>
+    ${early?`<label class="row" style="gap:10px;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" id="bLink" ${I.link!==false?'checked':''} style="width:22px;height:22px;flex:none;margin-top:2px"><span>Send these months’ nett to Money Diary too (from <b>${ymL(early)}</b>)<br><small class="note">Keep this on if you removed the Business amounts you typed by hand for these months. Turn it off if you still have them typed, or they will be counted twice.</small></span></label>`:''}
     <button class="btn pri" id="bImpGo" style="min-height:50px" ${use.length?'':'disabled'}>Import ${use.length} sale invoice${use.length===1?'':'s'}</button></section>`;
   $$('[data-bmap]').forEach(x=>x.onchange=()=>{I.map[x.dataset.bmap]=x.value===''?null:+x.value;viewInvImport()});
-  if($('#bDup'))$('#bDup').onchange=e=>{I.dup=e.target.value;viewInvImport()};
+  if($('#bDup'))$('#bDup').onchange=e=>{I.dup=e.target.value;viewInvImport()};if($('#bLink'))$('#bLink').onchange=e=>{I.link=e.target.checked};
   $('#bImpGo').onclick=async()=>{const imp=uid(),now=Date.now();let k=0;const madeC=new Set();
     for(const x of [...use].sort((a,b)=>a.date.localeCompare(b.date)||a.row-b.row)){let cust=null;
       if(x.name){cust=DB.custs.find(c=>c.name.toLowerCase()===x.name.toLowerCase());if(!cust){cust={id:uid(),name:x.name,phone:'',addr:'',imp,t:now};DB.custs.push(cust);madeC.add(cust.id)}}
       const pct=x.bill>0?(x.bill-x.pay)/x.bill*100:0;const line={name:'OLD SALE (IMPORTED)',qty:1,rate:x.bill,disc:pct,gst:0};const amt=lineCalc(line).amt;
       DB.bills.push({id:uid(),n:DB.seq,no:(DB.shop.prefix||'')+DB.seq,date:x.date,cust:cust?{id:cust.id,name:cust.name,phone:cust.phone||''}:null,lines:[line],disc:r2(pct),ro:r2(x.pay-amt),total:x.pay,paid:x.paid,recv:x.paid,mode:x.paid<=0?'Due':x.mode==='Due'?'Cash':x.mode,imp,impFile:I.file,t0:now+k,t:now+k});DB.seq++;k++}
-    await persist();st.bimp=null;st.bf='all';st.bq='';location.hash='#bills';setTimeout(()=>flash(`✓ Imported ${k} sale invoice${k===1?'':'s'}${madeC.size?` and ${madeC.size} new client${madeC.size===1?'':'s'}`:''}. You can undo it at the bottom of this page.`),60)}}
+    let moved='';if(early&&I.link!==false){DB.shop.linkFrom=early;DB.shop.impLinkFix=1;DB.shop.t=Date.now();moved=' Nett now goes to Money Diary from '+ymL(early)+'.'}
+    await persist();st.bimp=null;st.bf='all';st.bq='';location.hash='#bills';setTimeout(()=>flash(`✓ Imported ${k} sale invoice${k===1?'':'s'}${madeC.size?` and ${madeC.size} new client${madeC.size===1?'':'s'}`:''}. You can undo it at the bottom of this page.${moved}`),60)}}
 function invImports(){const G=new Map();for(const b of DB.bills){if(!b.imp)continue;const g=G.get(b.imp)||{id:b.imp,file:b.impFile||'file',n:0,tot:0,t:b.t0||b.t};g.n++;g.tot+=b.total;G.set(b.imp,g)}return[...G.values()].sort((a,b)=>b.t-a.t)}
 function invImpCard(){const L=invImports();if(!L.length)return'';return`<section class="card stack"><h2>Imported from files</h2>${L.map(g=>`<div class="row"><span class="sp"><b>${esc(g.file)}</b><br><small class="note">${g.n} invoice${g.n===1?'':'s'} · ${inr(g.tot)} · ${new Date(g.t).toLocaleDateString('en-IN')}</small></span><button class="btn sm red" data-bundo="${g.id}">Undo import</button></div>`).join('')}</section>`}
 function bindInvImpCard(){$$('[data-bundo]').forEach(btn=>twoTap(btn,'Tap again to remove',async()=>{const id=btn.dataset.bundo;const bs=DB.bills.filter(b=>b.imp===id);const ids=new Set(bs.map(b=>b.id));
