@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.11">
+<meta name="app-version" content="2026.11.28.12">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -407,7 +407,7 @@ function payMsg(rest,name){return rest>0.5?`<span class="pill p-red">Due ${inr(r
 function payCalc(){const D=st.draft,L=cleanLines(),t=billCalc(L,D.ro),pDue=num(D.pdue),pDep=num(D.pdep);const nett=r2(t.total+pDue-pDep);
   return{D,L,t,pDue,pDep,acct:draftPrev(),nett,dp:num(D.disc),recv:D.paid===''?Math.max(0,nett):num(D.paid)}}
 function totHTML(){const{t,pDue,pDep,nett,dp}=payCalc();
-  return`<div class="tot"><span>Total amount (MRP × Qty)</span><span>${inr(t.gross)}</span>
+  return`<div class="tot"><span>Total amount</span><span>${inr(t.gross)}</span>
    ${t.disc?`<span>Discount ${r2(dp)}%</span><span>−${inr(t.disc)}</span>`:''}
    ${Math.abs(t.round)>=0.005?`<span>Round off</span><span>${t.round>0?'+':''}${r2(t.round)}</span>`:''}
    ${pDue||pDep?`<span>Invoice amount</span><span><b>${inr(t.total)}</b></span>`:''}
@@ -474,7 +474,7 @@ function invHTML(b,thermal){const S=DB.shop,P=PS(),ph=isPh();const{t,pDue,pDep,n
    <div ${thermal?'':'style="text-align:right"'}><b>SALE INVOICE</b>${P.invno?`<div>No: ${esc(b.no)}</div>`:''}<div>Date: ${dl(b.date)}</div>${P.cust&&b.cust?`<div>To: ${esc(b.cust.name)}${P.custPhone&&b.cust.phone?' · '+esc(b.cust.phone):''}</div>`:''}</div></div>`;
   const rows=thermal?`<thead><tr><th>Item</th><th class="r">Qty</th><th class="r">MRP</th><th class="r">Amt</th></tr></thead><tbody>${b.lines.map(l=>`<tr><td>${esc(l.name)}${showB&&l.batch?`<br><small>B:${esc(l.batch)} E:${expL(l.exp)}</small>`:''}</td><td class="r">${l.qty}</td><td class="r">${r2(l.rate)}</td><td class="r">${r2(l.qty*l.rate).toFixed(2)}</td></tr>`).join('')}</tbody>`
    :`<thead><tr><th>#</th><th>Item</th>${showB?'<th>Batch</th><th>Exp</th>':''}${showH?'<th>HSN</th>':''}<th class="r">Qty</th><th class="r">MRP</th>${P.gstCol?'<th class="r">GST</th>':''}<th class="r">Amount</th></tr></thead><tbody>${b.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.name)}</td>${showB?`<td>${esc(l.batch||'')}</td><td>${expL(l.exp)}</td>`:''}${showH?`<td>${esc(l.hsn||'')}</td>`:''}<td class="r">${l.qty}</td><td class="r">${r2(l.rate).toFixed(2)}</td>${P.gstCol?`<td class="r">${l.gst}%</td>`:''}<td class="r">${r2(l.qty*l.rate).toFixed(2)}</td></tr>`).join('')}</tbody>`;
-  const sum=`<div class="sum"><span>Total amount (MRP × Qty)</span><span>${r2(t.gross).toFixed(2)}</span>
+  const sum=`<div class="sum"><span>Total amount</span><span>${r2(t.gross).toFixed(2)}</span>
    ${t.disc?`<span>Discount ${r2(dpc)}%</span><span>−${r2(t.disc).toFixed(2)}</span>`:''}
    ${Math.abs(t.round)>=0.005?`<span>Round off</span><span>${r2(t.round).toFixed(2)}</span>`:''}
    ${(P.prev&&(pDue||pDep))?`<span>Invoice amount</span><span>${b.total.toFixed(2)}</span>${pDue?`<span>Prev. due</span><span>+${r2(pDue).toFixed(2)}</span>`:''}${pDep?`<span>Prev. dep.</span><span>−${r2(pDep).toFixed(2)}</span>`:''}`:''}
@@ -537,7 +537,7 @@ function escpos(b){const S=DB.shop,P=PS(),ph=isPh(),W=prnCfg().cols;const{t,pDue
   for(const l of b.lines){const nm=wrap(l.name,n-1);const nums=String(l.qty).padStart(q)+r2(l.rate).toFixed(2).padStart(m)+r2(l.qty*l.rate).toFixed(2).padStart(a);
     T(nm[0].padEnd(n)+nums);NL();for(const x of nm.slice(1)){T(x);NL()}
     if(ph&&P.batch&&(l.batch||l.exp)){T('  Batch '+(l.batch||'-')+'  Exp '+(expL(l.exp)||'-'));NL()}}
-  line();lr('Total amount (MRP x Qty)',r2(t.gross).toFixed(2));if(t.disc)lr('Discount '+r2(dpc)+'%','-'+r2(t.disc).toFixed(2));
+  line();lr('Total amount',r2(t.gross).toFixed(2));if(t.disc)lr('Discount '+r2(dpc)+'%','-'+r2(t.disc).toFixed(2));
   if(Math.abs(t.round)>=0.005)lr('Round off',r2(t.round).toFixed(2));
   if(P.prev&&(pDue||pDep)){lr('Invoice amount',b.total.toFixed(2));if(pDue)lr('Prev. due','+'+r2(pDue).toFixed(2));if(pDep)lr('Prev. dep.','-'+r2(pDep).toFixed(2))}
   E(27,69,1);E(29,33,0x01);lr('NETT TOTAL','Rs.'+(P.prev?nett:b.total).toFixed(2));E(29,33,0);E(27,69,0);
