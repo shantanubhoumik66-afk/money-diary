@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.22">
+<meta name="app-version" content="2026.11.28.23">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -182,7 +182,7 @@ async function setPin(pin,noSync){SALT=crypto.getRandomValues(new Uint8Array(16)
 const newLink=()=>({key:b64(crypto.getRandomValues(new Uint8Array(32))),t:Date.now()});
 const blank=()=>({v:2,shop:{name:'',addr:'',phone:'',gstin:'',mode:'pharmacy',prefix:'INV-',taxIncl:true,upi:'',footer:'Thank you! Please visit again.',dl:'',t:0},items:[],bills:[],custs:[],pays:[],sups:[],spays:[],ins:[],del:{},seq:1,link:newLink()});
 function upgrade(db){const now=Date.now();
-  for(const k of['items','bills','custs','pays','sups','spays','ins'])db[k]=db[k]||[];if(!db.shop.linkFrom)db.shop.linkFrom=nextYM();db.del=db.del||{};if(!db.link)db.link=newLink();
+  for(const k of['items','bills','custs','pays','sups','spays','ins'])db[k]=db[k]||[];if(!db.shop.linkFrom)db.shop.linkFrom=nextYM();if(!db.upItems){for(const it of db.items)if(it.name!==it.name.toUpperCase()){it.name=it.name.toUpperCase();it.t=Date.now()}db.upItems=1}db.del=db.del||{};if(!db.link)db.link=newLink();
   if((db.v||1)<2){const sold={};for(const b of db.bills)for(const l of b.lines){const k=l.itemId+'|'+l.batchId;sold[k]=(sold[k]||0)+l.qty}
     for(const it of db.items){it.t=it.t||now;for(const bt of it.batches){const q=r2((+bt.qty||0)+(sold[it.id+'|'+bt.id]||0));if(q)db.ins.push({id:uid(),item:it.id,batch:bt.id,qty:q,date:today(),note:'Opening stock',t:now});delete bt.qty}}
     for(const x of[...db.custs,...db.pays,...db.bills])x.t=x.t||now;db.shop.t=db.shop.t||now;db.v=2}
@@ -263,6 +263,7 @@ const dateBox=(id,v)=>`<input class="in" id="${id}" type="date" value="${esc(v||
 document.addEventListener('click',e=>{const b=e.target.closest('[data-dstep],[data-dtoday]');if(!b)return;const inp=document.getElementById(b.dataset.for||b.dataset.dtoday);if(!inp)return;
   let v=today();if(b.dataset.dstep){const[y,m,d]=(inp.value||today()).split('-').map(Number);const dt=new Date(y,m-1,d+ +b.dataset.dstep);v=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate())}
   inp.value=v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}))});
+document.addEventListener('input',e=>{const x=e.target;if(x.id!=='i_name')return;const a=x.selectionStart,b=x.selectionEnd,u=x.value.toUpperCase();if(u!==x.value){x.value=u;try{x.setSelectionRange(a,b)}catch(_){}}});
 /* ---------- state ---------- */
 const st={draft:null,q:'',filter:'all',bq:'',bf:'month',pq:''};
 const newDraft=()=>({date:today(),cust:{name:'',phone:''},lines:[],paid:'',mode:'Cash',disc:'0',ro:'',pdue:'',pdep:''});
@@ -612,10 +613,10 @@ function viewStock(){const ph=isPh(),A=alerts();const exS=new Set(A.ex.map(x=>x[
     $('#sl').innerHTML=L.length?`<div class="list">${L.map(i=>{const s=qtyOf(i);const near=ph?goodBatches(i)[0]:null;return`<a class="li" href="#item/${i.id}"><span class="t"><b>${esc(i.name)}</b><small>${[i.salt,i.rack?'Rack '+i.rack:'',ph&&near&&near.exp?'Next exp '+expL(near.exp):''].filter(Boolean).map(esc).join(' · ')||esc(i.unit||'')}</small></span><span class="a">${inr(i.price)}<br><span class="pill ${s<=0?'p-red':loS.has(i.id)?'p-amb':'p-gry'}">${s} ${esc(i.unit||'')}</span>${exS.has(i.id)?' <span class="pill p-red">Expired</span>':soS.has(i.id)?' <span class="pill p-amb">Exp soon</span>':''}</span></a>`}).join('')}</div>`
      :`<p class="empty">${DB.items.length?'No items match.':'No items yet. Tap <b>+ Add item</b> to add your first one.'}</p>`};
   $('#sq').oninput=e=>{st.q=e.target.value;draw()};$$('[data-f]').forEach(b=>b.onclick=()=>{st.filter=b.dataset.f;viewStock()});draw()}
-function viewItem(id){const ph=isPh();const isNew=id==='new';const it=isNew?{id:uid(),name:st.newName||'',salt:'',hsn:'',gst:ph?12:18,price:'',unit:ph?'strip':'pcs',low:'',rack:'',batches:[]}:itemById(id);st.newName='';
+function viewItem(id){const ph=isPh();const isNew=id==='new';const it=isNew?{id:uid(),name:(st.newName||'').toUpperCase(),salt:'',hsn:'',gst:ph?12:18,price:'',unit:ph?'strip':'pcs',low:'',rack:'',batches:[]}:itemById(id);st.newName='';
   if(!it){location.hash='#stock';return}
   $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#stock">← Stock</a></div><div class="two"><form class="card stack" id="itf"><h2>${isNew?'Add item':'Edit item'}</h2>
-   <label class="f">${ph?'Medicine name':'Item name'}<input class="in" id="i_name" required value="${esc(it.name)}"></label>
+   <label class="f">${ph?'Medicine name':'Item name'}<input class="in" id="i_name" required value="${esc(it.name)}" autocapitalize="characters" style="text-transform:uppercase"></label>
    ${ph?`<label class="f">Salt / composition (optional)<input class="in" id="i_salt" value="${esc(it.salt||'')}" placeholder="e.g. Paracetamol 650mg"></label>`:''}
    <div class="grid g2"><label class="f">${ph?'MRP / sale price ₹':'Sale price ₹'}<input class="in" id="i_price" inputmode="decimal" required value="${esc(it.price)}"></label>
    <label class="f">Unit<input class="in" id="i_unit" value="${esc(it.unit||'')}" placeholder="${ph?'strip, bottle':'pcs, kg'}"></label>
@@ -635,7 +636,7 @@ function viewItem(id){const ph=isPh();const isNew=id==='new';const it=isNew?{id:
       const bn=id=>{const x=it.batches.find(y=>y.id===id);return x&&x.b?' · Batch '+x.b:''};
       return H.length?`<table class="t" style="margin-top:8px"><thead><tr><th>Date</th><th>What</th><th class="r">Qty</th><th></th></tr></thead><tbody>${H.map(h=>`<tr><td>${dl(h.d)}</td><td>${esc(h.w+bn(h.b))}</td><td class="r ${h.q<0?'red':'grn'}">${h.q>0?'+':''}${h.q}</td><td class="r">${h.id?`<button class="btn sm" type="button" data-undo="${h.id}" style="min-height:28px;padding:0 8px" aria-label="Undo this entry">Undo</button>`:''}</td></tr>`).join('')}</tbody></table>`:'<p class="note">No stock changes yet.</p>'})()}</details></section>`}</div>`;
   const val=k=>$('#i_'+k)?$('#i_'+k).value.trim():'';
-  $('#itf').onsubmit=async e=>{e.preventDefault();const name=val('name');if(!name)return;
+  $('#itf').onsubmit=async e=>{e.preventDefault();const name=val('name').toUpperCase();if(!name)return;
     if(DB.items.some(x=>x.id!==it.id&&x.name.toLowerCase()===name.toLowerCase())){$('#im').className='red';$('#im').textContent='An item with this name already exists.';return}
     Object.assign(it,{name,salt:val('salt'),price:num(val('price')),gst:0,unit:val('unit'),hsn:it.hsn||'',low:num(val('low')),rack:val('rack'),t:Date.now()});
     if(isNew){const q=num($('#n_q').value);const bt={id:uid(),b:ph?$('#n_b').value.trim():'',exp:ph?$('#n_exp').value:''};it.batches.push(bt);DB.items.push(it);if(q)DB.ins.push({id:uid(),item:it.id,batch:bt.id,qty:q,date:today(),note:'Opening stock',t:Date.now()})}
