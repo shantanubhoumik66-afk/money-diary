@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.10">
+<meta name="app-version" content="2026.11.28.11">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -257,7 +257,7 @@ document.addEventListener('visibilitychange',()=>{if(DB&&!document.hidden)syncNo
 
 /* ---------- state ---------- */
 const st={draft:null,q:'',filter:'all',bq:'',bf:'month',pq:''};
-const newDraft=()=>({date:today(),cust:{name:'',phone:''},lines:[],paid:'',mode:'Cash',disc:'0'});
+const newDraft=()=>({date:today(),cust:{name:'',phone:''},lines:[],paid:'',mode:'Cash',disc:'0',ro:'',pdue:'',pdep:''});
 const isPh=()=>DB.shop.mode==='pharmacy';
 const itemById=id=>DB.items.find(i=>i.id===id);
 const custById=id=>DB.custs.find(c=>c.id===id);
@@ -267,8 +267,8 @@ const qtyOf=it=>r2(it.batches.reduce((s,b)=>s+qB(it,b),0));
 function goodBatches(it){return it.batches.filter(b=>qB(it,b)>0).sort((a,b)=>(monthsLeft(a.exp)<0)-(monthsLeft(b.exp)<0)||String(a.exp||'9999').localeCompare(String(b.exp||'9999')))}
 function lineCalc(l){const g=0,gross=(+l.qty||0)*(+l.rate||0),d=gross*(+l.disc||0)/100;let amt=gross-d,taxable,tax;
   if(true){taxable=amt/(1+g/100);tax=amt-taxable}else{taxable=amt;tax=amt*g/100;amt=taxable+tax}return{gross,d,taxable,tax,amt}}
-function billCalc(lines){const t={taxable:0,tax:0,amt:0,disc:0,gross:0,byRate:{}};for(const l of lines){const c=lineCalc(l);t.gross+=c.gross;t.taxable+=c.taxable;t.tax+=c.tax;t.amt+=c.amt;t.disc+=c.d;
-  const k=+l.gst||0;const r=t.byRate[k]||(t.byRate[k]={taxable:0,tax:0});r.taxable+=c.taxable;r.tax+=c.tax}t.total=Math.round(t.amt);t.round=t.total-t.amt;return t}
+function billCalc(lines,ro){const t={taxable:0,tax:0,amt:0,disc:0,gross:0,byRate:{}};for(const l of lines){const c=lineCalc(l);t.gross+=c.gross;t.taxable+=c.taxable;t.tax+=c.tax;t.amt+=c.amt;t.disc+=c.d;
+  const k=+l.gst||0;const r=t.byRate[k]||(t.byRate[k]={taxable:0,tax:0});r.taxable+=c.taxable;r.tax+=c.tax}if(ro!=null&&ro!==''&&isFinite(+ro)){t.round=r2(+ro);t.total=r2(t.amt+t.round)}else{t.total=Math.round(t.amt);t.round=t.total-t.amt}return t}
 function dueOf(cid){let d=0;for(const b of DB.bills)if(b.cust&&b.cust.id===cid)d+=b.total-b.paid;for(const p of DB.pays)if(p.cust===cid)d-=p.amt;return r2(d)}
 function flash(t,err){const m=$('#flash');if(!m)return;m.className='msg'+(err?' err':'');m.innerHTML=t;m.hidden=false;clearTimeout(flash.t);flash.t=setTimeout(()=>{m.hidden=true},6000)}
 
@@ -351,7 +351,7 @@ function viewHome(){const t=today(),ym=t.slice(0,7);let sT=0,cashT=0,nT=0;
 function billLi(b){const bal=invNums(b).bal;return`<a class="li" href="#inv/${b.id}"><span class="t"><b>${esc(b.no)} · ${esc(b.cust?.name||'Walk-in customer')}</b><small>${dl(b.date)} · ${b.lines.length} item${b.lines.length===1?'':'s'} · ${esc(modeL(b.mode))}</small></span><span class="a">${inr(b.total)}${bal>0.5?`<br><span class="pill p-red">Due ${inr(bal)}</span>`:''}</span></a>`}
 
 /* ---------- sale invoice (new or edit) ---------- */
-const PDEF={addr:1,phone:1,dl:1,cust:1,custPhone:1,batch:1,prev:1,footer:1,upi:1,paper:'a4'};
+const PDEF={invno:0,addr:1,phone:1,dl:1,cust:1,custPhone:1,batch:1,prev:1,footer:1,upi:1,paper:'a4'};
 const PS0=PDEF;
 const PS=()=>Object.assign({},PDEF,DB.shop.print||{});
 /* customer's balance before an invoice: due (+) or deposit (−). Only bills/payments made before it count. */
@@ -404,20 +404,30 @@ function drawLines(){const D=st.draft,ph=isPh(),el=$('#lines');
   el.onclick=e=>{const d=e.target.dataset.del;if(d!==undefined){D.lines.splice(+d,1);drawLines();drawPay()}}}
 function cleanLines(){const dp=num(st.draft.disc);return st.draft.lines.map(l=>({...l,qty:num(l.qty),rate:num(l.rate),disc:dp})).filter(l=>l.qty>0)}
 function payMsg(rest,name){return rest>0.5?`<span class="pill p-red">Due ${inr(rest)}</span> will stay on ${esc(name||'the customer')}'s account`:rest<-0.5?(custByName(name)?`<span class="pill p-grn">Deposit ${inr(-rest)}</span> will be kept on ${esc(name)}'s account`:`Return change: <b>${inr(-rest)}</b>`):'<span class="pill p-grn">Fully paid</span>'}
-function payCalc(){const D=st.draft,L=cleanLines(),t=billCalc(L),pb=draftPrev();const nett=r2(t.total+pb);return{D,L,t,pb,pDue:Math.max(0,pb),pDep:Math.max(0,-pb),nett,dp:num(D.disc),recv:D.paid===''?Math.max(0,nett):num(D.paid)}}
+function payCalc(){const D=st.draft,L=cleanLines(),t=billCalc(L,D.ro),pDue=num(D.pdue),pDep=num(D.pdep);const nett=r2(t.total+pDue-pDep);
+  return{D,L,t,pDue,pDep,acct:draftPrev(),nett,dp:num(D.disc),recv:D.paid===''?Math.max(0,nett):num(D.paid)}}
 function totHTML(){const{t,pDue,pDep,nett,dp}=payCalc();
   return`<div class="tot"><span>Total amount (MRP × Qty)</span><span>${inr(t.gross)}</span>
    ${t.disc?`<span>Discount ${r2(dp)}%</span><span>−${inr(t.disc)}</span>`:''}
    ${Math.abs(t.round)>=0.005?`<span>Round off</span><span>${t.round>0?'+':''}${r2(t.round)}</span>`:''}
    ${pDue||pDep?`<span>Invoice amount</span><span><b>${inr(t.total)}</b></span>`:''}
-   ${pDue?`<span>Prev. due</span><span class="red">+${inr(pDue)}</span>`:''}${pDep?`<span>Prev. dep. (deposit)</span><span class="grn">−${inr(pDep)}</span>`:''}
-   <span class="big">Nett total</span><span class="big">${inr(nett)}</span></div>
-`}
-function refreshTot(){const{D,nett,recv}=payCalc();if(!$('#totBox'))return;$('#totBox').innerHTML=totHTML();$('#pd').placeholder=Math.max(0,nett);$('#balL').innerHTML=payMsg(nett-recv,D.cust.name);
-  $$('[data-dp]').forEach(x=>x.classList.toggle('on',+x.dataset.dp===num(D.disc)&&$('#dpc').value===''))}
+   ${pDue?`<span>Prev. due</span><span class="red">+${inr(pDue)}</span>`:''}${pDep?`<span>Prev. dep.</span><span class="grn">−${inr(pDep)}</span>`:''}
+   <span class="big">Nett total</span><span class="big">${inr(nett)}</span></div>`}
+function acctHint(){const{D,acct}=payCalc();const c=custByName(D.cust.name);if(!c||Math.abs(acct)<0.5)return'';
+  const same=acct>0?num(D.pdue)===acct&&!num(D.pdep):num(D.pdep)===-acct&&!num(D.pdue);if(same)return'';
+  return`<button type="button" class="chip" id="useAcct" style="border-color:${acct>0?'#f3c3c9':'#bde5cc'}">${acct>0?'Account due':'Account deposit'} ${inr(Math.abs(acct))} · tap to fill</button>`}
+function refreshTot(){const{D,t,nett,recv}=payCalc();if(!$('#totBox'))return;$('#totBox').innerHTML=totHTML();$('#pd').placeholder=Math.max(0,nett);$('#balL').innerHTML=payMsg(nett-recv,D.cust.name);
+  $('#roIn').placeholder=(D.ro===''||D.ro==null)?String(r2(billCalc(cleanLines()).round)):'';
+  $$('[data-dp]').forEach(x=>x.classList.toggle('on',+x.dataset.dp===num(D.disc)&&$('#dpc').value===''));
+  const h=$('#acctHint');if(h){h.innerHTML=acctHint();const u=$('#useAcct');if(u)u.onclick=()=>{const a=payCalc().acct;D.pdue=a>0?String(a):'';D.pdep=a<0?String(-a):'';$('#pdue').value=D.pdue;$('#pdep').value=D.pdep;refreshTot()}}}
 function drawPay(){const{D,L,dp}=payCalc(),el=$('#payBox');if(!el)return;const QUICK=[0,5,10,15,20];
   el.innerHTML=`<h2>Payment</h2>
    <div><span style="font-size:13px;font-weight:700;color:var(--muted)">Discount %</span><div class="chips" style="margin-top:6px" role="group" aria-label="Discount percent">${QUICK.map(x=>`<button type="button" class="chip ${dp===x&&(QUICK.includes(dp))?'on':''}" data-dp="${x}">${x?x+'%':'None'}</button>`).join('')}<input class="in" id="dpc" inputmode="decimal" placeholder="Other %" value="${QUICK.includes(dp)?'':esc(D.disc)}" style="width:100px;min-height:36px;flex:none" aria-label="Other discount percent"></div></div>
+   <div class="grid g3"><label class="f">Round off ₹<input class="in" id="roIn" inputmode="decimal" value="${D.ro==null?'':esc(D.ro)}" aria-describedby="roNote"></label>
+    <label class="f">Prev. due ₹<input class="in" id="pdue" inputmode="decimal" value="${esc(D.pdue||'')}" placeholder="0"></label>
+    <label class="f">Prev. dep. ₹<input class="in" id="pdep" inputmode="decimal" value="${esc(D.pdep||'')}" placeholder="0"></label></div>
+   <p class="note" id="roNote" style="margin:-4px 0 0">Round off fills itself; type to change it (e.g. -2 or 0.5). Prev. due and Prev. dep. print only when you fill them.</p>
+   <div id="acctHint"></div>
    <div id="totBox"></div>
    <div class="chips" role="group" aria-label="Payment mode">${['Cash','UPI','Card','Due'].map(m=>`<button type="button" class="chip ${D.mode===m?'on':''}" data-mode="${m}">${m}</button>`).join('')}</div>
    <label class="f">Amount received ₹<input class="in" id="pd" inputmode="decimal" value="${D.paid===''?'':esc(D.paid)}"></label>
@@ -426,35 +436,42 @@ function drawPay(){const{D,L,dp}=payCalc(),el=$('#payBox');if(!el)return;const Q
    <button class="btn pri" id="saveB" style="min-height:50px;font-size:16px" ${L.length?'':'disabled'}>${D.editId?'Save changes':'Save sale invoice'}</button><p id="bm" class="note" style="margin:0"></p>`;
   el.querySelectorAll('[data-dp]').forEach(b=>b.onclick=()=>{D.disc=b.dataset.dp;$('#dpc').value='';refreshTot()});
   $('#dpc').oninput=e=>{D.disc=e.target.value===''?'0':e.target.value;refreshTot()};
+  $('#roIn').oninput=e=>{D.ro=e.target.value.trim()===''?'':e.target.value.trim();refreshTot()};
+  $('#pdue').oninput=e=>{D.pdue=e.target.value;refreshTot()};$('#pdep').oninput=e=>{D.pdep=e.target.value;refreshTot()};
   el.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{D.mode=b.dataset.mode;if(D.mode==='Due')D.paid='0';else if(D.paid==='0')D.paid='';drawPay()});
   $('#pd').oninput=e=>{D.paid=e.target.value;refreshTot()};
   $('#bd').onchange=e=>{D.date=e.target.value||today()};
   $('#saveB').onclick=saveBill;refreshTot()}
-async function saveBill(){const D=st.draft,L=cleanLines(),t=billCalc(L),bm=$('#bm');if(!L.length)return;
-  const name=D.cust.name.trim(),phone=D.cust.phone.trim();const pb=draftPrev(),nett=r2(t.total+pb);
+async function saveBill(){const D=st.draft,L=cleanLines(),bm=$('#bm');if(!L.length)return;
+  const{t,pDue,pDep,nett,acct}=payCalc();const name=D.cust.name.trim(),phone=D.cust.phone.trim();
   const recv=r2(D.paid===''?Math.max(0,nett):num(D.paid));
   if(nett-recv>0.5&&!name){bm.className='red';bm.textContent='Type the customer name to keep the due on their account.';$('#cn').focus();return}
+  if((pDue||pDep)&&!name){bm.className='red';bm.textContent='Type the customer name for Prev. due / Prev. dep.';$('#cn').focus();return}
   let cust=null;if(name){cust=DB.custs.find(c=>c.name.toLowerCase()===name.toLowerCase()&&(!phone||!c.phone||c.phone===phone));
     if(!cust){cust={id:uid(),name,phone,addr:'',t:Date.now()};DB.custs.push(cust)}else if(phone&&!cust.phone){cust.phone=phone;cust.t=Date.now()}}
   for(const l of L){const it=itemById(l.itemId);if(!it)continue;if(!it.batches.find(x=>x.id===l.batchId)){const b={id:uid(),b:'',exp:''};it.batches.push(b);it.t=Date.now();l.batchId=b.id}}
   const old=D.editId&&DB.bills.find(x=>x.id===D.editId);
   const bill=old||{id:uid(),n:DB.seq,no:DB.shop.prefix+DB.seq,t0:Date.now()};
   if(old){for(const p of DB.pays.filter(p=>p.bill===old.id))gone('pays',p.id)}
-  const paid=Math.min(recv,t.total);const extra=cust?r2(recv-t.total):0;
-  Object.assign(bill,{date:D.date||today(),cust:cust?{id:cust.id,name:cust.name,phone:cust.phone}:null,lines:L,disc:num(D.disc),total:t.total,paid:r2(Math.max(0,paid)),recv,prevDue:Math.max(0,pb),prevDep:Math.max(0,-pb),mode:recv<=0?(nett>0.5?'Due':'Deposit'):D.mode,t:Date.now()});
+  /* the customer's balance before this invoice, as the app knows it (without this invoice) */
+  const prior=cust?prevBal(cust.id,old?(old.t0||old.t):Infinity,bill.id):0;
+  const paid=Math.min(recv,t.total);const extra=cust?r2(recv-t.total):0;const ro=D.ro===''||D.ro==null?null:num(D.ro);
+  Object.assign(bill,{date:D.date||today(),cust:cust?{id:cust.id,name:cust.name,phone:cust.phone}:null,lines:L,disc:num(D.disc),ro,total:t.total,paid:r2(Math.max(0,paid)),recv,prevDue:pDue,prevDep:pDep,mode:recv<=0?(nett>0.5?'Due':'Deposit'):D.mode,t:Date.now()});
   if(!bill.t0)bill.t0=bill.t;
+  /* when Prev. due / Prev. dep. is filled, the customer's account is set to match it (counts dues kept on paper too) */
+  if(cust&&(pDue||pDep)){const adj=r2((pDue-pDep)-prior);if(Math.abs(adj)>=0.01)DB.pays.push({id:uid(),cust:cust.id,bill:bill.id,date:bill.date,amt:-adj,mode:'Adjust',kind:'adj',note:(adj>0?'Prev. due added':'Prev. dep. added')+' on invoice '+bill.no,t:Date.now()-1})}
   if(extra>0.5)DB.pays.push({id:uid(),cust:cust.id,bill:bill.id,date:bill.date,amt:extra,mode:D.mode==='Due'?'Cash':D.mode,note:'Paid with invoice '+bill.no,t:Date.now()});
   if(!old){DB.bills.push(bill);DB.seq++}
-  await persist();st.draft=null;location.hash='#inv/'+bill.id;setTimeout(()=>flash('✓ Sale invoice '+esc(bill.no)+(old?' updated.':' saved.')+' Stock is updated.'),50)}
+  await persist();st.draft=null;location.hash='#inv/'+bill.id;setTimeout(()=>flash('✓ Sale invoice '+(old?'updated.':'saved.')+' Stock is updated.'),50)}
 
 /* ---------- invoice view, print, share ---------- */
-function invNums(b){const t=billCalc(b.lines);const pDue=b.prevDue||0,pDep=b.prevDep||0;const nett=r2(b.total+pDue-pDep);
+function invNums(b){const t=billCalc(b.lines,b.ro);const pDue=b.prevDue||0,pDep=b.prevDep||0;const nett=r2(b.total+pDue-pDep);
   const recv=b.recv!=null?b.recv:b.paid;return{t,pDue,pDep,nett,recv,bal:r2(nett-recv)}}
 function invHTML(b,thermal){const S=DB.shop,P=PS(),ph=isPh();const{t,pDue,pDep,nett,recv,bal}=invNums(b);
   const rates=Object.entries(t.byRate).filter(([g])=>+g>0);const dpc=b.disc||(b.lines[0]&&b.lines[0].disc)||0;
   const showB=ph&&P.batch,showH=false;P.gstCol=0;P.gstSum=0;P.gstin=0;
   const head=`<div class="hd"><div><h1>${esc(S.name||'My Shop')}</h1>${P.addr&&S.addr?`<div>${esc(S.addr)}</div>`:''}${P.phone&&S.phone?`<div>Ph: ${esc(S.phone)}</div>`:''}${P.dl&&ph&&S.dl?`<div>DL No: ${esc(S.dl)}</div>`:''}</div>
-   <div ${thermal?'':'style="text-align:right"'}><b>SALE INVOICE</b><div>No: ${esc(b.no)}</div><div>Date: ${dl(b.date)}</div>${P.cust&&b.cust?`<div>To: ${esc(b.cust.name)}${P.custPhone&&b.cust.phone?' · '+esc(b.cust.phone):''}</div>`:''}</div></div>`;
+   <div ${thermal?'':'style="text-align:right"'}><b>SALE INVOICE</b>${P.invno?`<div>No: ${esc(b.no)}</div>`:''}<div>Date: ${dl(b.date)}</div>${P.cust&&b.cust?`<div>To: ${esc(b.cust.name)}${P.custPhone&&b.cust.phone?' · '+esc(b.cust.phone):''}</div>`:''}</div></div>`;
   const rows=thermal?`<thead><tr><th>Item</th><th class="r">Qty</th><th class="r">MRP</th><th class="r">Amt</th></tr></thead><tbody>${b.lines.map(l=>`<tr><td>${esc(l.name)}${showB&&l.batch?`<br><small>B:${esc(l.batch)} E:${expL(l.exp)}</small>`:''}</td><td class="r">${l.qty}</td><td class="r">${r2(l.rate)}</td><td class="r">${r2(l.qty*l.rate).toFixed(2)}</td></tr>`).join('')}</tbody>`
    :`<thead><tr><th>#</th><th>Item</th>${showB?'<th>Batch</th><th>Exp</th>':''}${showH?'<th>HSN</th>':''}<th class="r">Qty</th><th class="r">MRP</th>${P.gstCol?'<th class="r">GST</th>':''}<th class="r">Amount</th></tr></thead><tbody>${b.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.name)}</td>${showB?`<td>${esc(l.batch||'')}</td><td>${expL(l.exp)}</td>`:''}${showH?`<td>${esc(l.hsn||'')}</td>`:''}<td class="r">${l.qty}</td><td class="r">${r2(l.rate).toFixed(2)}</td>${P.gstCol?`<td class="r">${l.gst}%</td>`:''}<td class="r">${r2(l.qty*l.rate).toFixed(2)}</td></tr>`).join('')}</tbody>`;
   const sum=`<div class="sum"><span>Total amount (MRP × Qty)</span><span>${r2(t.gross).toFixed(2)}</span>
@@ -468,7 +485,7 @@ function invHTML(b,thermal){const S=DB.shop,P=PS(),ph=isPh();const{t,pDue,pDep,n
   const ft=`<div class="ft">${P.footer?esc(S.footer||''):''}${P.upi&&S.upi&&bal>0.5?`<br/>Pay by UPI: ${esc(S.upi)}`:''}</div>`;
   return`<div class="inv ${thermal?'th':''}">${head}<div class="tw"><table>${rows}</table></div>${sum}${gst}${ft}</div>`}
 function invText(b){const S=DB.shop,P=PS();const{t,pDue,pDep,nett,recv,bal}=invNums(b);const dpc=b.disc||(b.lines[0]&&b.lines[0].disc)||0;
-  return`*${S.name||'Sale invoice'}*\nSale invoice ${b.no} · ${dl(b.date)}\n\n`+b.lines.map(l=>`${l.name} × ${l.qty} @ MRP ₹${r2(l.rate)} = ₹${r2(l.qty*l.rate)}`).join('\n')+
+  return`*${S.name||'Sale invoice'}*\nSale invoice${P.invno?' '+b.no:''} · ${dl(b.date)}\n\n`+b.lines.map(l=>`${l.name} × ${l.qty} @ MRP ₹${r2(l.rate)} = ₹${r2(l.qty*l.rate)}`).join('\n')+
    `\n\nTotal amount: ₹${r2(t.gross)}`+(t.disc?`\nDiscount ${r2(dpc)}%: −₹${r2(t.disc)}`:'')+(pDue?`\nPrev. due: +₹${r2(pDue)}`:'')+(pDep?`\nPrev. dep.: −₹${r2(pDep)}`:'')+
    `\n*Nett total: ₹${nett.toLocaleString('en-IN')}*\nReceived: ₹${r2(recv)}`+(bal>0.5?`\nBalance due: ₹${bal}`:'')+(S.upi&&bal>0.5?`\nPay by UPI: ${S.upi}`:'')+(P.footer&&S.footer?`\n\n${S.footer}`:'')}
 const waBill=b=>'https://wa.me/'+phoneWA(b.cust?.phone)+'?text='+encodeURIComponent(invText(b));
@@ -498,7 +515,7 @@ function viewInv(id){const b=DB.bills.find(x=>x.id===id);if(!b){location.hash='#
    <div class="row"><button class="btn red" id="delB">Delete invoice</button><span class="note">Deleting puts the items back in stock.</span></div>`;
   const th=P.paper==='th';const pr=x=>x?printThermal(b):doPrint(invHTML(b,false),false);$('#pDef').onclick=()=>pr(th);$('#pOther').onclick=()=>pr(!th);
   $('#shImg').onclick=()=>shareInv(b,'img');$('#shTxt').onclick=()=>shareInv(b,'text');
-  $('#edB').onclick=()=>{const dp=b.disc!=null?b.disc:(b.lines[0]&&b.lines[0].disc)||0;st.draft={editId:b.id,date:b.date,cust:{name:b.cust?b.cust.name:'',phone:b.cust?b.cust.phone||'':''},lines:b.lines.map(l=>({...l})),disc:String(dp||0),paid:String(b.recv!=null?b.recv:b.paid),mode:b.mode==='Udhaar'?'Due':b.mode};location.hash='#new'};
+  $('#edB').onclick=()=>{const dp=b.disc!=null?b.disc:(b.lines[0]&&b.lines[0].disc)||0;st.draft={editId:b.id,date:b.date,cust:{name:b.cust?b.cust.name:'',phone:b.cust?b.cust.phone||'':''},lines:b.lines.map(l=>({...l})),disc:String(dp||0),paid:String(b.recv!=null?b.recv:b.paid),mode:b.mode==='Udhaar'?'Due':b.mode,ro:b.ro==null?'':String(b.ro),pdue:b.prevDue?String(b.prevDue):'',pdep:b.prevDep?String(b.prevDep):''};location.hash='#new'};
   twoTap($('#delB'),'Tap again to delete',async()=>{gone('bills',b.id);for(const p of DB.pays.filter(p=>p.bill===b.id))gone('pays',p.id);await persist();location.hash='#bills';setTimeout(()=>flash('Sale invoice '+esc(b.no)+' deleted and stock restored.'),50)})}
 /* ---------- receipt printer (3-inch thermal, ESC/POS) by USB cable or COM port ---------- */
 const PRN={dev:null,port:null,kind:''};
@@ -515,7 +532,7 @@ function escpos(b){const S=DB.shop,P=PS(),ph=isPh(),W=prnCfg().cols;const{t,pDue
   E(27,97,1);E(27,69,1);E(29,33,0x11);center(S.name||'My Shop');E(29,33,0);E(27,69,0);
   if(P.addr&&S.addr)center(S.addr);if(P.phone&&S.phone)center('Ph: '+S.phone);if(P.dl&&ph&&S.dl)center('DL No: '+S.dl);
   E(27,69,1);center('SALE INVOICE');E(27,69,0);E(27,97,0);
-  lr('No: '+b.no,'Date: '+dl(b.date));if(P.cust&&b.cust)lr('To: '+b.cust.name,P.custPhone&&b.cust.phone?b.cust.phone:'');
+  if(P.invno)lr('No: '+b.no,'Date: '+dl(b.date));else{E(27,97,1);T('Date: '+dl(b.date));NL();E(27,97,0)}if(P.cust&&b.cust)lr('To: '+b.cust.name,P.custPhone&&b.cust.phone?b.cust.phone:'');
   line();const q=6,m=9,a=10,n=W-q-m-a;T('Item'.padEnd(n)+'Qty'.padStart(q)+'MRP'.padStart(m)+'Amount'.padStart(a));NL();line();
   for(const l of b.lines){const nm=wrap(l.name,n-1);const nums=String(l.qty).padStart(q)+r2(l.rate).toFixed(2).padStart(m)+r2(l.qty*l.rate).toFixed(2).padStart(a);
     T(nm[0].padEnd(n)+nums);NL();for(const x of nm.slice(1)){T(x);NL()}
@@ -649,7 +666,7 @@ function viewSup(id){const c=supById(id);if(!c){location.hash='#parties/sup';ret
   twoTap($('#supdel'),P.length?'Has payments: tap again':'Tap again to delete',async()=>{gone('sups',id);for(const p of P)gone('spays',p.id);await persist();location.hash='#parties/sup'});
   $$('[data-ds]').forEach(b=>twoTap(b,'Delete?',async()=>{gone('spays',b.dataset.ds);await persist();render();flash('Payment removed.')}))}
 function viewParty(id){const c=custById(id);if(!c){location.hash='#parties';return}const S=DB.shop;
-  const ev=[...DB.bills.filter(b=>b.cust&&b.cust.id===id).map(b=>({d:b.date,t:b.t,txt:'Invoice '+b.no,dr:b.total,cr:b.paid,bill:b.id})),...DB.pays.filter(p=>p.cust===id).map(p=>({d:p.date,t:p.t,txt:'Payment received ('+p.mode+')'+(p.note?' · '+p.note:''),dr:0,cr:p.amt,pay:p.id}))].sort((a,b)=>a.d.localeCompare(b.d)||a.t-b.t);
+  const ev=[...DB.bills.filter(b=>b.cust&&b.cust.id===id).map(b=>({d:b.date,t:b.t,txt:'Invoice '+b.no,dr:b.total,cr:b.paid,bill:b.id})),...DB.pays.filter(p=>p.cust===id).map(p=>({d:p.date,t:p.t,txt:p.kind==='adj'?(p.note||'Balance set'):(p.kind==='dep'?'Deposit received (':'Payment received (')+p.mode+')'+(p.note&&p.kind!=='dep'?' · '+p.note:''),dr:p.amt<0?-p.amt:0,cr:p.amt>0?p.amt:0,pay:p.id}))].sort((a,b)=>a.d.localeCompare(b.d)||a.t-b.t);
   let run=0;ev.forEach(e=>{run+=e.dr-e.cr;e.bal=run});const due=dueOf(id);
   const msg=`Hello ${c.name},\nYour pending amount at *${S.name||'our shop'}* is *₹${r2(due).toLocaleString('en-IN')}*.${S.upi?`\nPay by UPI: ${S.upi}`:''}\nPlease pay at your convenience. Thank you!`;
   $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#parties">← Customers</a></div>
@@ -682,7 +699,7 @@ function viewSettings(sub){const S=DB.shop,ph=isPh(),P=PS();
    <label class="f">Shop type<select class="in" id="s_mode"><option value="pharmacy" ${ph?'selected':''}>Pharmacy (batch no., expiry, salt search)</option><option value="general" ${ph?'':'selected'}>General shop</option></select></label>
    <label class="f">Message at the bottom of invoices<input class="in" id="s_footer" value="${esc(S.footer)}"></label><button class="btn pri">Save shop details</button></form>
    <section class="card stack" id="printCard"><h3>Print settings</h3><p class="note" style="margin:0">Tick what you want on your printed and shared sale invoices.</p>
-    <div class="grid g2"><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="addr" ${P.addr?'checked':''} style="width:22px;height:22px;flex:none">Shop address</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="phone" ${P.phone?'checked':''} style="width:22px;height:22px;flex:none">Shop phone number</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="dl" ${P.dl?'checked':''} style="width:22px;height:22px;flex:none">Drug licence no.</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="cust" ${P.cust?'checked':''} style="width:22px;height:22px;flex:none">Customer name</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="custPhone" ${P.custPhone?'checked':''} style="width:22px;height:22px;flex:none">Customer mobile</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="batch" ${P.batch?'checked':''} style="width:22px;height:22px;flex:none">Batch no. and expiry</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="prev" ${P.prev?'checked':''} style="width:22px;height:22px;flex:none">Prev. due, prev. dep. and balance</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="footer" ${P.footer?'checked':''} style="width:22px;height:22px;flex:none">Message at the bottom</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="upi" ${P.upi?'checked':''} style="width:22px;height:22px;flex:none">UPI ID when money is due</label></div>
+    <div class="grid g2"><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="invno" ${P.invno?'checked':''} style="width:22px;height:22px;flex:none">Invoice number (INV-…)</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="addr" ${P.addr?'checked':''} style="width:22px;height:22px;flex:none">Shop address</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="phone" ${P.phone?'checked':''} style="width:22px;height:22px;flex:none">Shop phone number</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="dl" ${P.dl?'checked':''} style="width:22px;height:22px;flex:none">Drug licence no.</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="cust" ${P.cust?'checked':''} style="width:22px;height:22px;flex:none">Customer name</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="custPhone" ${P.custPhone?'checked':''} style="width:22px;height:22px;flex:none">Customer mobile</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="batch" ${P.batch?'checked':''} style="width:22px;height:22px;flex:none">Batch no. and expiry</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="prev" ${P.prev?'checked':''} style="width:22px;height:22px;flex:none">Prev. due / dep. (when filled) and balance</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="footer" ${P.footer?'checked':''} style="width:22px;height:22px;flex:none">Message at the bottom</label><label class="row" style="gap:10px;min-height:40px;font-weight:600;flex-wrap:nowrap"><input type="checkbox" data-pk="upi" ${P.upi?'checked':''} style="width:22px;height:22px;flex:none">UPI ID when money is due</label></div>
     <label class="f">Default paper<select class="in" id="ppaper"><option value="a4" ${P.paper!=='th'?'selected':''}>A4 / normal printer</option><option value="th" ${P.paper==='th'?'selected':''}>3-inch thermal printer</option></select></label>
     <div class="row"><button class="btn pri" id="psave" type="button">Save print settings</button><button class="btn" id="pprev" type="button">Preview</button></div><div id="pPrevBox"></div></section>
    <section class="card stack" id="prnCard"><h3>Receipt printer (3-inch)</h3><p id="prnSt" style="margin:0">${prnStatus()}</p>
