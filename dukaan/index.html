@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
-<meta name="app-version" content="2026.11.28.13">
+<meta name="app-version" content="2026.11.28.14">
 <title>My Shop</title>
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -42,7 +42,9 @@ label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:70
 .hero{background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;border:0}.hero span{color:#d5fbf4}
 .list{display:flex;flex-direction:column}
 .li{display:flex;gap:10px;align-items:center;padding:12px 2px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left}
-.li:last-child{border-bottom:0}.li .t{flex:1;min-width:0}.li .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.li .t small{color:var(--muted);font-size:12.5px}
+.li:last-child{border-bottom:0}
+.lirow{display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line)}.lirow:last-child{border-bottom:0}.lirow .li{border-bottom:0;flex:1;min-width:0}
+.prnb{flex:none;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--acc);display:flex;align-items:center;justify-content:center;cursor:pointer}.prnb:hover{background:var(--soft)}.prnb.on,.prnb:active{background:var(--acc);color:#fff;border-color:var(--acc)}.li .t{flex:1;min-width:0}.li .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.li .t small{color:var(--muted);font-size:12.5px}
 .li .a{text-align:right;font-weight:800;white-space:nowrap}
 .chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
 .chip{flex:none;min-height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:#fff;font-weight:700;font-size:13.5px;cursor:pointer}
@@ -348,7 +350,10 @@ function viewHome(){const t=today(),ym=t.slice(0,7);let sT=0,cashT=0,nT=0;
     ${A.low.length?`<h3 style="margin-top:10px">Low stock · ${A.low.length}</h3><div class="list">${A.low.map(it=>`<a class="li" href="#item/${it.id}"><span class="t"><b>${esc(it.name)}</b><small>Alert at ${it.low}</small></span><span class="pill p-amb">${qtyOf(it)} left</span></a>`).join('')}</div>`:''}
    </section><section class="card"><div class="row"><h2 class="sp">Recent sale invoices</h2><a href="#bills">All invoices</a></div>
     ${recent.length?`<div class="list">${recent.map(billLi).join('')}</div>`:'<p class="empty">No sale invoices yet. Tap New sale invoice to make your first one.</p>'}</section></div>`}
-function billLi(b){const bal=invNums(b).bal;return`<a class="li" href="#inv/${b.id}"><span class="t"><b>${esc(b.no)} · ${esc(b.cust?.name||'Walk-in customer')}</b><small>${dl(b.date)} · ${b.lines.length} item${b.lines.length===1?'':'s'} · ${esc(modeL(b.mode))}</small></span><span class="a">${inr(b.total)}${bal>0.5?`<br><span class="pill p-red">Due ${inr(bal)}</span>`:''}</span></a>`}
+const PICON='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>';
+function printInv(b){const th=PS().paper==='th';return th?printThermal(b):doPrint(invHTML(b,false),false)}
+document.addEventListener('click',e=>{const x=e.target.closest('[data-prn]');if(!x||!DB)return;e.preventDefault();const b=DB.bills.find(y=>y.id===x.dataset.prn);if(!b)return;x.classList.add('on');setTimeout(()=>x.classList.remove('on'),600);printInv(b)});
+function billLi(b){const bal=invNums(b).bal;return`<div class="lirow"><a class="li" href="#inv/${b.id}"><span class="t"><b>${esc(b.no)} · ${esc(b.cust?.name||'Walk-in customer')}</b><small>${dl(b.date)} · ${b.lines.length} item${b.lines.length===1?'':'s'} · ${esc(modeL(b.mode))}</small></span><span class="a">${inr(b.total)}${bal>0.5?`<br><span class="pill p-red">Due ${inr(bal)}</span>`:''}</span></a><button type="button" class="prnb" data-prn="${b.id}" aria-label="Print sale invoice for ${esc(b.cust?.name||'walk-in customer')}" title="Print">${PICON}</button></div>`}
 
 /* ---------- sale invoice (new or edit) ---------- */
 const PDEF={invno:0,paid:0,addr:1,phone:1,dl:1,cust:1,custPhone:1,batch:1,prev:1,footer:1,upi:1,paper:'a4'};
@@ -508,7 +513,7 @@ async function shareInv(b,how){const name=('Sale-invoice-'+b.no).replace(/[^\w-]
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name+'.png';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},800);flash('✓ Invoice picture downloaded. Attach it in WhatsApp or email.')}
   catch(e){if(e&&e.name==='AbortError')return;flash('Could not share the picture here. Use Print → Save as PDF, or Share as text.',1)}}
 function viewInv(id){const b=DB.bills.find(x=>x.id===id);if(!b){location.hash='#bills';return}const P=PS();
-  $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#bills">← Sale invoices</a><span class="sp"></span><button class="btn sm" id="edB">✎ Edit</button></div>
+  $('#view').innerHTML=`<div class="row"><a class="btn sm" href="#bills">← Sale invoices</a><span class="sp"></span><button class="btn sm" data-prn="${b.id}" aria-label="Print this sale invoice">${PICON} Print</button><button class="btn sm" id="edB">✎ Edit</button></div>
    <div class="row"><button class="btn pri" id="shImg">Share invoice</button><button class="btn" id="shTxt">Share as text</button><a class="btn" id="wa" target="_blank" rel="noopener" href="${waBill(b)}">WhatsApp</a></div>
    <div class="row"><button class="btn" id="pDef">Print ${P.paper==='th'?'3-inch':'A4'}</button><button class="btn" id="pOther">Print ${P.paper==='th'?'A4':'3-inch'}</button><a class="btn sm" href="#settings/print" style="margin-left:auto">Print settings</a></div>
    ${invHTML(b,false)}
