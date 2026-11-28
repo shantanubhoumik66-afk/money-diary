@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Diary</title>
 <!-- Change app-version on every update so installed apps show the "Update now" bar -->
-<meta name="app-version" content="2026.11.28.48">
+<meta name="app-version" content="2026.11.28.49">
 <meta name="theme-color" content="#0b0a14">
 <script>try{var lk=localStorage.getItem("md.look");if(lk&&lk!=="midnight")document.documentElement.dataset.look=lk}catch(e){}</script>
 <meta name="description" content="Your personal budget diary">
@@ -761,9 +761,9 @@ function data(){
 const mfFOf=ym=>(DB.manualM[ym]&&DB.manualM[ym].mf)||DB.mfF[ym]||(DB.mf[ym]?{MF:DB.mf[ym]}:{});
 const mfOf=ym=>Object.values(mfFOf(ym)).reduce((a,b)=>a+b,0);
 const dkOf=ym=>DB.dk&&DB.dk.m&&DB.dk.m[ym]?DB.dk.m[ym]:null;
-/* your own business amount (typed or from Excel) plus My Shop's monthly nett */
+/* business = My Shop's monthly nett; months before My Shop keep their old amount */
 const bizBase=ym=>DB.manualM[ym]&&DB.manualM[ym].biz!=null?Math.max(0,DB.manualM[ym].biz):DB.biz[ym]||0;
-const bizOf=ym=>bizBase(ym)+(dkOf(ym)?dkOf(ym).nett:0);
+const bizOf=ym=>dkOf(ym)?dkOf(ym).nett:bizBase(ym);
 const hasData=()=>Object.keys(DB.months).length+Object.keys(DB.manual).length+Object.keys(DB.mf).length+Object.keys(DB.biz).length+Object.keys((DB.dk&&DB.dk.m)||{}).length>0;
 function monthRows(){
   const{inc,exp}=data();const M={};const g=k=>M[k]||(M[k]={ym:k,m:0,e:0,u:0,x:0,mf:0,biz:0,days:0,off:0});
@@ -1073,7 +1073,7 @@ function viewAdd(){
   <div class="acts" style="margin-top:14px"><button class="btn pri" type="button" id="save">Save day</button>${man?'<button class="btn" type="button" id="undo">Remove my app entry for this day</button>':''}</div>
   <p id="fmsg" style="margin:10px 0 0;min-height:1.5em"></p></section>
   <section class="card"><h2>Monthly business amount and MF</h2><p class="note" style="margin:0 0 8px">These are monthly, like in your yearly overview sheet.</p>
-  <div class="frow"><label>Month<select id="em" class="in">${yms.map(k=>`<option value="${k}" ${k===st.em?'selected':''}>${ymLabel(k)}</option>`).join('')}</select></label><label>Business amount ₹<input id="eb" class="in" inputmode="numeric" value="${bizOf(st.em)||''}" placeholder="0">${dkOf(st.em)?`<small class="note" style="font-weight:500">My Shop nett ${inr(dkOf(st.em).nett)}${bizBase(st.em)?` + typed ${inr(bizBase(st.em))}`:''}</small>`:DB.link?`<small class="note" style="font-weight:500">No My Shop nett for this month yet</small>`:''}</label>
+  <div class="frow"><label>Month<select id="em" class="in">${yms.map(k=>`<option value="${k}" ${k===st.em?'selected':''}>${ymLabel(k)}</option>`).join('')}</select></label><label>Business amount ₹<input id="eb" class="in" value="${bizOf(st.em)?inr(bizOf(st.em)):''}" placeholder="₹0" readonly tabindex="-1" style="background:var(--mist,rgba(127,127,127,.12));cursor:default"><small class="note" style="font-weight:500">${dkOf(st.em)?'From My Shop, synced automatically':bizBase(st.em)?'Old amount, from before My Shop':'Comes from My Shop when it has sales this month'}</small></label>
   ${fundNames.map((f,i)=>`<label>${esc(f)} ₹<input class="in ef" data-f="${esc(f)}" inputmode="numeric" value="${F[f]||''}" placeholder="0"></label>`).join('')}</div>
   <div class="acts" style="margin-top:12px"><button class="btn pri" type="button" id="msave">Save month</button>${DB.manualM[st.em]?'<button class="btn" type="button" id="mundo">Use the Excel values again</button>':''}</div><p id="mmsg" style="margin:10px 0 0"></p></section>
   <section class="card"><h2>Days you added in the app</h2>
@@ -1104,7 +1104,7 @@ function viewAdd(){
   const u=$('#undo');if(u)confirm2(u,'Tap again to remove',async()=>{delete DB.manual[d];(DB.del||(DB.del={}))[d]=Date.now();await persist();render()});
   $('#em').onchange=e=>{st.em=e.target.value;render()};
   $('#msave').onclick=async()=>{if(DB.demo){DB=blank();st.year=null}const mf={};V.querySelectorAll('.ef').forEach(i=>{const v=num(i.value);if(v)mf[i.dataset.f]=v});
-    DB.manualM[st.em]={biz:Math.max(0,Math.round((num($("#eb").value)-(dkOf(st.em)?dkOf(st.em).nett:0))*100)/100),mf,t:Date.now()};if(DB.delM)delete DB.delM[st.em];await persist();render();$('#mmsg').className='upc';$('#mmsg').textContent='✓ Saved '+ymLabel(st.em)+'. The dashboard is updated.'};
+    DB.manualM[st.em]={biz:DB.manualM[st.em]&&DB.manualM[st.em].biz!=null?DB.manualM[st.em].biz:null,mf,t:Date.now()};if(DB.delM)delete DB.delM[st.em];await persist();render();$('#mmsg').className='upc';$('#mmsg').textContent='✓ Saved '+ymLabel(st.em)+'. The dashboard is updated.'};
   const mu=$('#mundo');if(mu)mu.onclick=async()=>{delete DB.manualM[st.em];(DB.delM||(DB.delM={}))[st.em]=Date.now();await persist();render()};
 }
 function empty(){
